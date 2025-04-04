@@ -26,8 +26,8 @@ class FileItem {
   factory FileItem.fromFile(FileSystemEntity entity) {
     final File file = entity as File;
     final String name = p.basename(entity.path);
-    final DateTime? modifiedTime = file.statSync().modified;
-    final int? size = file.statSync().size;
+    final DateTime modifiedTime = file.statSync().modified;
+    final int size = file.statSync().size;
 
     return FileItem(
       path: entity.path,
@@ -41,7 +41,7 @@ class FileItem {
   factory FileItem.fromDirectory(FileSystemEntity entity) {
     final String name = p.basename(entity.path);
     final Directory dir = entity as Directory;
-    final DateTime? modifiedTime = dir.statSync().modified;
+    final DateTime modifiedTime = dir.statSync().modified;
 
     return FileItem(
       path: entity.path,

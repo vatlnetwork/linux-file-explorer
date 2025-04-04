@@ -6,9 +6,9 @@ class ThemeSwitcher extends StatelessWidget {
   final bool useCustomColors;
   
   const ThemeSwitcher({
-    Key? key,
+    super.key,
     this.useCustomColors = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

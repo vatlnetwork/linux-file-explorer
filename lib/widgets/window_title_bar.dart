@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
@@ -8,11 +7,7 @@ class WindowTitleBar extends StatefulWidget {
   final String title;
   final Widget child;
 
-  const WindowTitleBar({
-    Key? key,
-    required this.title,
-    required this.child,
-  }) : super(key: key);
+  const WindowTitleBar({super.key, required this.title, required this.child});
 
   @override
   State<WindowTitleBar> createState() => _WindowTitleBarState();
@@ -52,10 +47,11 @@ class _WindowTitleBarState extends State<WindowTitleBar> with WindowListener {
   @override
   Widget build(BuildContext context) {
     final themeService = Provider.of<ThemeService>(context);
-    final isDark = themeService.isDarkMode || 
-                  (themeService.isSystemMode && 
-                   MediaQuery.of(context).platformBrightness == Brightness.dark);
-    
+    final isDark =
+        themeService.isDarkMode ||
+        (themeService.isSystemMode &&
+            MediaQuery.of(context).platformBrightness == Brightness.dark);
+
     return Material(
       color: Colors.transparent,
       child: Column(
@@ -86,7 +82,7 @@ class _WindowTitleBarState extends State<WindowTitleBar> with WindowListener {
           color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFF1976D2),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -95,11 +91,7 @@ class _WindowTitleBarState extends State<WindowTitleBar> with WindowListener {
         child: Row(
           children: [
             const SizedBox(width: 16),
-            Icon(
-              Icons.folder,
-              color: Colors.white,
-              size: 20,
-            ),
+            Icon(Icons.folder, color: Colors.white, size: 20),
             const SizedBox(width: 8),
             Text(
               widget.title,
@@ -164,34 +156,32 @@ class _WindowTitleBarState extends State<WindowTitleBar> with WindowListener {
       message: tooltip,
       child: InkWell(
         onTap: onPressed,
+        hoverColor:
+            isCloseButton
+                ? Colors.red
+                : (isDark
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : Colors.black.withValues(alpha: 0.1)),
         child: Container(
           width: 46,
           height: 36,
           color: Colors.transparent,
-          child: Center(
-            child: Icon(
-              icon,
-              size: 16,
-              color: Colors.white,
-            ),
-          ),
+          child: Center(child: Icon(icon, size: 16, color: Colors.white)),
         ),
-        hoverColor: isCloseButton 
-            ? Colors.red 
-            : (isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1)),
       ),
     );
   }
 
   Widget _buildResizeHandles() {
     if (_isMaximized) return const SizedBox.shrink();
-    
+
     return SizedBox(
       height: 5,
       child: Row(
         children: [
           GestureDetector(
-            onPanStart: (details) => windowManager.startResizing(ResizeEdge.bottomLeft),
+            onPanStart:
+                (details) => windowManager.startResizing(ResizeEdge.bottomLeft),
             child: Container(
               width: 10,
               height: 10,
@@ -201,14 +191,15 @@ class _WindowTitleBarState extends State<WindowTitleBar> with WindowListener {
           ),
           Expanded(
             child: GestureDetector(
-              onPanStart: (details) => windowManager.startResizing(ResizeEdge.bottom),
-              child: Container(
-                color: Colors.transparent,
-              ),
+              onPanStart:
+                  (details) => windowManager.startResizing(ResizeEdge.bottom),
+              child: Container(color: Colors.transparent),
             ),
           ),
           GestureDetector(
-            onPanStart: (details) => windowManager.startResizing(ResizeEdge.bottomRight),
+            onPanStart:
+                (details) =>
+                    windowManager.startResizing(ResizeEdge.bottomRight),
             child: Container(
               width: 10,
               height: 10,
@@ -220,4 +211,4 @@ class _WindowTitleBarState extends State<WindowTitleBar> with WindowListener {
       ),
     );
   }
-} 
+}

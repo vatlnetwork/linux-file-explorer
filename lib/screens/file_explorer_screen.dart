@@ -1,15 +1,14 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
 import '../models/file_item.dart';
 import '../services/file_service.dart';
 import '../widgets/file_item_widget.dart';
 import '../widgets/theme_switcher.dart';
 
 class FileExplorerScreen extends StatefulWidget {
-  const FileExplorerScreen({Key? key}) : super(key: key);
+  const FileExplorerScreen({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _FileExplorerScreenState createState() => _FileExplorerScreenState();
 }
 
@@ -21,7 +20,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   bool _isLoading = true;
   bool _hasError = false;
   String _errorMessage = '';
-  List<String> _navigationHistory = [];
+  final List<String> _navigationHistory = [];
 
   @override
   void initState() {
@@ -120,6 +119,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         }
         _loadDirectory(_currentPath);
       } catch (e) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
@@ -184,6 +184,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         await _fileService.rename(item.path, result);
         _loadDirectory(_currentPath);
       } catch (e) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
@@ -204,8 +205,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Delete'),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text('Delete'),
           ),
         ],
       ),
@@ -216,6 +217,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         await _fileService.deleteFileOrDirectory(item.path);
         _loadDirectory(_currentPath);
       } catch (e) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
@@ -340,8 +342,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async => !_navigateBack(),
+    return PopScope(
+      onPopInvokedWithResult: (bool result, _) {
+        if (result) {
+          _navigateBack();
+        }
+      },
       child: Scaffold(
         body: Column(
           children: [
@@ -358,8 +364,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
               heroTag: 'createFile',
               onPressed: () => _showCreateDialog(false),
               tooltip: 'Create File',
-              child: Icon(Icons.insert_drive_file),
               mini: true,
+              child: Icon(Icons.insert_drive_file),
             ),
             SizedBox(height: 8),
             FloatingActionButton(
@@ -414,7 +420,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
                   );
                 }
                 
-                final path = '/' + pathParts.sublist(0, index).join('/');
+                final path = '/${pathParts.sublist(0, index).join('/')}';
                 final isLast = index == pathParts.length;
                 
                 return Row(

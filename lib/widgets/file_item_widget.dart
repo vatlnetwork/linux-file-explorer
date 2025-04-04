@@ -8,12 +8,12 @@ class FileItemWidget extends StatelessWidget {
   final Function(FileItem, Offset position) onRightClick;
 
   const FileItemWidget({
-    Key? key,
+    super.key,
     required this.item,
     required this.onTap,
     required this.onLongPress,
     required this.onRightClick,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
