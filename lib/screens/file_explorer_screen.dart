@@ -343,17 +343,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     return WillPopScope(
       onWillPop: () async => !_navigateBack(),
       child: Scaffold(
-        appBar: AppBar(
-          title: Text('File Explorer'),
-          actions: [
-            ThemeSwitcher(),
-            IconButton(
-              icon: Icon(Icons.refresh),
-              onPressed: () => _loadDirectory(_currentPath),
-              tooltip: 'Refresh',
-            ),
-          ],
-        ),
         body: Column(
           children: [
             _buildPathBar(),
@@ -389,40 +378,79 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     final pathParts = _currentPath.split('/').where((p) => p.isNotEmpty).toList();
     
     return Container(
-      height: 50,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: pathParts.length + 1,
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            return TextButton.icon(
-              onPressed: () {
-                _navigateToDirectory('/');
+      height: 48,
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark 
+            ? Color(0xFF373737) 
+            : Color(0xFFE3F2FD),
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).brightness == Brightness.dark 
+                ? Colors.black54 
+                : Colors.black12,
+            width: 1.0,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: pathParts.length + 1,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return TextButton.icon(
+                    onPressed: () {
+                      _navigateToDirectory('/');
+                    },
+                    icon: Icon(Icons.home),
+                    label: Text('Root'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white70
+                          : Colors.blue.shade700,
+                    ),
+                  );
+                }
+                
+                final path = '/' + pathParts.sublist(0, index).join('/');
+                final isLast = index == pathParts.length;
+                
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.chevron_right,
+                      size: 18,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white70
+                          : Colors.black54,
+                    ),
+                    TextButton(
+                      onPressed: isLast ? null : () => _navigateToDirectory(path),
+                      child: Text(
+                        pathParts[index - 1],
+                        style: TextStyle(
+                          fontWeight: isLast ? FontWeight.bold : FontWeight.normal,
+                          color: isLast 
+                              ? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87)
+                              : null,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
               },
-              icon: Icon(Icons.home),
-              label: Text('Root'),
-            );
-          }
-          
-          final path = '/' + pathParts.sublist(0, index).join('/');
-          final isLast = index == pathParts.length;
-          
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.chevron_right, size: 18),
-              TextButton(
-                onPressed: isLast ? null : () => _navigateToDirectory(path),
-                child: Text(
-                  pathParts[index - 1],
-                  style: TextStyle(
-                    fontWeight: isLast ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+            ),
+          ),
+          const ThemeSwitcher(),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => _loadDirectory(_currentPath),
+            tooltip: 'Refresh',
+          ),
+        ],
       ),
     );
   }

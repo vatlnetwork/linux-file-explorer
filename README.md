@@ -16,6 +16,13 @@ A simple file explorer application built with Flutter for Linux systems. This ap
 - Theme switching:
   - Toggle between system, light, and dark themes
   - Preferences are saved between sessions
+- Custom theme-aware UI:
+  - Custom window title bar with theme-aware controls
+  - Space-efficient combined navigation and control bar
+  - Consistently styled components that respond to theme changes
+  - Improved visual hierarchy and readability
+  - No duplicate title elements for clean design
+  - Maximized content area
 
 ## Getting Started
 

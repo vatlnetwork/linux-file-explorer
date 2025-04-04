@@ -3,14 +3,23 @@ import 'package:provider/provider.dart';
 import '../services/theme_service.dart';
 
 class ThemeSwitcher extends StatelessWidget {
-  const ThemeSwitcher({Key? key}) : super(key: key);
+  final bool useCustomColors;
+  
+  const ThemeSwitcher({
+    Key? key,
+    this.useCustomColors = false,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final themeService = Provider.of<ThemeService>(context);
+    final Color iconColor = useCustomColors ? Colors.white : Theme.of(context).iconTheme.color ?? Colors.grey;
     
     return PopupMenuButton<ThemeMode>(
-      icon: Icon(_getThemeIcon(themeService.themeMode)),
+      icon: Icon(
+        _getThemeIcon(themeService.themeMode),
+        color: iconColor,
+      ),
       tooltip: 'Change theme',
       onSelected: (ThemeMode mode) {
         themeService.setThemeMode(mode);

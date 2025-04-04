@@ -17,23 +17,44 @@ class FileItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onSecondaryTapUp: (details) {
-        // This handles right-click (secondary tap) on desktop
-        onRightClick(item, details.globalPosition);
-      },
-      child: ListTile(
-        leading: _buildLeadingIcon(),
-        title: Text(
-          item.name,
-          overflow: TextOverflow.ellipsis,
+    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
+      elevation: 0,
+      color: isDarkMode ? Color(0xFF1E1E1E) : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(4),
+        side: BorderSide(
+          color: isDarkMode ? Colors.black : Colors.grey.shade200,
+          width: 1,
         ),
-        subtitle: Text(
-          '${item.formattedModifiedTime}${item.formattedSize.isNotEmpty ? ' • ${item.formattedSize}' : ''}',
-          style: TextStyle(fontSize: 12),
+      ),
+      child: GestureDetector(
+        onSecondaryTapUp: (details) {
+          // This handles right-click (secondary tap) on desktop
+          onRightClick(item, details.globalPosition);
+        },
+        child: ListTile(
+          leading: _buildLeadingIcon(),
+          title: Text(
+            item.name,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              color: isDarkMode ? Colors.white : Colors.black87,
+            ),
+          ),
+          subtitle: Text(
+            '${item.formattedModifiedTime}${item.formattedSize.isNotEmpty ? ' • ${item.formattedSize}' : ''}',
+            style: TextStyle(
+              fontSize: 12,
+              color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+            ),
+          ),
+          onTap: onTap,
+          onLongPress: () => onLongPress(item),
         ),
-        onTap: onTap,
-        onLongPress: () => onLongPress(item),
       ),
     );
   }
