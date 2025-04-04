@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'screens/file_explorer_screen.dart';
 import 'services/theme_service.dart';
+import 'services/bookmark_service.dart';
 import 'widgets/window_title_bar.dart';
 
 void main() async {
@@ -24,9 +25,16 @@ void main() async {
     await windowManager.focus();
   });
   
+  // Initialize bookmark service
+  final bookmarkService = BookmarkService();
+  await bookmarkService.init();
+  
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeService(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeService()),
+        ChangeNotifierProvider.value(value: bookmarkService),
+      ],
       child: const MyApp(),
     ),
   );

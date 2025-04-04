@@ -4,15 +4,19 @@ import '../models/file_item.dart';
 class FileItemWidget extends StatelessWidget {
   final FileItem item;
   final VoidCallback onTap;
+  final VoidCallback onDoubleTap;
   final Function(FileItem) onLongPress;
   final Function(FileItem, Offset position) onRightClick;
+  final bool isSelected;
 
   const FileItemWidget({
     super.key,
     required this.item,
     required this.onTap,
+    required this.onDoubleTap,
     required this.onLongPress,
     required this.onRightClick,
+    this.isSelected = false,
   });
 
   @override
@@ -22,12 +26,16 @@ class FileItemWidget extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
       elevation: 0,
-      color: isDarkMode ? Color(0xFF1E1E1E) : Colors.white,
+      color: isSelected
+          ? (isDarkMode ? Colors.blueGrey.shade800 : Colors.blue.shade50)
+          : (isDarkMode ? Color(0xFF1E1E1E) : Colors.white),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(4),
         side: BorderSide(
-          color: isDarkMode ? Colors.black : Colors.grey.shade200,
-          width: 1,
+          color: isSelected
+              ? (isDarkMode ? Colors.blue.shade700 : Colors.blue.shade300)
+              : (isDarkMode ? Colors.black : Colors.grey.shade200),
+          width: isSelected ? 1.5 : 1,
         ),
       ),
       child: GestureDetector(
@@ -35,25 +43,29 @@ class FileItemWidget extends StatelessWidget {
           // This handles right-click (secondary tap) on desktop
           onRightClick(item, details.globalPosition);
         },
-        child: ListTile(
-          leading: _buildLeadingIcon(),
-          title: Text(
-            item.name,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontWeight: FontWeight.w500,
-              color: isDarkMode ? Colors.white : Colors.black87,
-            ),
-          ),
-          subtitle: Text(
-            '${item.formattedModifiedTime}${item.formattedSize.isNotEmpty ? ' • ${item.formattedSize}' : ''}',
-            style: TextStyle(
-              fontSize: 12,
-              color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
-            ),
-          ),
+        behavior: HitTestBehavior.opaque,
+        child: InkWell(
           onTap: onTap,
+          onDoubleTap: onDoubleTap,
           onLongPress: () => onLongPress(item),
+          child: ListTile(
+            leading: _buildLeadingIcon(),
+            title: Text(
+              item.name,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isDarkMode ? Colors.white : Colors.black87,
+              ),
+            ),
+            subtitle: Text(
+              '${item.formattedModifiedTime}${item.formattedSize.isNotEmpty ? ' • ${item.formattedSize}' : ''}',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+              ),
+            ),
+          ),
         ),
       ),
     );
