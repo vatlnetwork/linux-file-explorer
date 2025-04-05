@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
+import '../utils/color_extensions.dart';
 import '../services/theme_service.dart';
 
 class WindowTitleBar extends StatefulWidget {
@@ -79,7 +80,7 @@ class _WindowTitleBarState extends State<WindowTitleBar> with WindowListener {
       child: Container(
         height: 36,
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFF1976D2),
+          color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.2),
@@ -91,12 +92,12 @@ class _WindowTitleBarState extends State<WindowTitleBar> with WindowListener {
         child: Row(
           children: [
             const SizedBox(width: 16),
-            Icon(Icons.folder, color: Colors.white, size: 20),
+            Icon(Icons.folder, color: Colors.blue, size: 20),
             const SizedBox(width: 8),
             Text(
               widget.title,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
@@ -166,7 +167,15 @@ class _WindowTitleBarState extends State<WindowTitleBar> with WindowListener {
           width: 46,
           height: 36,
           color: Colors.transparent,
-          child: Center(child: Icon(icon, size: 16, color: Colors.white)),
+          child: Center(
+            child: Icon(
+              icon, 
+              size: 16, 
+              color: isCloseButton ? 
+                (isDark ? Colors.white : Colors.red.shade700) : 
+                (isDark ? Colors.white : Colors.black87)
+            )
+          ),
         ),
       ),
     );

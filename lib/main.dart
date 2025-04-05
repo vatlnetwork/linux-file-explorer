@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:logging/logging.dart';
 import 'screens/file_explorer_screen.dart';
 import 'services/theme_service.dart';
 import 'services/bookmark_service.dart';
@@ -8,6 +9,14 @@ import 'widgets/window_title_bar.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize logging
+  Logger.root.level = Level.INFO;
+  Logger.root.onRecord.listen((record) {
+    // In production, you could direct this to a file or service
+    // Use dart:developer log which is safe for production
+    debugPrint('${record.level.name}: ${record.time}: ${record.message}');
+  });
   
   // Initialize window_manager for custom window controls
   await windowManager.ensureInitialized();

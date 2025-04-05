@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
 import '../models/file_item.dart';
 import '../services/file_service.dart';
 import '../services/bookmark_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/file_item_widget.dart';
 import '../widgets/theme_switcher.dart';
 import '../widgets/bookmark_sidebar.dart';
@@ -29,6 +31,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   final List<String> _navigationHistory = [];
   bool _showBookmarkSidebar = true;
   FileItem? _selectedItem; // Track the currently selected item
+  
+  // Bookmark sidebar reference
+  BookmarkSidebar? _bookmarkSidebar;
   
   // Clipboard state
   FileItem? _clipboardItem;
@@ -131,10 +136,13 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         }
         _loadDirectory(_currentPath);
       } catch (e) {
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        if (mounted) {
+          NotificationService.showNotification(
+            context,
+            message: 'Error: $e',
+            type: NotificationType.error,
+          );
+        }
       }
     }
   }
@@ -196,10 +204,13 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         await _fileService.rename(item.path, result);
         _loadDirectory(_currentPath);
       } catch (e) {
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        if (mounted) {
+          NotificationService.showNotification(
+            context,
+            message: 'Error: $e',
+            type: NotificationType.error,
+          );
+        }
       }
     }
   }
@@ -229,10 +240,13 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         await _fileService.deleteFileOrDirectory(item.path);
         _loadDirectory(_currentPath);
       } catch (e) {
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        if (mounted) {
+          NotificationService.showNotification(
+            context,
+            message: 'Error: $e',
+            type: NotificationType.error,
+          );
+        }
       }
     }
   }
@@ -255,8 +269,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       _navigateToDirectory(item.path);
     } else {
       // For files, we could implement a file viewer or open with default app
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Opening file: ${item.name}')),
+      NotificationService.showNotification(
+        context,
+        message: 'Opening file: ${item.name}',
+        type: NotificationType.info,
       );
     }
   }
@@ -351,6 +367,17 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
             ],
           ),
         ),
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'properties',
+          child: Row(
+            children: [
+              Icon(Icons.info_outline),
+              SizedBox(width: 8),
+              Text('Properties'),
+            ],
+          ),
+        ),
       ],
     );
 
@@ -365,21 +392,27 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     } else if (result == 'add_bookmark') {
       await bookmarkService.addBookmark(item);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Bookmark added: ${item.name}')),
+        NotificationService.showNotification(
+          context,
+          message: 'Bookmark added: ${item.name}',
+          type: NotificationType.success,
         );
       }
     } else if (result == 'remove_bookmark') {
       await bookmarkService.removeBookmark(item.path);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Bookmark removed: ${item.name}')),
+        NotificationService.showNotification(
+          context,
+          message: 'Bookmark removed: ${item.name}',
+          type: NotificationType.info,
         );
       }
     } else if (result == 'rename') {
       _showRenameDialog(item);
     } else if (result == 'delete') {
       _showDeleteConfirmation(item);
+    } else if (result == 'properties') {
+      _showPropertiesDialog(item);
     }
   }
 
@@ -494,14 +527,18 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       // Don't check exit code as we're using fallbacks with ||
       // Instead, just show success message if we get here
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Opened current directory in terminal')),
+        NotificationService.showNotification(
+          context,
+          message: 'Opened current directory in terminal',
+          type: NotificationType.success,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to open terminal: $e')),
+        NotificationService.showNotification(
+          context,
+          message: 'Failed to open terminal: $e',
+          type: NotificationType.error,
         );
       }
     }
@@ -552,14 +589,18 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       // Don't check exit code as we're using fallbacks with ||
       // Show a snackbar to confirm
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Opened in terminal: ${item.name}')),
+        NotificationService.showNotification(
+          context,
+          message: 'Opened in terminal: ${item.name}',
+          type: NotificationType.success,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to open in terminal: $e')),
+        NotificationService.showNotification(
+          context,
+          message: 'Failed to open in terminal: $e',
+          type: NotificationType.error,
         );
       }
     }
@@ -570,8 +611,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       _clipboardItem = item;
       _isItemCut = true;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Cut: ${item.name}')),
+    NotificationService.showNotification(
+      context,
+      message: 'Cut: ${item.name}',
+      type: NotificationType.info,
     );
   }
 
@@ -580,15 +623,19 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       _clipboardItem = item;
       _isItemCut = false;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Copied: ${item.name}')),
+    NotificationService.showNotification(
+      context,
+      message: 'Copied: ${item.name}',
+      type: NotificationType.info,
     );
   }
 
   Future<void> _pasteItem() async {
     if (_clipboardItem == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Nothing to paste')),
+      NotificationService.showNotification(
+        context,
+        message: 'Nothing to paste',
+        type: NotificationType.warning,
       );
       return;
     }
@@ -600,8 +647,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       
       // Don't paste if source and destination are the same
       if (p.dirname(sourcePath) == _currentPath) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Cannot paste to the same location')),
+        NotificationService.showNotification(
+          context,
+          message: 'Cannot paste to the same location',
+          type: NotificationType.warning,
         );
         return;
       }
@@ -652,8 +701,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         });
         
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Moved: $itemName')),
+          NotificationService.showNotification(
+            context,
+            message: 'Moved: $itemName',
+            type: NotificationType.success,
           );
         }
       } else {
@@ -661,8 +712,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         await _fileService.copyFileOrDirectory(sourcePath, _currentPath);
         
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Copied: $itemName')),
+          NotificationService.showNotification(
+            context,
+            message: 'Copied: $itemName',
+            type: NotificationType.success,
           );
         }
       }
@@ -671,10 +724,144 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       _loadDirectory(_currentPath);
       
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Error: $e',
+          type: NotificationType.error,
+        );
+      }
     }
+  }
+
+  Future<void> _showPropertiesDialog(FileItem item) async {
+    final File file = File(item.path);
+    final Directory dir = Directory(item.path);
+    final bool isDirectory = item.type == FileItemType.directory;
+    
+    // Get file or directory stats
+    final FileStat stat = isDirectory 
+        ? dir.statSync() 
+        : file.statSync();
+    
+    // For directories, calculate the number of items
+    int itemCount = 0;
+    int totalSize = 0;
+    
+    if (isDirectory) {
+      try {
+        final List<FileSystemEntity> entities = dir.listSync();
+        itemCount = entities.length;
+        
+        // Calculate total size for directory contents (first level only)
+        for (final entity in entities) {
+          if (entity is File) {
+            totalSize += entity.lengthSync();
+          }
+        }
+      } catch (e) {
+        // Handle permission issues silently
+      }
+    }
+    
+    // Permission string formatting
+    String formatPermissions(FileStat stat) {
+      final modeString = stat.modeString();
+      return modeString.substring(1); // Remove the first character (file type)
+    }
+    
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              isDirectory ? Icons.folder : Icons.insert_drive_file,
+              color: isDirectory ? Colors.blue : Colors.blueGrey,
+            ),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Properties: ${item.name}',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text('Name'),
+                subtitle: Text(item.name),
+                dense: true,
+              ),
+              ListTile(
+                title: Text('Location'),
+                subtitle: Text(item.path),
+                dense: true,
+              ),
+              ListTile(
+                title: Text('Type'),
+                subtitle: Text(isDirectory 
+                    ? 'Directory' 
+                    : (item.fileExtension.isNotEmpty 
+                        ? '${item.fileExtension.toUpperCase().substring(1)} File' 
+                        : 'File')),
+                dense: true,
+              ),
+              if (!isDirectory)
+                ListTile(
+                  title: Text('Size'),
+                  subtitle: Text(item.formattedSize),
+                  dense: true,
+                ),
+              if (isDirectory)
+                ListTile(
+                  title: Text('Contents'),
+                  subtitle: Text('$itemCount items (${_formatSize(totalSize)})'),
+                  dense: true,
+                ),
+              ListTile(
+                title: Text('Created'),
+                subtitle: Text(DateFormat('MMM dd, yyyy HH:mm:ss').format(stat.changed)),
+                dense: true,
+              ),
+              ListTile(
+                title: Text('Modified'),
+                subtitle: Text(DateFormat('MMM dd, yyyy HH:mm:ss').format(stat.modified)),
+                dense: true,
+              ),
+              ListTile(
+                title: Text('Accessed'),
+                subtitle: Text(DateFormat('MMM dd, yyyy HH:mm:ss').format(stat.accessed)),
+                dense: true,
+              ),
+              ListTile(
+                title: Text('Permissions'),
+                subtitle: Text(formatPermissions(stat)),
+                dense: true,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  String _formatSize(int size) {
+    if (size < 1024) return '$size B';
+    if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
+    if (size < 1024 * 1024 * 1024) return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return '${(size / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
   @override

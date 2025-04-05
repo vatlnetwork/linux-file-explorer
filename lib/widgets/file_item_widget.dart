@@ -73,7 +73,7 @@ class FileItemWidget extends StatelessWidget {
 
   Widget _buildLeadingIcon() {
     if (item.type == FileItemType.directory) {
-      return Icon(Icons.folder, color: Colors.amber);
+      return Icon(Icons.folder, color: Colors.blue);
     }
 
     // Determine icon based on file extension
