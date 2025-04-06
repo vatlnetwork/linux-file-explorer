@@ -38,31 +38,36 @@ class FileItemWidget extends StatelessWidget {
           width: isSelected ? 1.5 : 1,
         ),
       ),
-      child: GestureDetector(
-        onSecondaryTapUp: (details) {
-          // This handles right-click (secondary tap) on desktop
-          onRightClick(item, details.globalPosition);
-        },
-        behavior: HitTestBehavior.opaque,
-        child: InkWell(
-          onTap: onTap,
-          onDoubleTap: onDoubleTap,
-          onLongPress: () => onLongPress(item),
-          child: ListTile(
-            leading: _buildLeadingIcon(),
-            title: Text(
-              item.name,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isDarkMode ? Colors.white : Colors.black87,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          // Using GestureDetector instead of Listener to ensure we properly intercept events
+          // before they reach other widgets
+          behavior: HitTestBehavior.opaque, // Ensures this widget gets all events
+          onSecondaryTapUp: (details) {
+            // This handles right-click (secondary tap) on desktop
+            onRightClick(item, details.globalPosition);
+          },
+          child: InkWell(
+            onTap: onTap,
+            onDoubleTap: onDoubleTap,
+            onLongPress: () => onLongPress(item),
+            child: ListTile(
+              leading: _buildLeadingIcon(),
+              title: Text(
+                item.name,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                ),
               ),
-            ),
-            subtitle: Text(
-              '${item.formattedModifiedTime}${item.formattedSize.isNotEmpty ? ' • ${item.formattedSize}' : ''}',
-              style: TextStyle(
-                fontSize: 12,
-                color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+              subtitle: Text(
+                '${item.formattedModifiedTime}${item.formattedSize.isNotEmpty ? ' • ${item.formattedSize}' : ''}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                ),
               ),
             ),
           ),

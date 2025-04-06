@@ -22,6 +22,7 @@ class FileExplorerScreen extends StatefulWidget {
 
 class _FileExplorerScreenState extends State<FileExplorerScreen> {
   final FileService _fileService = FileService();
+  final ScrollController _scrollController = ScrollController();
   
   String _currentPath = '';
   List<FileItem> _items = [];
@@ -32,9 +33,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   bool _showBookmarkSidebar = true;
   FileItem? _selectedItem; // Track the currently selected item
   
-  // Bookmark sidebar reference
-  BookmarkSidebar? _bookmarkSidebar;
-  
   // Clipboard state
   FileItem? _clipboardItem;
   bool _isItemCut = false; // false for copy, true for cut
@@ -43,6 +41,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   void initState() {
     super.initState();
     _initHomeDirectory();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _initHomeDirectory() async {
@@ -70,6 +74,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         _items = items;
         _currentPath = path;
         _isLoading = false;
+        
+        // Reset selection when changing directories
+        _selectedItem = null;
       });
     } catch (e) {
       _handleError('Failed to load directory: $e');
@@ -288,12 +295,15 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     final isFolder = item.type == FileItemType.directory;
     final isBookmarked = isFolder ? bookmarkService.isBookmarked(item.path) : false;
     
+    // Create a relative rectangle for positioning the menu
+    final RelativeRect menuPosition = RelativeRect.fromRect(
+      Rect.fromPoints(position, position),
+      Rect.fromLTWH(0, 0, overlay.size.width, overlay.size.height),
+    );
+    
     final result = await showMenu<String>(
       context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(position, position),
-        Rect.fromLTWH(0, 0, overlay.size.width, overlay.size.height),
-      ),
+      position: menuPosition,
       items: [
         PopupMenuItem<String>(
           value: 'open',
@@ -424,6 +434,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     
     final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     
+    // Create a relative rectangle for positioning the menu
+    final RelativeRect menuPosition = RelativeRect.fromRect(
+      Rect.fromPoints(position, position),
+      Rect.fromLTWH(0, 0, overlay.size.width, overlay.size.height),
+    );
+    
     final menuItems = <PopupMenuEntry<String>>[
       PopupMenuItem<String>(
         value: 'new_folder',
@@ -492,10 +508,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     
     final result = await showMenu<String>(
       context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(position, position),
-        Rect.fromLTWH(0, 0, overlay.size.width, overlay.size.height),
-      ),
+      position: menuPosition,
       items: menuItems,
     );
 
@@ -874,9 +887,13 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     };
 
     return PopScope(
-      onPopInvokedWithResult: (bool result, _) {
-        if (result) {
-          _navigateBack();
+      canPop: _navigationHistory.isEmpty,
+      onPopInvokedWithResult: (didPop, __) {
+        if (!didPop) {
+          // If we shouldn't pop (because we can navigate back), handle it manually
+          setState(() {
+            _navigateBack();
+          });
         }
       },
       child: Scaffold(
@@ -1126,41 +1143,60 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     }
 
     if (_items.isEmpty) {
-      return GestureDetector(
-        onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
-        behavior: HitTestBehavior.opaque,
-        child: SizedBox(
-          width: double.infinity,
-          height: double.infinity,
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+      return MouseRegion(
+        cursor: SystemMouseCursors.basic,
+        child: RefreshIndicator(
+          onRefresh: _refreshCurrentDirectory,
+          child: GestureDetector(
+            onSecondaryTapUp: (details) {
+              _showEmptySpaceContextMenu(details.globalPosition);
+            },
+            onTap: () {
+              setState(() {
+                _selectedItem = null;
+              });
+            },
+            behavior: HitTestBehavior.opaque,
+            child: ListView(
+              // Using ListView instead of SizedBox to enable pull-to-refresh
+              physics: const AlwaysScrollableScrollPhysics(),
               children: [
-                Icon(
-                  Icons.folder_open,
-                  size: 64,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.grey.shade600
-                      : Colors.grey.shade400,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'This directory is empty',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.grey.shade300
-                        : Colors.grey.shade700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Right-click anywhere to create new files or folders',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.grey.shade400
-                        : Colors.grey.shade600,
+                SizedBox(
+                  width: double.infinity,
+                  height: MediaQuery.of(context).size.height - 100, // Adjust height to work with ListView
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.folder_open,
+                          size: 64,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey.shade600
+                              : Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'This directory is empty',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey.shade300
+                                : Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Right-click anywhere to create new files or folders',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -1170,51 +1206,69 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       );
     }
 
-    // For non-empty directories, use a Stack with properly ordered layers for hit detection
-    return Stack(
-      children: [
-        // Bottom layer: Context menu detector for empty spaces
-        GestureDetector(
-          behavior: HitTestBehavior.opaque, // Opaque to ensure it gets all tap events
-          onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
+    // For non-empty directories, use a better layering approach for event handling
+    return MouseRegion(
+      cursor: SystemMouseCursors.basic,
+      child: Listener(
+        // This will intercept all pointer down events to check if they're in empty spaces
+        onPointerDown: (event) {
+          // Secondary button (right click)
+          if (event.buttons == 2) {
+            // Check if we're clicking on an empty space by checking if the event hits anything in the ListView
+            // We'll let the event continue to propagate to allow the GestureDetector to handle it
+          }
+        },
+        child: GestureDetector(
+          // Capture right clicks in empty space (will only trigger if not captured by list items)
+          onSecondaryTapUp: (details) {
+            // Make sure we're really clicking on empty space by checking position is not within any list item
+            _showEmptySpaceContextMenu(details.globalPosition);
+          },
+          // Allow taps to deselect items
           onTap: () {
-            // Deselect on click in empty space
             setState(() {
               _selectedItem = null;
             });
           },
-          child: Container(
-            width: double.infinity,
-            height: double.infinity,
-            color: Colors.transparent,
-          ),
-        ),
-        
-        // Top layer: ListView with AbsorbPointer to control when events go through
-        AbsorbPointer(
-          absorbing: false, // Don't absorb - let events pass through to list items
-          child: RefreshIndicator(
-            onRefresh: () => _loadDirectory(_currentPath),
-            child: ListView.builder(
-              padding: EdgeInsets.only(bottom: 100),
-              itemCount: _items.length,
-              itemBuilder: (context, index) {
-                final item = _items[index];
-                return FileItemWidget(
-                  key: ValueKey(item.path), // Add key for better identification
-                  item: item,
-                  onTap: () => _handleItemTap(item),
-                  onDoubleTap: () => _handleItemDoubleTap(item),
-                  onLongPress: _showOptionsDialog,
-                  onRightClick: _showContextMenu,
-                  isSelected: _selectedItem?.path == item.path,
-                );
-              },
+          behavior: HitTestBehavior.translucent,
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              // Improve scroll handling by preventing automatic scroll-to-top issues
+              if (notification is ScrollEndNotification) {
+                // Keep track of current scroll position
+                // No action needed, just prevent any default behavior
+              }
+              return false; // Allow the notification to continue to bubble up
+            },
+            child: RefreshIndicator(
+              onRefresh: _refreshCurrentDirectory,
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: EdgeInsets.only(bottom: 100),
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: _items.length,
+                itemBuilder: (context, index) {
+                  final item = _items[index];
+                  return FileItemWidget(
+                    key: ValueKey(item.path), // Add key for better identification
+                    item: item,
+                    onTap: () => _handleItemTap(item),
+                    onDoubleTap: () => _handleItemDoubleTap(item),
+                    onLongPress: _showOptionsDialog,
+                    onRightClick: _showContextMenu,
+                    isSelected: _selectedItem?.path == item.path,
+                  );
+                },
+              ),
             ),
           ),
         ),
-      ],
+      ),
     );
+  }
+
+  Future<void> _refreshCurrentDirectory() async {
+    return _loadDirectory(_currentPath);
   }
 }
 
