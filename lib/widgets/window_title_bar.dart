@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
+// ignore: unused_import
 import '../utils/color_extensions.dart';
 import '../services/theme_service.dart';
 

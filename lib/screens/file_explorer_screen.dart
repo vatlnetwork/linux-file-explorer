@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import '../models/file_item.dart';
@@ -11,6 +10,7 @@ import '../services/notification_service.dart';
 import '../widgets/file_item_widget.dart';
 import '../widgets/theme_switcher.dart';
 import '../widgets/bookmark_sidebar.dart';
+import '../services/usb_drive_service.dart';
 
 class FileExplorerScreen extends StatefulWidget {
   const FileExplorerScreen({super.key});
@@ -36,6 +36,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   // Clipboard state
   FileItem? _clipboardItem;
   bool _isItemCut = false; // false for copy, true for cut
+
+  // Add UsbDriveService
+  final UsbDriveService _usbDriveService = UsbDriveService();
 
   @override
   void initState() {
@@ -295,100 +298,138 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     final isFolder = item.type == FileItemType.directory;
     final isBookmarked = isFolder ? bookmarkService.isBookmarked(item.path) : false;
     
+    // Check if this directory is a mount point
+    bool isMountPoint = false;
+    if (isFolder) {
+      isMountPoint = await _isDirectoryMountPoint(item.path);
+    }
+    
     // Create a relative rectangle for positioning the menu
     final RelativeRect menuPosition = RelativeRect.fromRect(
       Rect.fromPoints(position, position),
       Rect.fromLTWH(0, 0, overlay.size.width, overlay.size.height),
     );
     
+    // Add mounted check
+    if (!mounted) return;
+    
+    final menuItems = <PopupMenuEntry<String>>[
+      PopupMenuItem<String>(
+        value: 'open',
+        child: Row(
+          children: [
+            Icon(item.type == FileItemType.directory ? Icons.folder_open : Icons.open_in_new),
+            SizedBox(width: 8),
+            Text('Open'),
+          ],
+        ),
+      ),
+      PopupMenuItem<String>(
+        value: 'open_terminal',
+        child: Row(
+          children: [
+            Icon(Icons.terminal),
+            SizedBox(width: 8),
+            Text(isFolder ? 'Open in Terminal' : 'Open with Terminal'),
+          ],
+        ),
+      ),
+      PopupMenuItem<String>(
+        value: 'cut',
+        child: Row(
+          children: [
+            Icon(Icons.content_cut),
+            SizedBox(width: 8),
+            Text('Cut'),
+          ],
+        ),
+      ),
+      PopupMenuItem<String>(
+        value: 'copy',
+        child: Row(
+          children: [
+            Icon(Icons.content_copy),
+            SizedBox(width: 8),
+            Text('Copy'),
+          ],
+        ),
+      ),
+      const PopupMenuDivider(),
+    ];
+    
+    // Add bookmark option for folders
+    if (isFolder) {
+      menuItems.add(
+        PopupMenuItem<String>(
+          value: isBookmarked ? 'remove_bookmark' : 'add_bookmark',
+          child: Row(
+            children: [
+              Icon(isBookmarked ? Icons.bookmark_remove : Icons.bookmark_add),
+              SizedBox(width: 8),
+              Text(isBookmarked ? 'Remove from Bookmarks' : 'Add to Bookmarks'),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    // Add unmount option for mounted drives
+    if (isFolder && isMountPoint) {
+      menuItems.add(
+        PopupMenuItem<String>(
+          value: 'unmount',
+          child: Row(
+            children: [
+              Icon(Icons.eject, color: Colors.orange),
+              SizedBox(width: 8),
+              Text('Unmount Drive', style: TextStyle(color: Colors.orange)),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    // Add remaining common options
+    menuItems.addAll([
+      PopupMenuItem<String>(
+        value: 'rename',
+        child: Row(
+          children: [
+            Icon(Icons.edit),
+            SizedBox(width: 8),
+            Text('Rename'),
+          ],
+        ),
+      ),
+      PopupMenuItem<String>(
+        value: 'delete',
+        child: Row(
+          children: [
+            Icon(Icons.delete, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Delete', style: TextStyle(color: Colors.red)),
+          ],
+        ),
+      ),
+      const PopupMenuDivider(),
+      PopupMenuItem<String>(
+        value: 'properties',
+        child: Row(
+          children: [
+            Icon(Icons.info_outline),
+            SizedBox(width: 8),
+            Text('Properties'),
+          ],
+        ),
+      ),
+    ]);
+    
+    // Add mounted check before context usage
+    if (!mounted) return;
     final result = await showMenu<String>(
       context: context,
       position: menuPosition,
-      items: [
-        PopupMenuItem<String>(
-          value: 'open',
-          child: Row(
-            children: [
-              Icon(item.type == FileItemType.directory ? Icons.folder_open : Icons.open_in_new),
-              SizedBox(width: 8),
-              Text('Open'),
-            ],
-          ),
-        ),
-        PopupMenuItem<String>(
-          value: 'open_terminal',
-          child: Row(
-            children: [
-              Icon(Icons.terminal),
-              SizedBox(width: 8),
-              Text(isFolder ? 'Open in Terminal' : 'Open with Terminal'),
-            ],
-          ),
-        ),
-        PopupMenuItem<String>(
-          value: 'cut',
-          child: Row(
-            children: [
-              Icon(Icons.content_cut),
-              SizedBox(width: 8),
-              Text('Cut'),
-            ],
-          ),
-        ),
-        PopupMenuItem<String>(
-          value: 'copy',
-          child: Row(
-            children: [
-              Icon(Icons.content_copy),
-              SizedBox(width: 8),
-              Text('Copy'),
-            ],
-          ),
-        ),
-        const PopupMenuDivider(),
-        if (isFolder) 
-          PopupMenuItem<String>(
-            value: isBookmarked ? 'remove_bookmark' : 'add_bookmark',
-            child: Row(
-              children: [
-                Icon(isBookmarked ? Icons.bookmark_remove : Icons.bookmark_add),
-                SizedBox(width: 8),
-                Text(isBookmarked ? 'Remove from Bookmarks' : 'Add to Bookmarks'),
-              ],
-            ),
-          ),
-        PopupMenuItem<String>(
-          value: 'rename',
-          child: Row(
-            children: [
-              Icon(Icons.edit),
-              SizedBox(width: 8),
-              Text('Rename'),
-            ],
-          ),
-        ),
-        PopupMenuItem<String>(
-          value: 'delete',
-          child: Row(
-            children: [
-              Icon(Icons.delete, color: Colors.red),
-              SizedBox(width: 8),
-              Text('Delete', style: TextStyle(color: Colors.red)),
-            ],
-          ),
-        ),
-        const PopupMenuDivider(),
-        PopupMenuItem<String>(
-          value: 'properties',
-          child: Row(
-            children: [
-              Icon(Icons.info_outline),
-              SizedBox(width: 8),
-              Text('Properties'),
-            ],
-          ),
-        ),
-      ],
+      items: menuItems,
     );
 
     if (result == 'open') {
@@ -417,6 +458,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
           type: NotificationType.info,
         );
       }
+    } else if (result == 'unmount') {
+      _showUnmountConfirmation(item);
     } else if (result == 'rename') {
       _showRenameDialog(item);
     } else if (result == 'delete') {
@@ -439,6 +482,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       Rect.fromPoints(position, position),
       Rect.fromLTWH(0, 0, overlay.size.width, overlay.size.height),
     );
+    
+    // Add mounted check
+    if (!mounted) return;
     
     final menuItems = <PopupMenuEntry<String>>[
       PopupMenuItem<String>(
@@ -505,6 +551,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         ),
       ),
     ]);
+    // Add mounted check before context usage
+    if (!mounted) return;
     
     final result = await showMenu<String>(
       context: context,
@@ -752,6 +800,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     final Directory dir = Directory(item.path);
     final bool isDirectory = item.type == FileItemType.directory;
     
+    // Check if this is a mount point
+    bool isMountPoint = false;
+    if (isDirectory) {
+      isMountPoint = await _isDirectoryMountPoint(item.path);
+    }
+    
     // Get file or directory stats
     final FileStat stat = isDirectory 
         ? dir.statSync() 
@@ -777,11 +831,16 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       }
     }
     
-    // Permission string formatting
-    String formatPermissions(FileStat stat) {
-      final modeString = stat.modeString();
-      return modeString.substring(1); // Remove the first character (file type)
+    // Helper function to format size
+    String formatBytes(int bytes) {
+      if (bytes < 1024) return '$bytes B';
+      if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+      if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+      return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
     }
+    
+    // Check if the widget is still mounted before using context
+    if (!mounted) return;
     
     await showDialog(
       context: context,
@@ -789,8 +848,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         title: Row(
           children: [
             Icon(
-              isDirectory ? Icons.folder : Icons.insert_drive_file,
-              color: isDirectory ? Colors.blue : Colors.blueGrey,
+              isDirectory ? (isMountPoint ? Icons.usb : Icons.folder) : Icons.insert_drive_file,
+              color: isDirectory ? (isMountPoint ? Colors.amber : Colors.blue) : Colors.blueGrey,
             ),
             SizedBox(width: 8),
             Expanded(
@@ -807,56 +866,41 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                title: Text('Name'),
-                subtitle: Text(item.name),
-                dense: true,
-              ),
-              ListTile(
-                title: Text('Location'),
-                subtitle: Text(item.path),
+                title: Text('Path'),
+                subtitle: Text(item.path, style: TextStyle(fontSize: 13)),
                 dense: true,
               ),
               ListTile(
                 title: Text('Type'),
-                subtitle: Text(isDirectory 
-                    ? 'Directory' 
-                    : (item.fileExtension.isNotEmpty 
-                        ? '${item.fileExtension.toUpperCase().substring(1)} File' 
-                        : 'File')),
+                subtitle: Text(isDirectory ? (isMountPoint ? 'Mount Point' : 'Directory') : 'File - ${item.fileExtension}', style: TextStyle(fontSize: 13)),
                 dense: true,
               ),
-              if (!isDirectory)
-                ListTile(
-                  title: Text('Size'),
-                  subtitle: Text(item.formattedSize),
-                  dense: true,
-                ),
-              if (isDirectory)
-                ListTile(
-                  title: Text('Contents'),
-                  subtitle: Text('$itemCount items (${_formatSize(totalSize)})'),
-                  dense: true,
-                ),
               ListTile(
-                title: Text('Created'),
-                subtitle: Text(DateFormat('MMM dd, yyyy HH:mm:ss').format(stat.changed)),
+                title: Text('Size'),
+                subtitle: Text(
+                  isDirectory
+                      ? '$itemCount items, ${totalSize > 0 ? formatBytes(totalSize) : "Calculating..."}'
+                      : item.formattedSize,
+                  style: TextStyle(fontSize: 13)
+                ),
                 dense: true,
               ),
               ListTile(
                 title: Text('Modified'),
-                subtitle: Text(DateFormat('MMM dd, yyyy HH:mm:ss').format(stat.modified)),
-                dense: true,
-              ),
-              ListTile(
-                title: Text('Accessed'),
-                subtitle: Text(DateFormat('MMM dd, yyyy HH:mm:ss').format(stat.accessed)),
+                subtitle: Text(item.formattedModifiedTime, style: TextStyle(fontSize: 13)),
                 dense: true,
               ),
               ListTile(
                 title: Text('Permissions'),
-                subtitle: Text(formatPermissions(stat)),
+                subtitle: Text(stat.modeString().substring(1), style: TextStyle(fontSize: 13)),
                 dense: true,
               ),
+              if (isMountPoint)
+                ListTile(
+                  title: Text('Mount Status'),
+                  subtitle: Text('Mounted', style: TextStyle(fontSize: 13, color: Colors.green)),
+                  dense: true,
+                ),
             ],
           ),
         ),
@@ -865,16 +909,22 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
             onPressed: () => Navigator.pop(context),
             child: Text('Close'),
           ),
+          if (isMountPoint)
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _showUnmountConfirmation(item);
+              },
+              icon: Icon(Icons.eject),
+              label: Text('Unmount'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+            ),
         ],
       ),
     );
-  }
-  
-  String _formatSize(int size) {
-    if (size < 1024) return '$size B';
-    if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
-    if (size < 1024 * 1024 * 1024) return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
-    return '${(size / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
   @override
@@ -1269,6 +1319,99 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
 
   Future<void> _refreshCurrentDirectory() async {
     return _loadDirectory(_currentPath);
+  }
+
+  /// Check if a directory is a mount point
+  Future<bool> _isDirectoryMountPoint(String path) async {
+    try {
+      // Run the findmnt command to check if this is a mount point
+      final ProcessResult result = await Process.run('findmnt', ['-n', path]);
+      
+      // If the command returns successfully with output, it's a mount point
+      return result.exitCode == 0 && result.stdout.toString().trim().isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
+  
+  /// Show confirmation dialog for unmounting a drive
+  Future<void> _showUnmountConfirmation(FileItem item) async {
+    // Show confirmation dialog
+    final bool confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Unmount Drive'),
+        content: Text('Are you sure you want to unmount ${item.name}?\n\nAll file operations on this drive will be unavailable until reconnected.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Unmount'),
+          ),
+        ],
+      ),
+    ) ?? false;
+    
+    if (!confirm) return;
+    
+    // Show loading indicator
+    if (!mounted) return;
+    
+    NotificationService.showNotification(
+      context,
+      message: 'Unmounting ${item.name}...',
+      type: NotificationType.info,
+      duration: const Duration(milliseconds: 750),
+    );
+    
+    try {
+      final success = await _usbDriveService.unmountDrive(item.path);
+      
+      if (success) {
+        // If current directory is the unmounted one or a subdirectory, navigate to parent
+        if (_currentPath == item.path || _currentPath.startsWith('${item.path}/')) {
+          final parentPath = p.dirname(_currentPath);
+          _navigateToDirectory(parentPath);
+        } else {
+          // Just refresh current directory
+          _loadDirectory(_currentPath);
+        }
+        
+        // Show success notification
+        if (mounted) {
+          NotificationService.showNotification(
+            context,
+            message: '${item.name} unmounted successfully',
+            type: NotificationType.success,
+          );
+        }
+      } else {
+        // Show error notification
+        if (mounted) {
+          NotificationService.showNotification(
+            context,
+            message: 'Failed to unmount drive. Make sure it\'s not in use.',
+            type: NotificationType.error,
+          );
+        }
+      }
+    } catch (e) {
+      // Show error notification
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Error: ${e.toString()}',
+          type: NotificationType.error,
+        );
+      }
+    }
   }
 }
 

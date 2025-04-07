@@ -6,11 +6,24 @@ class NotificationService {
   /// Shows a notification (SnackBar) in the right side of the screen
   /// The notification follows the app theme and fits its content
   static void showNotification(
-    BuildContext context, {
+    Object contextOrMessenger, {
     required String message,
     Duration duration = const Duration(seconds: 2),
     NotificationType type = NotificationType.info,
   }) {
+    late final BuildContext context;
+    late final ScaffoldMessengerState scaffoldMessenger;
+    
+    if (contextOrMessenger is BuildContext) {
+      context = contextOrMessenger;
+      scaffoldMessenger = ScaffoldMessenger.of(context);
+    } else if (contextOrMessenger is ScaffoldMessengerState) {
+      scaffoldMessenger = contextOrMessenger;
+      context = scaffoldMessenger.context;
+    } else {
+      throw ArgumentError('contextOrMessenger must be either BuildContext or ScaffoldMessengerState');
+    }
+    
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
     // Determine icon and color based on notification type
@@ -62,7 +75,7 @@ class NotificationService {
     final double maxWidth = MediaQuery.of(context).size.width * 0.4;
     
     // Dismiss all current notifications before showing a new one
-    ScaffoldMessenger.of(context).clearSnackBars();
+    scaffoldMessenger.clearSnackBars();
     
     final snackBar = SnackBar(
       backgroundColor: backgroundColor,
@@ -80,7 +93,7 @@ class NotificationService {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
       ),
-      content: Container(
+      content: SizedBox(
         width: contentWidth > maxWidth ? maxWidth : contentWidth,
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -107,7 +120,7 @@ class NotificationService {
       ),
     );
     
-    ScaffoldMessenger.of(context).showSnackBar(snackBar);
+    scaffoldMessenger.showSnackBar(snackBar);
   }
 }
 

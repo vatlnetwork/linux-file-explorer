@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-// This import is needed for the withValues() extension method on Color objects
-import '../utils/color_extensions.dart';
+// ignore: unused_import
+import '../utils/color_extensions.dart' show ColorExtensions;
 import '../models/bookmark_item.dart';
 import '../services/bookmark_service.dart';
 import '../services/notification_service.dart';
 import 'disk_usage_widget.dart';
+import 'mounted_usb_drives_widget.dart';
 
 class BookmarkSidebar extends StatefulWidget {
   final Function(String) onNavigate;
   final String currentPath;
-  final GlobalKey<_BookmarkSidebarState>? bookmarkKey;
+  final GlobalKey<BookmarkSidebarState>? bookmarkKey;
   
   const BookmarkSidebar({
     super.key,
@@ -24,17 +25,13 @@ class BookmarkSidebar extends StatefulWidget {
   }
 
   @override
-  State<BookmarkSidebar> createState() => _BookmarkSidebarState();
+  State<BookmarkSidebar> createState() => BookmarkSidebarState();
 }
 
-class _BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProviderStateMixin {
+class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   int? _lastReorderedIndex;
   String? _focusedBookmarkPath;
-  
-  // This forces the ColorExtensions import to be recognized as used
-  // ignore: unused_field
-  final _dummyColor = Colors.black.withValues(alpha: 0);
   
   @override
   void initState() {
@@ -81,6 +78,7 @@ class _BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProv
               Expanded(
                 child: _buildBookmarksList(context, bookmarks, bookmarkService),
               ),
+              MountedUsbDrivesWidget(onNavigate: widget.onNavigate),
               DiskUsageWidget(path: widget.currentPath),
             ],
           ),
