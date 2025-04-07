@@ -34,99 +34,105 @@ class FileItemWidget extends StatelessWidget {
     final scaledPadding = 8.0 * (uiScale > 0.9 ? uiScale : 0.9);
     final scaledMargin = 4.0 * (uiScale > 0.9 ? uiScale : 0.9);
     
-    return Card(
-      margin: EdgeInsets.symmetric(
-        vertical: scaledMargin,
-        horizontal: scaledMargin * 2,
-      ),
-      elevation: 0,
-      color: isSelected
-          ? (isDarkMode ? Colors.blueGrey.shade800 : Colors.blue.shade50)
-          : (isDarkMode ? Color(0xFF1E1E1E) : Colors.white),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(4.0 * uiScale),
-        side: BorderSide(
-          color: isSelected
-              ? (isDarkMode ? Colors.blue.shade700 : Colors.blue.shade300)
-              : (isDarkMode ? Colors.black : Colors.grey.shade200),
-          width: isSelected ? 1.5 * uiScale : 1.0 * uiScale,
-        ),
-      ),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onSecondaryTapUp: (details) {
-            onRightClick(item, details.globalPosition);
-          },
-          child: InkWell(
-            onTap: onTap,
-            onDoubleTap: onDoubleTap,
-            onLongPress: () => onLongPress(item),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final hasSpaceForSubtitle = constraints.maxHeight > (30.0 * uiScale);
-                
-                return ClipRect(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: scaledPadding,
-                      vertical: scaledPadding / 2,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Icon with fixed width but scaled size
-                        Container(
-                          width: iconSize * 1.5,
-                          alignment: Alignment.center,
-                          child: _buildItemIcon(iconSize),
-                        ),
-                        SizedBox(width: 12.0 * uiScale.clamp(0.7, 1.0)),
-                        
-                        // Text content
-                        Expanded(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                item.name,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                  fontSize: titleSize,
-                                  color: isDarkMode ? Colors.white : Colors.black87,
-                                ),
-                              ),
-                              if (hasSpaceForSubtitle) ...[
-                                SizedBox(height: 2.0 * uiScale.clamp(0.7, 1.0)),
-                                Text(
-                                  item.type == FileItemType.directory
-                                      ? 'Folder'
-                                      : item.formattedSize,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: subtitleSize,
-                                    color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        
-                        // Right padding for consistent spacing
-                        SizedBox(width: 8.0 * uiScale.clamp(0.7, 1.0)),
-                      ],
-                    ),
-                  ),
-                );
-              },
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: HoverBuilder(
+        builder: (context, isHovering) {
+          return Card(
+            margin: EdgeInsets.symmetric(
+              vertical: scaledMargin,
+              horizontal: scaledMargin * 2,
             ),
-          ),
-        ),
+            elevation: 0,
+            color: isSelected
+                ? (isDarkMode ? Colors.blueGrey.shade800 : Colors.blue.shade50)
+                : (isHovering 
+                    ? (isDarkMode ? Color(0xFF2C2C2C) : Colors.grey.shade100)
+                    : Colors.transparent),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(4.0 * uiScale),
+              side: BorderSide(
+                color: isSelected
+                    ? (isDarkMode ? Colors.blue.shade700 : Colors.blue.shade300)
+                    : Colors.transparent,
+                width: isSelected ? 1.5 * uiScale : 0,
+              ),
+            ),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onSecondaryTapUp: (details) {
+                onRightClick(item, details.globalPosition);
+              },
+              child: InkWell(
+                onTap: onTap,
+                onDoubleTap: onDoubleTap,
+                onLongPress: () => onLongPress(item),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final hasSpaceForSubtitle = constraints.maxHeight > (30.0 * uiScale);
+                    
+                    return ClipRect(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: scaledPadding,
+                          vertical: scaledPadding / 2,
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Icon with fixed width but scaled size
+                            Container(
+                              width: iconSize * 1.5,
+                              alignment: Alignment.center,
+                              child: _buildItemIcon(iconSize),
+                            ),
+                            SizedBox(width: 12.0 * uiScale.clamp(0.7, 1.0)),
+                            
+                            // Text content
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    item.name,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                      fontSize: titleSize,
+                                      color: isDarkMode ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
+                                  if (hasSpaceForSubtitle) ...[
+                                    SizedBox(height: 2.0 * uiScale.clamp(0.7, 1.0)),
+                                    Text(
+                                      item.type == FileItemType.directory
+                                          ? 'Folder'
+                                          : item.formattedSize,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: subtitleSize,
+                                        color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            
+                            // Right padding for consistent spacing
+                            SizedBox(width: 8.0 * uiScale.clamp(0.7, 1.0)),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -198,5 +204,31 @@ class FileItemWidget extends StatelessWidget {
     }
     
     return Icon(iconData, color: iconColor, size: size);
+  }
+}
+
+// Helper widget to detect hover
+class HoverBuilder extends StatefulWidget {
+  final Widget Function(BuildContext, bool) builder;
+  
+  const HoverBuilder({
+    super.key, 
+    required this.builder,
+  });
+  
+  @override
+  State<HoverBuilder> createState() => _HoverBuilderState();
+}
+
+class _HoverBuilderState extends State<HoverBuilder> {
+  bool _isHovering = false;
+  
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      child: widget.builder(context, _isHovering),
+    );
   }
 } 

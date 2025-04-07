@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/file_item.dart';
 import '../services/icon_size_service.dart';
+import 'file_item_widget.dart'; // Import for HoverBuilder
 
 class GridItemWidget extends StatelessWidget {
   final FileItem item;
@@ -34,106 +35,112 @@ class GridItemWidget extends StatelessWidget {
     final scaledPadding = 8.0 * (uiScale > 0.9 ? uiScale : 0.9);
     final scaledMargin = 6.0 * (uiScale > 0.9 ? uiScale : 0.9);
     
-    return Card(
-      margin: EdgeInsets.all(scaledMargin),
-      elevation: 0,
-      color: isSelected
-          ? (isDarkMode ? Colors.blueGrey.shade800 : Colors.blue.shade50)
-          : (isDarkMode ? Color(0xFF1E1E1E) : Colors.white),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(6.0 * uiScale),
-        side: BorderSide(
-          color: isSelected
-              ? (isDarkMode ? Colors.blue.shade700 : Colors.blue.shade300)
-              : (isDarkMode ? Colors.black : Colors.grey.shade200),
-          width: isSelected ? 1.5 * uiScale : 1.0 * uiScale,
-        ),
-      ),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onSecondaryTapUp: (details) {
-            onRightClick(item, details.globalPosition);
-          },
-          child: InkWell(
-            onTap: onTap,
-            onDoubleTap: onDoubleTap,
-            onLongPress: () => onLongPress(item),
-            child: Padding(
-              padding: EdgeInsets.all(scaledPadding),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  // Calculate minimum height for the icon container
-                  final minContainerHeight = 24.0;
-                  
-                  // Determine if we need to fit text based on available space
-                  // Use a more conservative threshold for small UI scales
-                  final heightThreshold = 60.0 * (uiScale > 1.0 ? uiScale : 1.0);
-                  final hasSpaceForText = constraints.maxHeight > heightThreshold;
-                  final hasSpaceForSubtitle = constraints.maxHeight > (heightThreshold + 20.0);
-                  
-                  // Calculate specific heights based on available space
-                  final iconHeight = hasSpaceForText 
-                      ? constraints.maxHeight * 0.6
-                      : constraints.maxHeight;
-                  
-                  return ClipRect(
-                    child: Align(
-                      alignment: Alignment.center,
-                      heightFactor: 1.0,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // Icon container that takes most space
-                          SizedBox(
-                            height: iconHeight.clamp(minContainerHeight, double.infinity),
-                            width: double.infinity,
-                            child: Center(
-                              child: _buildItemIcon(iconSize),
-                            ),
-                          ),
-                          
-                          // Only show text if there's enough space
-                          if (hasSpaceForText) ...[
-                            SizedBox(height: 4.0 * uiScale.clamp(0.7, 1.0)),
-                            Text(
-                              item.name,
-                              textAlign: TextAlign.center,
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                              style: TextStyle(
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                fontSize: titleSize,
-                                color: isDarkMode ? Colors.white : Colors.black87,
-                              ),
-                            ),
-                            
-                            // Subtitle - only if we have even more space
-                            if (hasSpaceForSubtitle) ...[
-                              SizedBox(height: 2.0 * uiScale.clamp(0.7, 1.0)),
-                              Text(
-                                item.type == FileItemType.directory ? 'Folder' : item.formattedSize,
-                                textAlign: TextAlign.center,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: subtitleSize,
-                                  color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ],
-                      ),
-                    ),
-                  );
-                }
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: HoverBuilder(
+        builder: (context, isHovering) {
+          return Card(
+            margin: EdgeInsets.all(scaledMargin),
+            elevation: 0,
+            color: isSelected
+                ? (isDarkMode ? Colors.blueGrey.shade800 : Colors.blue.shade50)
+                : (isHovering 
+                    ? (isDarkMode ? Color(0xFF2C2C2C) : Colors.grey.shade100)
+                    : Colors.transparent),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6.0 * uiScale),
+              side: BorderSide(
+                color: isSelected
+                    ? (isDarkMode ? Colors.blue.shade700 : Colors.blue.shade300)
+                    : Colors.transparent,
+                width: isSelected ? 1.5 * uiScale : 0,
               ),
             ),
-          ),
-        ),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onSecondaryTapUp: (details) {
+                onRightClick(item, details.globalPosition);
+              },
+              child: InkWell(
+                onTap: onTap,
+                onDoubleTap: onDoubleTap,
+                onLongPress: () => onLongPress(item),
+                child: Padding(
+                  padding: EdgeInsets.all(scaledPadding),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      // Calculate minimum height for the icon container
+                      final minContainerHeight = 24.0;
+                      
+                      // Determine if we need to fit text based on available space
+                      // Use a more conservative threshold for small UI scales
+                      final heightThreshold = 60.0 * (uiScale > 1.0 ? uiScale : 1.0);
+                      final hasSpaceForText = constraints.maxHeight > heightThreshold;
+                      final hasSpaceForSubtitle = constraints.maxHeight > (heightThreshold + 20.0);
+                      
+                      // Calculate specific heights based on available space
+                      final iconHeight = hasSpaceForText 
+                          ? constraints.maxHeight * 0.6
+                          : constraints.maxHeight;
+                      
+                      return ClipRect(
+                        child: Align(
+                          alignment: Alignment.center,
+                          heightFactor: 1.0,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // Icon container that takes most space
+                              SizedBox(
+                                height: iconHeight.clamp(minContainerHeight, double.infinity),
+                                width: double.infinity,
+                                child: Center(
+                                  child: _buildItemIcon(iconSize),
+                                ),
+                              ),
+                              
+                              // Only show text if there's enough space
+                              if (hasSpaceForText) ...[
+                                SizedBox(height: 4.0 * uiScale.clamp(0.7, 1.0)),
+                                Text(
+                                  item.name,
+                                  textAlign: TextAlign.center,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                  style: TextStyle(
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    fontSize: titleSize,
+                                    color: isDarkMode ? Colors.white : Colors.black87,
+                                  ),
+                                ),
+                                
+                                // Subtitle - only if we have even more space
+                                if (hasSpaceForSubtitle) ...[
+                                  SizedBox(height: 2.0 * uiScale.clamp(0.7, 1.0)),
+                                  Text(
+                                    item.type == FileItemType.directory ? 'Folder' : item.formattedSize,
+                                    textAlign: TextAlign.center,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: subtitleSize,
+                                      color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
