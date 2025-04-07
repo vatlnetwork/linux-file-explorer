@@ -39,10 +39,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   String _errorMessage = '';
   final List<String> _navigationHistory = [];
   bool _showBookmarkSidebar = true;
-  FileItem? _selectedItem; // Track the currently selected item
   
-  // Clipboard state
-  FileItem? _clipboardItem;
+  // Replace single item selection with a set for multiple selection
+  Set<String> _selectedItemsPaths = {}; // Track the currently selected items by path
+  
+  // Replace clipboard and clipboard state variables
+  List<FileItem>? _clipboardItems;
   bool _isItemCut = false; // false for copy, true for cut
 
   // Add UsbDriveService
@@ -88,7 +90,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         _isLoading = false;
         
         // Reset selection when changing directories
-        _selectedItem = null;
+        _selectedItemsPaths = {};
       });
     } catch (e) {
       _handleError('Failed to load directory: $e');
@@ -270,14 +272,26 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     }
   }
 
-  void _handleItemTap(FileItem item) {
-    // Single click selects the item
+  void _handleItemTap(FileItem item, [bool isCtrlPressed = false]) {
     setState(() {
-      // If the item is already selected, deselect it
-      if (_selectedItem?.path == item.path) {
-        _selectedItem = null;
+      final itemPath = item.path;
+      
+      // If Ctrl is pressed, toggle selection without affecting other selections
+      if (isCtrlPressed) {
+        if (_selectedItemsPaths.contains(itemPath)) {
+          _selectedItemsPaths.remove(itemPath);
+        } else {
+          _selectedItemsPaths.add(itemPath);
+        }
       } else {
-        _selectedItem = item;
+        // Regular click: deselect all and select only this item
+        if (_selectedItemsPaths.length == 1 && _selectedItemsPaths.contains(itemPath)) {
+          // If clicking the only selected item, deselect it
+          _selectedItemsPaths = {};
+        } else {
+          // Otherwise select only this item
+          _selectedItemsPaths = {itemPath};
+        }
       }
     });
   }
@@ -299,7 +313,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   void _showContextMenu(FileItem item, Offset position) async {
     // Select the item when right-clicked
     setState(() {
-      _selectedItem = item;
+      // If the item is already part of the current multi-selection, keep all selected
+      if (!_selectedItemsPaths.contains(item.path)) {
+        _selectedItemsPaths = {item.path};
+      }
     });
     
     final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
@@ -322,24 +339,44 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     // Add mounted check
     if (!mounted) return;
     
+    // Create menu items depending on whether we have multiple items selected
+    final hasMultipleSelection = _selectedItemsPaths.length > 1;
+    
     final menuItems = <PopupMenuEntry<String>>[
-      PopupMenuItem<String>(
-        value: 'open',
-        child: Row(
-          children: [
-            Icon(item.type == FileItemType.directory ? Icons.folder_open : Icons.open_in_new),
-            SizedBox(width: 8),
-            Text('Open'),
-          ],
+      // Show number of selected items when multiple are selected
+      if (hasMultipleSelection)
+        PopupMenuItem<String>(
+          enabled: false,
+          child: Text(
+            '${_selectedItemsPaths.length} items selected',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.blue,
+            ),
+          ),
         ),
-      ),
+      
+      // Open option (only for single item)
+      if (!hasMultipleSelection)
+        PopupMenuItem<String>(
+          value: 'open',
+          child: Row(
+            children: [
+              Icon(Icons.open_in_new),
+              SizedBox(width: 8),
+              Text('Open'),
+            ],
+          ),
+        ),
+        
+      // Add common operations for both single and multiple selections
       PopupMenuItem<String>(
-        value: 'open_terminal',
+        value: 'copy',
         child: Row(
           children: [
-            Icon(Icons.terminal),
+            Icon(Icons.copy),
             SizedBox(width: 8),
-            Text(isFolder ? 'Open in Terminal' : 'Open with Terminal'),
+            Text(hasMultipleSelection ? 'Copy Items' : 'Copy'),
           ],
         ),
       ),
@@ -347,66 +384,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         value: 'cut',
         child: Row(
           children: [
-            Icon(Icons.content_cut),
+            Icon(Icons.cut),
             SizedBox(width: 8),
-            Text('Cut'),
-          ],
-        ),
-      ),
-      PopupMenuItem<String>(
-        value: 'copy',
-        child: Row(
-          children: [
-            Icon(Icons.content_copy),
-            SizedBox(width: 8),
-            Text('Copy'),
-          ],
-        ),
-      ),
-      const PopupMenuDivider(),
-    ];
-    
-    // Add bookmark option for folders
-    if (isFolder) {
-      menuItems.add(
-        PopupMenuItem<String>(
-          value: isBookmarked ? 'remove_bookmark' : 'add_bookmark',
-          child: Row(
-            children: [
-              Icon(isBookmarked ? Icons.bookmark_remove : Icons.bookmark_add),
-              SizedBox(width: 8),
-              Text(isBookmarked ? 'Remove from Bookmarks' : 'Add to Bookmarks'),
-            ],
-          ),
-        ),
-      );
-    }
-    
-    // Add unmount option for mounted drives
-    if (isFolder && isMountPoint) {
-      menuItems.add(
-        PopupMenuItem<String>(
-          value: 'unmount',
-          child: Row(
-            children: [
-              Icon(Icons.eject, color: Colors.orange),
-              SizedBox(width: 8),
-              Text('Unmount Drive', style: TextStyle(color: Colors.orange)),
-            ],
-          ),
-        ),
-      );
-    }
-    
-    // Add remaining common options
-    menuItems.addAll([
-      PopupMenuItem<String>(
-        value: 'rename',
-        child: Row(
-          children: [
-            Icon(Icons.edit),
-            SizedBox(width: 8),
-            Text('Rename'),
+            Text(hasMultipleSelection ? 'Cut Items' : 'Cut'),
           ],
         ),
       ),
@@ -416,151 +396,84 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
           children: [
             Icon(Icons.delete, color: Colors.red),
             SizedBox(width: 8),
-            Text('Delete', style: TextStyle(color: Colors.red)),
+            Text(
+              hasMultipleSelection ? 'Delete Items' : 'Delete',
+              style: TextStyle(color: Colors.red),
+            ),
           ],
         ),
       ),
-      const PopupMenuDivider(),
-      PopupMenuItem<String>(
-        value: 'properties',
-        child: Row(
-          children: [
-            Icon(Icons.info_outline),
-            SizedBox(width: 8),
-            Text('Properties'),
-          ],
-        ),
-      ),
-    ]);
-    
-    // Add mounted check before context usage
-    if (!mounted) return;
-    final result = await showMenu<String>(
-      context: context,
-      position: menuPosition,
-      items: menuItems,
-    );
-
-    if (result == 'open') {
-      _handleItemDoubleTap(item);
-    } else if (result == 'open_terminal') {
-      _openInTerminal(item);
-    } else if (result == 'cut') {
-      _cutItem(item);
-    } else if (result == 'copy') {
-      _copyItem(item);
-    } else if (result == 'add_bookmark') {
-      await bookmarkService.addBookmark(item);
-      if (mounted) {
-        NotificationService.showNotification(
-          context,
-          message: 'Bookmark added: ${item.name}',
-          type: NotificationType.success,
-        );
-      }
-    } else if (result == 'remove_bookmark') {
-      await bookmarkService.removeBookmark(item.path);
-      if (mounted) {
-        NotificationService.showNotification(
-          context,
-          message: 'Bookmark removed: ${item.name}',
-          type: NotificationType.info,
-        );
-      }
-    } else if (result == 'unmount') {
-      _showUnmountConfirmation(item);
-    } else if (result == 'rename') {
-      _showRenameDialog(item);
-    } else if (result == 'delete') {
-      _showDeleteConfirmation(item);
-    } else if (result == 'properties') {
-      _showPropertiesDialog(item);
-    }
-  }
-
-  void _showEmptySpaceContextMenu(Offset position) async {
-    // Deselect any selected item when right-clicking on empty space
-    setState(() {
-      _selectedItem = null;
-    });
-    
-    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    
-    // Create a relative rectangle for positioning the menu
-    final RelativeRect menuPosition = RelativeRect.fromRect(
-      Rect.fromPoints(position, position),
-      Rect.fromLTWH(0, 0, overlay.size.width, overlay.size.height),
-    );
-    
-    // Add mounted check
-    if (!mounted) return;
-    
-    final menuItems = <PopupMenuEntry<String>>[
-      PopupMenuItem<String>(
-        value: 'new_folder',
-        child: Row(
-          children: [
-            Icon(Icons.create_new_folder),
-            SizedBox(width: 8),
-            Text('New Folder'),
-          ],
-        ),
-      ),
-      PopupMenuItem<String>(
-        value: 'new_file',
-        child: Row(
-          children: [
-            Icon(Icons.note_add),
-            SizedBox(width: 8),
-            Text('New File'),
-          ],
-        ),
-      ),
-    ];
-    
-    // Add paste option if clipboard has an item
-    if (_clipboardItem != null) {
-      menuItems.add(
+      
+      // Single item specific options
+      if (!hasMultipleSelection) ...[
+        const PopupMenuDivider(),
+        // Rename option (not for mount points)
+        if (!isMountPoint)
+          PopupMenuItem<String>(
+            value: 'rename',
+            child: Row(
+              children: [
+                Icon(Icons.edit),
+                SizedBox(width: 8),
+                Text('Rename'),
+              ],
+            ),
+          ),
+        
+        // Add/remove bookmark (directories only)
+        if (isFolder)
+          PopupMenuItem<String>(
+            value: isBookmarked ? 'remove_bookmark' : 'bookmark',
+            child: Row(
+              children: [
+                Icon(isBookmarked ? Icons.bookmark_remove : Icons.bookmark_add),
+                SizedBox(width: 8),
+                Text(isBookmarked ? 'Remove Bookmark' : 'Add Bookmark'),
+              ],
+            ),
+          ),
+          
+        // Terminal option (directories only)
+        if (isFolder)
+          PopupMenuItem<String>(
+            value: 'terminal',
+            child: Row(
+              children: [
+                Icon(Icons.terminal),
+                SizedBox(width: 8),
+                Text('Open in Terminal'),
+              ],
+            ),
+          ),
+          
+        // Unmount option (mount points only)
+        if (isMountPoint)
+          PopupMenuItem<String>(
+            value: 'unmount',
+            child: Row(
+              children: [
+                Icon(Icons.eject),
+                SizedBox(width: 8),
+                Text('Unmount Drive'),
+              ],
+            ),
+          ),
+          
+        // Properties always available
         PopupMenuItem<String>(
-          value: 'paste',
+          value: 'properties',
           child: Row(
             children: [
-              Icon(Icons.content_paste),
+              Icon(Icons.info_outline),
               SizedBox(width: 8),
-              Text(_isItemCut ? 'Paste (Cut)' : 'Paste (Copy)'),
+              Text('Properties'),
             ],
           ),
         ),
-      );
-    }
+      ],
+    ];
     
-    // Add divider before additional options
-    menuItems.add(const PopupMenuDivider());
-    
-    // Additional common options
-    menuItems.addAll([
-      PopupMenuItem<String>(
-        value: 'open_in_terminal',
-        child: Row(
-          children: [
-            Icon(Icons.terminal),
-            SizedBox(width: 8),
-            Text('Open in Terminal'),
-          ],
-        ),
-      ),
-      PopupMenuItem<String>(
-        value: 'refresh',
-        child: Row(
-          children: [
-            Icon(Icons.refresh),
-            SizedBox(width: 8),
-            Text('Refresh'),
-          ],
-        ),
-      ),
-    ]);
-    // Add mounted check before context usage
+    // Add mounted check again
     if (!mounted) return;
     
     final result = await showMenu<String>(
@@ -568,225 +481,362 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       position: menuPosition,
       items: menuItems,
     );
-
-    if (result == 'new_folder') {
-      _showCreateDialog(true);
-    } else if (result == 'new_file') {
-      _showCreateDialog(false);
-    } else if (result == 'paste') {
-      _pasteItem();
-    } else if (result == 'open_in_terminal') {
-      _openCurrentDirectoryInTerminal();
-    } else if (result == 'refresh') {
-      _loadDirectory(_currentPath);
-    }
-  }
-
-  void _openCurrentDirectoryInTerminal() async {
-    try {
-      // Try using ptyxis with --working-directory, then fall back to other terminals if needed
-      final String command = 'ptyxis --new-window --working-directory "$_currentPath" || '
-                           'gnome-terminal --working-directory="$_currentPath" || '
-                           'xfce4-terminal --working-directory="$_currentPath" || '
-                           'konsole --workdir="$_currentPath" || '
-                           'xterm -e "cd \'$_currentPath\' && bash"';
-      
-      // Use underscore to ignore the result
-      await Process.run('sh', ['-c', command]);
-      
-      // Don't check exit code as we're using fallbacks with ||
-      // Instead, just show success message if we get here
-      if (mounted) {
-        NotificationService.showNotification(
-          context,
-          message: 'Opened current directory in terminal',
-          type: NotificationType.success,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        NotificationService.showNotification(
-          context,
-          message: 'Failed to open terminal: $e',
-          type: NotificationType.error,
-        );
-      }
-    }
-  }
-
-  void _openInTerminal(FileItem item) async {
-    try {
-      final String command;
-      
-      if (item.type == FileItemType.directory) {
-        // For directories, use ptyxis with --working-directory
-        command = 'ptyxis --new-window --working-directory "${item.path}" || '
-                'gnome-terminal --working-directory="${item.path}" || '
-                'xfce4-terminal --working-directory="${item.path}" || '
-                'konsole --workdir="${item.path}" || '
-                'xterm -e "cd \'${item.path}\' && bash"';
-      } else {
-        // For files, determine appropriate action based on file type
-        final String dirname = p.dirname(item.path);
-        
-        if (item.fileExtension == '.sh') {
-          // For shell scripts
-          command = 'ptyxis --new-window --working-directory "$dirname" --command "bash \'${item.path}\'" || '
-                  'gnome-terminal -- bash -c "bash \'${item.path}\'; exec bash" || '
-                  'xfce4-terminal -- bash -c "bash \'${item.path}\'; exec bash" || '
-                  'konsole -e bash -c "bash \'${item.path}\'; exec bash" || '
-                  'xterm -e "bash \'${item.path}\'; exec bash"';
-        } else if (item.fileExtension == '.py') {
-          // For Python scripts
-          command = 'ptyxis --new-window --working-directory "$dirname" --command "python3 \'${item.path}\'" || '
-                  'gnome-terminal -- bash -c "python3 \'${item.path}\'; exec bash" || '
-                  'xfce4-terminal -- bash -c "python3 \'${item.path}\'; exec bash" || '
-                  'konsole -e bash -c "python3 \'${item.path}\'; exec bash" || '
-                  'xterm -e "python3 \'${item.path}\'; exec bash"';
+    
+    // Process the selected menu option
+    if (result == null || !mounted) return;
+    
+    // Handle operations for both single and multiple selections
+    switch (result) {
+      case 'open':
+        _handleItemDoubleTap(item);
+        break;
+      case 'copy':
+        if (hasMultipleSelection) {
+          _copyMultipleItems();
         } else {
-          // Default to viewing the file with less
-          command = 'ptyxis --new-window --working-directory "$dirname" --command "less \'${item.path}\'" || '
-                  'gnome-terminal -- bash -c "less \'${item.path}\'; exec bash" || '
-                  'xfce4-terminal -- bash -c "less \'${item.path}\'; exec bash" || '
-                  'konsole -e bash -c "less \'${item.path}\'; exec bash" || '
-                  'xterm -e "less \'${item.path}\'; exec bash"';
+          _copyItem(item);
         }
-      }
-      
-      // Execute the command using a shell 
-      await Process.run('sh', ['-c', command]);
-      
-      // Don't check exit code as we're using fallbacks with ||
-      // Show a snackbar to confirm
-      if (mounted) {
-        NotificationService.showNotification(
-          context,
-          message: 'Opened in terminal: ${item.name}',
-          type: NotificationType.success,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        NotificationService.showNotification(
-          context,
-          message: 'Failed to open in terminal: $e',
-          type: NotificationType.error,
-        );
-      }
+        break;
+      case 'cut':
+        if (hasMultipleSelection) {
+          _cutMultipleItems();
+        } else {
+          _cutItem(item);
+        }
+        break;
+      case 'delete':
+        if (hasMultipleSelection) {
+          _showDeleteMultipleConfirmation();
+        } else {
+          _showDeleteConfirmation(item);
+        }
+        break;
+      case 'rename':
+        _showRenameDialog(item);
+        break;
+      case 'bookmark':
+        bookmarkService.addBookmark(item);
+        if (mounted) {
+          NotificationService.showNotification(
+            context,
+            message: 'Added bookmark: ${item.name}',
+            type: NotificationType.success,
+          );
+        }
+        break;
+      case 'remove_bookmark':
+        bookmarkService.removeBookmark(item.path);
+        if (mounted) {
+          NotificationService.showNotification(
+            context,
+            message: 'Removed bookmark: ${item.name}',
+            type: NotificationType.success,
+          );
+        }
+        break;
+      case 'terminal':
+        _openInTerminal(item);
+        break;
+      case 'unmount':
+        _showUnmountConfirmation(item);
+        break;
+      case 'properties':
+        _showPropertiesDialog(item);
+        break;
     }
   }
 
-  void _cutItem(FileItem item) {
+  // Add methods for multi-file operations
+  void _copyMultipleItems() {
+    if (_selectedItemsPaths.isEmpty) return;
+    
+    final items = _items.where((item) => _selectedItemsPaths.contains(item.path)).toList();
+    
     setState(() {
-      _clipboardItem = item;
-      _isItemCut = true;
+      _clipboardItems = items;
+      _isItemCut = false;
     });
+    
     NotificationService.showNotification(
       context,
-      message: 'Cut: ${item.name}',
+      message: 'Copied ${items.length} items',
       type: NotificationType.info,
     );
   }
+  
+  void _cutMultipleItems() {
+    if (_selectedItemsPaths.isEmpty) return;
+    
+    final items = _items.where((item) => _selectedItemsPaths.contains(item.path)).toList();
+    
+    setState(() {
+      _clipboardItems = items;
+      _isItemCut = true;
+    });
+    
+    NotificationService.showNotification(
+      context,
+      message: 'Cut ${items.length} items',
+      type: NotificationType.info,
+    );
+  }
+  
+  Future<void> _showDeleteMultipleConfirmation() async {
+    if (_selectedItemsPaths.isEmpty) return;
+    
+    final items = _items.where((item) => _selectedItemsPaths.contains(item.path)).toList();
+    final numFiles = items.where((item) => item.type == FileItemType.file).length;
+    final numFolders = items.where((item) => item.type == FileItemType.directory).length;
+    
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete Multiple Items'),
+        content: Text(
+          'Are you sure you want to delete ${items.length} items '
+          '($numFiles files, $numFolders folders)? '
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text('Delete'),
+          ),
+        ],
+      ),
+    );
 
+    if (confirmed == true) {
+      // Show progress dialog for multiple deletions
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Deleting Files'),
+              content: Row(
+                children: [
+                  SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: CircularProgressIndicator(),
+                  ),
+                  SizedBox(width: 16),
+                  Text('Deleting ${items.length} items...'),
+                ],
+              ),
+            );
+          },
+        );
+      }
+      
+      try {
+        // Delete each item
+        for (final item in items) {
+          await _fileService.deleteFileOrDirectory(item.path);
+        }
+        
+        // Dismiss progress dialog
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+        
+        // Reload directory
+        _loadDirectory(_currentPath);
+        
+        if (mounted) {
+          NotificationService.showNotification(
+            context,
+            message: 'Deleted ${items.length} items',
+            type: NotificationType.success,
+          );
+        }
+      } catch (e) {
+        // Dismiss progress dialog on error
+        if (mounted) {
+          Navigator.of(context).pop();
+          NotificationService.showNotification(
+            context,
+            message: 'Error: $e',
+            type: NotificationType.error,
+          );
+        }
+      }
+    }
+  }
+  
   void _copyItem(FileItem item) {
     setState(() {
-      _clipboardItem = item;
+      _clipboardItems = [item];
       _isItemCut = false;
     });
+    
     NotificationService.showNotification(
       context,
       message: 'Copied: ${item.name}',
       type: NotificationType.info,
     );
   }
-
-  Future<void> _pasteItem() async {
-    if (_clipboardItem == null) {
-      NotificationService.showNotification(
-        context,
-        message: 'Nothing to paste',
-        type: NotificationType.warning,
-      );
-      return;
-    }
+  
+  void _cutItem(FileItem item) {
+    setState(() {
+      _clipboardItems = [item];
+      _isItemCut = true;
+    });
+    
+    NotificationService.showNotification(
+      context,
+      message: 'Cut: ${item.name}',
+      type: NotificationType.info,
+    );
+  }
+  
+  Future<void> _pasteItems() async {
+    if (_clipboardItems == null || _clipboardItems!.isEmpty) return;
     
     try {
-      final String destinationPath = p.join(_currentPath, _clipboardItem!.name);
-      final String itemName = _clipboardItem!.name; // Store the name for later use
-      final String sourcePath = _clipboardItem!.path; // Store the source path for later use
-      
-      // Don't paste if source and destination are the same
-      if (p.dirname(sourcePath) == _currentPath) {
-        NotificationService.showNotification(
-          context,
-          message: 'Cannot paste to the same location',
-          type: NotificationType.warning,
-        );
-        return;
-      }
-      
-      // Check if destination already exists
-      bool destinationExists = false;
-      try {
-        if (await File(destinationPath).exists() || await Directory(destinationPath).exists()) {
-          destinationExists = true;
-        }
-      } catch (e) {
-        // Silently handle error checking destination
-        // Consider implementing proper logging in production
-      }
-      
-      if (destinationExists) {
-        // File or directory already exists, show conflict dialog
-        if (!mounted) return; // Check if widget is still mounted
-        final bool? overwrite = await showDialog<bool>(
+      // Show progress dialog for multiple pastes
+      if (_clipboardItems!.length > 1 && mounted) {
+        showDialog(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('File Exists'),
-            content: Text('$itemName already exists in this location. Overwrite?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text(_isItemCut ? 'Moving Files' : 'Copying Files'),
+              content: Row(
+                children: [
+                  SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: CircularProgressIndicator(),
+                  ),
+                  SizedBox(width: 16),
+                  Text('Processing ${_clipboardItems!.length} items...'),
+                ],
               ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Overwrite'),
-              ),
-            ],
-          ),
+            );
+          },
         );
-        
-        if (overwrite != true) return; // User canceled or closed dialog
       }
       
-      if (_isItemCut) {
-        // Move operation
-        await _fileService.moveFileOrDirectory(sourcePath, _currentPath);
+      int successCount = 0;
+      List<String> errors = [];
+      
+      // Process each item in the clipboard
+      for (final item in _clipboardItems!) {
+        final String sourcePath = item.path;
+        final String itemName = item.name;
+        final String targetPath = p.join(_currentPath, itemName);
         
-        // Clear clipboard after cut-paste
-        setState(() {
-          _clipboardItem = null;
-        });
+        // Check if target already exists
+        final bool destinationExists = await _fileExists(targetPath);
         
-        if (mounted) {
-          NotificationService.showNotification(
-            context,
-            message: 'Moved: $itemName',
-            type: NotificationType.success,
+        if (destinationExists) {
+          // File or directory already exists, show conflict dialog
+          if (!mounted) continue; // Check if widget is still mounted
+          
+          final bool? overwrite = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('File Exists'),
+              content: Text('$itemName already exists in this location. Overwrite?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  child: const Text('Overwrite'),
+                ),
+              ],
+            ),
           );
+          
+          if (overwrite != true) continue; // User canceled or closed dialog
         }
-      } else {
-        // Copy operation
-        await _fileService.copyFileOrDirectory(sourcePath, _currentPath);
         
-        if (mounted) {
+        try {
+          if (_isItemCut) {
+            // Move operation
+            await _fileService.moveFileOrDirectory(sourcePath, _currentPath);
+          } else {
+            // Copy operation
+            await _fileService.copyFileOrDirectory(sourcePath, _currentPath);
+          }
+          successCount++;
+        } catch (e) {
+          errors.add('$itemName: $e');
+        }
+      }
+      
+      // Clear clipboard after cut-paste
+      if (_isItemCut && successCount > 0) {
+        setState(() {
+          _clipboardItems = null;
+        });
+      }
+      
+      // Dismiss progress dialog if it was shown
+      if (_clipboardItems!.length > 1 && mounted) {
+        Navigator.of(context).pop();
+      }
+      
+      // Show result notification
+      if (mounted) {
+        if (errors.isEmpty) {
+          // All operations succeeded
           NotificationService.showNotification(
             context,
-            message: 'Copied: $itemName',
+            message: _isItemCut 
+                ? 'Moved $successCount items' 
+                : 'Copied $successCount items',
             type: NotificationType.success,
           );
+        } else {
+          // Some operations failed
+          NotificationService.showNotification(
+            context,
+            message: 'Completed with ${errors.length} errors',
+            type: NotificationType.warning,
+          );
+          
+          // Show detailed error dialog for multiple errors
+          if (errors.length > 1) {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: Text('Operation Errors'),
+                content: SizedBox(
+                  width: double.maxFinite,
+                  height: 200,
+                  child: ListView.builder(
+                    itemCount: errors.length,
+                    itemBuilder: (context, index) {
+                      return ListTile(
+                        leading: Icon(Icons.error, color: Colors.red),
+                        title: Text(errors[index], 
+                            style: TextStyle(fontSize: 14)),
+                      );
+                    },
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Close'),
+                  ),
+                ],
+              ),
+            );
+          }
         }
       }
       
@@ -794,7 +844,13 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       _loadDirectory(_currentPath);
       
     } catch (e) {
+      // Handle top-level errors
       if (mounted) {
+        // Dismiss progress dialog if it was shown
+        if (_clipboardItems!.length > 1) {
+          Navigator.of(context).pop();
+        }
+        
         NotificationService.showNotification(
           context,
           message: 'Error: $e',
@@ -938,117 +994,98 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Define shortcuts for cut, copy, paste
-    final Map<ShortcutActivator, Intent> shortcuts = {
-      const SingleActivator(LogicalKeyboardKey.keyX, control: true): const CopyIntent.cut(),
-      const SingleActivator(LogicalKeyboardKey.keyC, control: true): const CopyIntent.copy(),
-      const SingleActivator(LogicalKeyboardKey.keyV, control: true): const PasteIntent(),
-      
-      // Add zoom in/out shortcuts with more key combinations
-      const SingleActivator(LogicalKeyboardKey.equal, control: true): const ZoomIntent(zoomIn: true),
-      const SingleActivator(LogicalKeyboardKey.minus, control: true): const ZoomIntent(zoomIn: false),
-      
-      // Add numeric keypad plus/minus
-      const SingleActivator(LogicalKeyboardKey.numpadAdd, control: true): const ZoomIntent(zoomIn: true),
-      const SingleActivator(LogicalKeyboardKey.numpadSubtract, control: true): const ZoomIntent(zoomIn: false),
-      
-      // Add alternatives for different keyboard layouts
-      const SingleActivator(LogicalKeyboardKey.bracketRight, control: true): const ZoomIntent(zoomIn: true), // ] key on some layouts
-      const SingleActivator(LogicalKeyboardKey.slash, control: true): const ZoomIntent(zoomIn: false), // / key on some layouts
-    };
-
     final statusBarService = Provider.of<StatusBarService>(context);
-
-    return KeyboardListener(
-      focusNode: _focusNode,
-      autofocus: true,
-      onKeyEvent: (KeyEvent event) {
-        if (event is KeyDownEvent) {
-          // Check for Ctrl+Plus/Minus combinations directly to debug
-          final isControlPressed = HardwareKeyboard.instance.isControlPressed;
-          
-          if (isControlPressed) {
-            final viewModeService = Provider.of<ViewModeService>(context, listen: false);
-            final iconSizeService = Provider.of<IconSizeService>(context, listen: false);
-            
-            // Handle various zoom in key combinations
-            if (event.logicalKey == LogicalKeyboardKey.equal || 
-                event.logicalKey == LogicalKeyboardKey.numpadAdd || 
-                event.logicalKey.keyLabel == '+' || 
-                event.logicalKey.keyLabel == '=') {
-              
-              // Plus sign was pressed with Ctrl
+    
+    return WillPopScope(
+      onWillPop: () async {
+        return !_navigateBack();
+      },
+      child: KeyboardListener(
+        focusNode: _focusNode,
+        autofocus: true,
+        onKeyEvent: (key) {
+          // Handle zoom shortcuts
+          if (key is KeyDownEvent && HardwareKeyboard.instance.isControlPressed) {
+            if (key.logicalKey == LogicalKeyboardKey.equal ||
+                key.logicalKey == LogicalKeyboardKey.numpadAdd) {
+              // Handle zoom in
+              final viewModeService = Provider.of<ViewModeService>(context, listen: false);
               if (viewModeService.isGrid) {
-                iconSizeService.increaseGridIconSize();
+                Provider.of<IconSizeService>(context, listen: false).increaseGridIconSize();
               } else {
-                iconSizeService.increaseListIconSize();
+                Provider.of<IconSizeService>(context, listen: false).increaseListIconSize();
               }
-              
               NotificationService.showNotification(
                 context,
                 message: 'Zooming in UI',
                 type: NotificationType.success,
                 duration: const Duration(milliseconds: 500),
               );
-            } 
-            // Handle various zoom out key combinations
-            else if (event.logicalKey == LogicalKeyboardKey.minus || 
-                     event.logicalKey == LogicalKeyboardKey.numpadSubtract || 
-                     event.logicalKey.keyLabel == '-') {
-              
-              // Minus sign was pressed with Ctrl
+              return;
+            } else if (key.logicalKey == LogicalKeyboardKey.minus ||
+                       key.logicalKey == LogicalKeyboardKey.numpadSubtract) {
+              // Handle zoom out
+              final viewModeService = Provider.of<ViewModeService>(context, listen: false);
               if (viewModeService.isGrid) {
-                iconSizeService.decreaseGridIconSize();
+                Provider.of<IconSizeService>(context, listen: false).decreaseGridIconSize();
               } else {
-                iconSizeService.decreaseListIconSize();
+                Provider.of<IconSizeService>(context, listen: false).decreaseListIconSize();
               }
-              
               NotificationService.showNotification(
                 context,
                 message: 'Zooming out UI',
                 type: NotificationType.success,
                 duration: const Duration(milliseconds: 500),
               );
+              return;
             }
-          }
-        }
-      },
-      child: PopScope(
-        canPop: _navigationHistory.isEmpty,
-        onPopInvokedWithResult: (didPop, __) {
-          if (!didPop) {
-            // If we shouldn't pop (because we can navigate back), handle it manually
-            setState(() {
-              _navigateBack();
-            });
           }
         },
         child: Scaffold(
           body: Shortcuts(
-            shortcuts: shortcuts,
+            shortcuts: {
+              const SingleActivator(LogicalKeyboardKey.keyX, control: true): const CopyIntent.cut(),
+              const SingleActivator(LogicalKeyboardKey.keyC, control: true): const CopyIntent.copy(),
+              const SingleActivator(LogicalKeyboardKey.keyV, control: true): const PasteIntent(),
+              
+              // Add zoom in/out shortcuts with more key combinations
+              const SingleActivator(LogicalKeyboardKey.equal, control: true): const ZoomIntent(zoomIn: true),
+              const SingleActivator(LogicalKeyboardKey.minus, control: true): const ZoomIntent(zoomIn: false),
+              
+              // Add numeric keypad plus/minus
+              const SingleActivator(LogicalKeyboardKey.numpadAdd, control: true): const ZoomIntent(zoomIn: true),
+              const SingleActivator(LogicalKeyboardKey.numpadSubtract, control: true): const ZoomIntent(zoomIn: false),
+              
+              // Add alternatives for different keyboard layouts
+              const SingleActivator(LogicalKeyboardKey.bracketRight, control: true): const ZoomIntent(zoomIn: true), // ] key on some layouts
+              const SingleActivator(LogicalKeyboardKey.slash, control: true): const ZoomIntent(zoomIn: false), // / key on some layouts
+            },
             child: Actions(
               actions: {
                 CopyIntent: CallbackAction<CopyIntent>(
                   onInvoke: (CopyIntent intent) {
-                    if (_selectedItem == null) return null;
+                    if (_selectedItemsPaths.isEmpty) return null;
                     if (intent.isCut) {
-                      _cutItem(_selectedItem!);
+                      for (final path in _selectedItemsPaths) {
+                        _cutItem(_items.firstWhere((item) => item.path == path));
+                      }
                     } else {
-                      _copyItem(_selectedItem!);
+                      for (final path in _selectedItemsPaths) {
+                        _copyItem(_items.firstWhere((item) => item.path == path));
+                      }
                     }
                     return null;
                   },
                 ),
                 PasteIntent: CallbackAction<PasteIntent>(
                   onInvoke: (PasteIntent intent) {
-                    _pasteItem();
+                    _pasteItems();
                     return null;
                   },
                 ),
                 ZoomIntent: CallbackAction<ZoomIntent>(
                   onInvoke: (ZoomIntent intent) {
                     final viewModeService = Provider.of<ViewModeService>(context, listen: false);
-                    final iconSizeService = Provider.of<IconSizeService>(context, listen: false);
                     
                     // Show a notification to confirm the shortcut was triggered
                     NotificationService.showNotification(
@@ -1060,45 +1097,68 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
                     
                     if (intent.isZoomIn) {
                       if (viewModeService.isGrid) {
-                        iconSizeService.increaseGridIconSize();
+                        Provider.of<IconSizeService>(context, listen: false).increaseGridIconSize();
                       } else {
-                        iconSizeService.increaseListIconSize();
+                        Provider.of<IconSizeService>(context, listen: false).increaseListIconSize();
                       }
                     } else {
                       if (viewModeService.isGrid) {
-                        iconSizeService.decreaseGridIconSize();
+                        Provider.of<IconSizeService>(context, listen: false).decreaseGridIconSize();
                       } else {
-                        iconSizeService.decreaseListIconSize();
+                        Provider.of<IconSizeService>(context, listen: false).decreaseListIconSize();
                       }
                     }
                     return null;
                   },
                 ),
               },
-              child: Row(
-                children: [
-                  if (_showBookmarkSidebar)
-                    BookmarkSidebar(
-                      onNavigate: _navigateToDirectory,
-                      currentPath: _currentPath,
-                    ),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        _buildPathBar(),
-                        Expanded(
-                          child: _buildContent(),
-                        ),
-                        // Add status bar to the bottom if enabled
-                        if (statusBarService.showStatusBar)
-                          StatusBar(
-                            items: _items,
-                            showIconControls: statusBarService.showIconControls,
+              child: Focus(
+                autofocus: true,
+                onKeyEvent: (node, event) {
+                  // Handle keyboard shortcuts
+                  if (event is KeyDownEvent) {
+                    if (event.logicalKey == LogicalKeyboardKey.keyA && 
+                        (HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed)) {
+                      // Ctrl+A or Cmd+A: Select all
+                      setState(() {
+                        _selectedItemsPaths = _items.map((item) => item.path).toSet();
+                      });
+                      return KeyEventResult.handled;
+                    } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+                      // Escape: Clear selection
+                      setState(() {
+                        _selectedItemsPaths = {};
+                      });
+                      return KeyEventResult.handled;
+                    }
+                  }
+                  return KeyEventResult.ignored;
+                },
+                child: Row(
+                  children: [
+                    if (_showBookmarkSidebar)
+                      BookmarkSidebar(
+                        onNavigate: _navigateToDirectory,
+                        currentPath: _currentPath,
+                      ),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          _buildPathBar(),
+                          Expanded(
+                            child: _buildFileExplorerContent(),
                           ),
-                      ],
+                          // Add status bar to the bottom if enabled
+                          if (statusBarService.showStatusBar)
+                            StatusBar(
+                              items: _items,
+                              showIconControls: statusBarService.showIconControls,
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -1210,7 +1270,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
             } else if (value == 'open_terminal') {
               _openCurrentDirectoryInTerminal();
             } else if (value == 'paste') {
-              _pasteItem();
+              _pasteItems();
             } else if (value == 'toggle_status_bar') {
               statusBarService.toggleStatusBar();
             } else if (value == 'toggle_icon_controls') {
@@ -1299,7 +1359,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
                 ],
               ),
             ),
-            if (_clipboardItem != null)
+            if (_clipboardItems != null && _clipboardItems!.isNotEmpty)
               PopupMenuItem<String>(
                 value: 'paste',
                 child: Row(
@@ -1337,13 +1397,17 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildFileExplorerContent() {
+    final viewModeService = Provider.of<ViewModeService>(context);
+    
+    // Handle loading state
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
 
+    // Handle error state
     if (_hasError) {
       return Center(
         child: Column(
@@ -1362,6 +1426,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       );
     }
 
+    // Handle empty directory
     if (_items.isEmpty) {
       return Center(
         child: Column(
@@ -1374,57 +1439,44 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         ),
       );
     }
-
-    // Get the current view mode
-    final viewModeService = Provider.of<ViewModeService>(context);
-    final viewMode = viewModeService.viewMode;
-
-    // Just use a GestureDetector for right-click handling, remove the Ctrl+scroll functionality
-    return GestureDetector(
-      onSecondaryTapUp: (details) {
-        // Handle right-click on empty space
-        _showEmptySpaceContextMenu(details.globalPosition);
-      },
-      child: _buildViewContent(viewMode),
-    );
-  }
-
-  Widget _buildViewContent(ViewMode viewMode) {
-    final iconSizeService = Provider.of<IconSizeService>(context);
     
-    switch (viewMode) {
+    // Display content based on view mode
+    switch (viewModeService.viewMode) {
       case ViewMode.grid:
-        final uiScale = iconSizeService.gridUIScale;
-        
-        // Calculate a responsive cross axis count based on screen width and UI scale
-        final screenWidth = MediaQuery.of(context).size.width;
-        final minCellSize = 120.0 * uiScale; // Base cell size with scaling
-        int crossAxisCount = (screenWidth / minCellSize).floor();
-        crossAxisCount = crossAxisCount.clamp(2, 8); // Keep between 2 and 8 columns
-        
-        return GridView.builder(
-          controller: _scrollController,
-          padding: EdgeInsets.all(8.0 * uiScale),
-          physics: const AlwaysScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            childAspectRatio: 0.85,
-            crossAxisSpacing: 10.0 * uiScale,
-            mainAxisSpacing: 10.0 * uiScale,
+        return Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedItemsPaths = {};
+              });
+            },
+            onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
+            child: GridView.builder(
+              controller: _scrollController,
+              padding: EdgeInsets.only(bottom: 100.0 * Provider.of<IconSizeService>(context).gridUIScale),
+              physics: const AlwaysScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: Provider.of<IconSizeService>(context).gridItemExtent,
+                childAspectRatio: 1.0,
+                crossAxisSpacing: 5.0,
+                mainAxisSpacing: 5.0,
+              ),
+              itemCount: _items.length,
+              itemBuilder: (context, index) {
+                final item = _items[index];
+                return GridItemWidget(
+                  key: ValueKey(item.path),
+                  item: item,
+                  onTap: _handleItemTap,
+                  onDoubleTap: () => _handleItemDoubleTap(item),
+                  onLongPress: _showOptionsDialog,
+                  onRightClick: _showContextMenu,
+                  isSelected: _selectedItemsPaths.contains(item.path),
+                );
+              },
+            ),
           ),
-          itemCount: _items.length,
-          itemBuilder: (context, index) {
-            final item = _items[index];
-            return GridItemWidget(
-              key: ValueKey(item.path),
-              item: item,
-              onTap: () => _handleItemTap(item),
-              onDoubleTap: () => _handleItemDoubleTap(item),
-              onLongPress: _showOptionsDialog,
-              onRightClick: _showContextMenu,
-              isSelected: _selectedItem?.path == item.path,
-            );
-          },
         );
 
       case ViewMode.split:
@@ -1434,10 +1486,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
           onItemDoubleTap: _handleItemDoubleTap,
           onItemLongPress: _showOptionsDialog,
           onItemRightClick: _showContextMenu,
-          selectedItem: _selectedItem,
+          selectedItemsPaths: _selectedItemsPaths,
           onEmptyAreaTap: () {
             setState(() {
-              _selectedItem = null;
+              _selectedItemsPaths = {};
             });
           },
           onEmptyAreaRightClick: _showEmptySpaceContextMenu,
@@ -1446,7 +1498,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       case ViewMode.list:
         return ListView.builder(
           controller: _scrollController,
-          padding: EdgeInsets.only(bottom: 100.0 * iconSizeService.listUIScale),
+          padding: EdgeInsets.only(bottom: 100.0 * Provider.of<IconSizeService>(context).listUIScale),
           physics: const AlwaysScrollableScrollPhysics(),
           itemCount: _items.length,
           itemBuilder: (context, index) {
@@ -1454,11 +1506,11 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
             return FileItemWidget(
               key: ValueKey(item.path),
               item: item,
-              onTap: () => _handleItemTap(item),
+              onTap: _handleItemTap,
               onDoubleTap: () => _handleItemDoubleTap(item),
               onLongPress: _showOptionsDialog,
               onRightClick: _showContextMenu,
-              isSelected: _selectedItem?.path == item.path,
+              isSelected: _selectedItemsPaths.contains(item.path),
             );
           },
         );
@@ -1555,6 +1607,217 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
           type: NotificationType.error,
         );
       }
+    }
+  }
+
+  // Re-implement the _showEmptySpaceContextMenu method that was deleted
+  void _showEmptySpaceContextMenu(Offset position) async {
+    // Deselect any selected items when right-clicking on empty space
+    setState(() {
+      _selectedItemsPaths = {};
+    });
+    
+    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    
+    // Create a relative rectangle for positioning the menu
+    final RelativeRect menuPosition = RelativeRect.fromRect(
+      Rect.fromPoints(position, position),
+      Rect.fromLTWH(0, 0, overlay.size.width, overlay.size.height),
+    );
+    
+    // Add mounted check
+    if (!mounted) return;
+    
+    final menuItems = <PopupMenuEntry<String>>[
+      PopupMenuItem<String>(
+        value: 'new_folder',
+        child: Row(
+          children: [
+            Icon(Icons.create_new_folder),
+            SizedBox(width: 8),
+            Text('New Folder'),
+          ],
+        ),
+      ),
+      PopupMenuItem<String>(
+        value: 'new_file',
+        child: Row(
+          children: [
+            Icon(Icons.note_add),
+            SizedBox(width: 8),
+            Text('New File'),
+          ],
+        ),
+      ),
+    ];
+    
+    // Add paste option if clipboard has items
+    if (_clipboardItems != null && _clipboardItems!.isNotEmpty) {
+      menuItems.add(
+        PopupMenuItem<String>(
+          value: 'paste',
+          child: Row(
+            children: [
+              Icon(Icons.content_paste),
+              SizedBox(width: 8),
+              Text(_isItemCut ? 'Paste (Cut)' : 'Paste (Copy)'),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    // Add divider before additional options
+    menuItems.add(const PopupMenuDivider());
+    
+    // Additional common options
+    menuItems.addAll([
+      PopupMenuItem<String>(
+        value: 'open_in_terminal',
+        child: Row(
+          children: [
+            Icon(Icons.terminal),
+            SizedBox(width: 8),
+            Text('Open in Terminal'),
+          ],
+        ),
+      ),
+      PopupMenuItem<String>(
+        value: 'refresh',
+        child: Row(
+          children: [
+            Icon(Icons.refresh),
+            SizedBox(width: 8),
+            Text('Refresh'),
+          ],
+        ),
+      ),
+    ]);
+    
+    // Add mounted check before context usage
+    if (!mounted) return;
+    
+    final result = await showMenu<String>(
+      context: context,
+      position: menuPosition,
+      items: menuItems,
+    );
+
+    if (result == 'new_folder') {
+      _showCreateDialog(true);
+    } else if (result == 'new_file') {
+      _showCreateDialog(false);
+    } else if (result == 'paste') {
+      _pasteItems();
+    } else if (result == 'open_in_terminal') {
+      _openCurrentDirectoryInTerminal();
+    } else if (result == 'refresh') {
+      _loadDirectory(_currentPath);
+    }
+  }
+
+  // Re-implement the _openCurrentDirectoryInTerminal method that was deleted
+  void _openCurrentDirectoryInTerminal() async {
+    try {
+      // Try using ptyxis with --working-directory, then fall back to other terminals if needed
+      final String command = 'ptyxis --new-window --working-directory "$_currentPath" || '
+                           'gnome-terminal --working-directory="$_currentPath" || '
+                           'xfce4-terminal --working-directory="$_currentPath" || '
+                           'konsole --workdir="$_currentPath" || '
+                           'xterm -e "cd \'$_currentPath\' && bash"';
+      
+      // Use underscore to ignore the result
+      await Process.run('sh', ['-c', command]);
+      
+      // Don't check exit code as we're using fallbacks with ||
+      // Instead, just show success message if we get here
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Opened current directory in terminal',
+          type: NotificationType.success,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Failed to open terminal: $e',
+          type: NotificationType.error,
+        );
+      }
+    }
+  }
+
+  // Re-implement the _openInTerminal method that was deleted
+  void _openInTerminal(FileItem item) async {
+    try {
+      final String command;
+      
+      if (item.type == FileItemType.directory) {
+        // For directories, use ptyxis with --working-directory
+        command = 'ptyxis --new-window --working-directory "${item.path}" || '
+                'gnome-terminal --working-directory="${item.path}" || '
+                'xfce4-terminal --working-directory="${item.path}" || '
+                'konsole --workdir="${item.path}" || '
+                'xterm -e "cd \'${item.path}\' && bash"';
+      } else {
+        // For files, determine appropriate action based on file type
+        final String dirname = p.dirname(item.path);
+        
+        if (item.fileExtension == '.sh') {
+          // For shell scripts
+          command = 'ptyxis --new-window --working-directory "$dirname" --command "bash \'${item.path}\'" || '
+                  'gnome-terminal -- bash -c "bash \'${item.path}\'; exec bash" || '
+                  'xfce4-terminal -- bash -c "bash \'${item.path}\'; exec bash" || '
+                  'konsole -e bash -c "bash \'${item.path}\'; exec bash" || '
+                  'xterm -e "bash \'${item.path}\'; exec bash"';
+        } else if (item.fileExtension == '.py') {
+          // For Python scripts
+          command = 'ptyxis --new-window --working-directory "$dirname" --command "python3 \'${item.path}\'" || '
+                  'gnome-terminal -- bash -c "python3 \'${item.path}\'; exec bash" || '
+                  'xfce4-terminal -- bash -c "python3 \'${item.path}\'; exec bash" || '
+                  'konsole -e bash -c "python3 \'${item.path}\'; exec bash" || '
+                  'xterm -e "python3 \'${item.path}\'; exec bash"';
+        } else {
+          // Default to viewing the file with less
+          command = 'ptyxis --new-window --working-directory "$dirname" --command "less \'${item.path}\'" || '
+                  'gnome-terminal -- bash -c "less \'${item.path}\'; exec bash" || '
+                  'xfce4-terminal -- bash -c "less \'${item.path}\'; exec bash" || '
+                  'konsole -e bash -c "less \'${item.path}\'; exec bash" || '
+                  'xterm -e "less \'${item.path}\'; exec bash"';
+        }
+      }
+      
+      // Execute the command using a shell 
+      await Process.run('sh', ['-c', command]);
+      
+      // Don't check exit code as we're using fallbacks with ||
+      // Show a snackbar to confirm
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Opened in terminal: ${item.name}',
+          type: NotificationType.success,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Failed to open in terminal: $e',
+          type: NotificationType.error,
+        );
+      }
+    }
+  }
+
+  // Add a helper method to check if a file or directory exists
+  Future<bool> _fileExists(String path) async {
+    try {
+      return await File(path).exists() || await Directory(path).exists();
+    } catch (e) {
+      return false;
     }
   }
 }

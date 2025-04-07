@@ -4,11 +4,11 @@ import 'file_item_widget.dart';
 
 class SplitFolderView extends StatefulWidget {
   final List<FileItem> items;
-  final Function(FileItem) onItemTap;
+  final Function(FileItem, bool) onItemTap; // Update to accept Ctrl key state
   final Function(FileItem) onItemDoubleTap;
   final Function(FileItem) onItemLongPress;
   final Function(FileItem, Offset) onItemRightClick;
-  final FileItem? selectedItem;
+  final Set<String> selectedItemsPaths; // Change to set of paths
   final Function() onEmptyAreaTap;
   final Function(Offset) onEmptyAreaRightClick;
 
@@ -19,7 +19,7 @@ class SplitFolderView extends StatefulWidget {
     required this.onItemDoubleTap,
     required this.onItemLongPress,
     required this.onItemRightClick,
-    required this.selectedItem,
+    required this.selectedItemsPaths, // Update parameter name
     required this.onEmptyAreaTap,
     required this.onEmptyAreaRightClick,
   });
@@ -142,11 +142,11 @@ class _SplitFolderViewState extends State<SplitFolderView> {
                       return FileItemWidget(
                         key: ValueKey(item.path),
                         item: item,
-                        onTap: () => widget.onItemTap(item),
+                        onTap: widget.onItemTap, // The updated function will handle Ctrl key
                         onDoubleTap: () => widget.onItemDoubleTap(item),
                         onLongPress: widget.onItemLongPress,
                         onRightClick: widget.onItemRightClick,
-                        isSelected: widget.selectedItem?.path == item.path,
+                        isSelected: widget.selectedItemsPaths.contains(item.path),
                       );
                     },
                   ),

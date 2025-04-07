@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/file_item.dart';
 import '../services/icon_size_service.dart';
 
+/// A widget to display a file or folder in a list
 class FileItemWidget extends StatelessWidget {
   final FileItem item;
-  final VoidCallback onTap;
+  final Function(FileItem, bool) onTap;
   final VoidCallback onDoubleTap;
   final Function(FileItem) onLongPress;
   final Function(FileItem, Offset position) onRightClick;
@@ -64,7 +66,11 @@ class FileItemWidget extends StatelessWidget {
                 onRightClick(item, details.globalPosition);
               },
               child: InkWell(
-                onTap: onTap,
+                onTap: () {
+                  // Check if Ctrl key is pressed
+                  final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
+                  onTap(item, isCtrlPressed);
+                },
                 onDoubleTap: onDoubleTap,
                 onLongPress: () => onLongPress(item),
                 child: LayoutBuilder(
