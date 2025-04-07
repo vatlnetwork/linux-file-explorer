@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/file_item.dart';
 import '../services/icon_size_service.dart';
 
-class FileItemWidget extends StatelessWidget {
+class GridItemWidget extends StatelessWidget {
   final FileItem item;
   final VoidCallback onTap;
   final VoidCallback onDoubleTap;
@@ -11,7 +11,7 @@ class FileItemWidget extends StatelessWidget {
   final Function(FileItem, Offset position) onRightClick;
   final bool isSelected;
 
-  const FileItemWidget({
+  const GridItemWidget({
     super.key,
     required this.item,
     required this.onTap,
@@ -25,26 +25,23 @@ class FileItemWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final iconSizeService = Provider.of<IconSizeService>(context);
-    final iconSize = iconSizeService.listIconSize;
-    final uiScale = iconSizeService.listUIScale;
-    final titleSize = iconSizeService.listTitleSize;
-    final subtitleSize = iconSizeService.listSubtitleSize;
+    final iconSize = iconSizeService.gridIconSize;
+    final uiScale = iconSizeService.gridUIScale;
+    final titleSize = iconSizeService.gridTitleSize;
+    final subtitleSize = iconSizeService.gridSubtitleSize;
     
     // Calculate padding that scales down less aggressively at small sizes
     final scaledPadding = 8.0 * (uiScale > 0.9 ? uiScale : 0.9);
-    final scaledMargin = 4.0 * (uiScale > 0.9 ? uiScale : 0.9);
+    final scaledMargin = 6.0 * (uiScale > 0.9 ? uiScale : 0.9);
     
     return Card(
-      margin: EdgeInsets.symmetric(
-        vertical: scaledMargin,
-        horizontal: scaledMargin * 2,
-      ),
+      margin: EdgeInsets.all(scaledMargin),
       elevation: 0,
       color: isSelected
           ? (isDarkMode ? Colors.blueGrey.shade800 : Colors.blue.shade50)
           : (isDarkMode ? Color(0xFF1E1E1E) : Colors.white),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(4.0 * uiScale),
+        borderRadius: BorderRadius.circular(6.0 * uiScale),
         side: BorderSide(
           color: isSelected
               ? (isDarkMode ? Colors.blue.shade700 : Colors.blue.shade300)
@@ -63,67 +60,77 @@ class FileItemWidget extends StatelessWidget {
             onTap: onTap,
             onDoubleTap: onDoubleTap,
             onLongPress: () => onLongPress(item),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final hasSpaceForSubtitle = constraints.maxHeight > (30.0 * uiScale);
-                
-                return ClipRect(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: scaledPadding,
-                      vertical: scaledPadding / 2,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Icon with fixed width but scaled size
-                        Container(
-                          width: iconSize * 1.5,
-                          alignment: Alignment.center,
-                          child: _buildItemIcon(iconSize),
-                        ),
-                        SizedBox(width: 12.0 * uiScale.clamp(0.7, 1.0)),
-                        
-                        // Text content
-                        Expanded(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
+            child: Padding(
+              padding: EdgeInsets.all(scaledPadding),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Calculate minimum height for the icon container
+                  final minContainerHeight = 24.0;
+                  
+                  // Determine if we need to fit text based on available space
+                  // Use a more conservative threshold for small UI scales
+                  final heightThreshold = 60.0 * (uiScale > 1.0 ? uiScale : 1.0);
+                  final hasSpaceForText = constraints.maxHeight > heightThreshold;
+                  final hasSpaceForSubtitle = constraints.maxHeight > (heightThreshold + 20.0);
+                  
+                  // Calculate specific heights based on available space
+                  final iconHeight = hasSpaceForText 
+                      ? constraints.maxHeight * 0.6
+                      : constraints.maxHeight;
+                  
+                  return ClipRect(
+                    child: Align(
+                      alignment: Alignment.center,
+                      heightFactor: 1.0,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Icon container that takes most space
+                          SizedBox(
+                            height: iconHeight.clamp(minContainerHeight, double.infinity),
+                            width: double.infinity,
+                            child: Center(
+                              child: _buildItemIcon(iconSize),
+                            ),
+                          ),
+                          
+                          // Only show text if there's enough space
+                          if (hasSpaceForText) ...[
+                            SizedBox(height: 4.0 * uiScale.clamp(0.7, 1.0)),
+                            Text(
+                              item.name,
+                              textAlign: TextAlign.center,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: TextStyle(
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                fontSize: titleSize,
+                                color: isDarkMode ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            
+                            // Subtitle - only if we have even more space
+                            if (hasSpaceForSubtitle) ...[
+                              SizedBox(height: 2.0 * uiScale.clamp(0.7, 1.0)),
                               Text(
-                                item.name,
+                                item.type == FileItemType.directory ? 'Folder' : item.formattedSize,
+                                textAlign: TextAlign.center,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                  fontSize: titleSize,
-                                  color: isDarkMode ? Colors.white : Colors.black87,
+                                  fontSize: subtitleSize,
+                                  color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
                                 ),
                               ),
-                              if (hasSpaceForSubtitle) ...[
-                                SizedBox(height: 2.0 * uiScale.clamp(0.7, 1.0)),
-                                Text(
-                                  item.type == FileItemType.directory
-                                      ? 'Folder'
-                                      : item.formattedSize,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: subtitleSize,
-                                    color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
-                                  ),
-                                ),
-                              ],
                             ],
-                          ),
-                        ),
-                        
-                        // Right padding for consistent spacing
-                        SizedBox(width: 8.0 * uiScale.clamp(0.7, 1.0)),
-                      ],
+                          ],
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              },
+                  );
+                }
+              ),
             ),
           ),
         ),

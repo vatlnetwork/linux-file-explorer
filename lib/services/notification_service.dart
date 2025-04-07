@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 /// A service to display consistent, themed notifications throughout the app
 /// with a custom look and positioning in the right side
 class NotificationService {
+  /// Global key for the scaffold messenger
+  static final GlobalKey<ScaffoldMessengerState> messengerKey = GlobalKey<ScaffoldMessengerState>();
+
   /// Shows a notification (SnackBar) in the right side of the screen
   /// The notification follows the app theme and fits its content
   static void showNotification(

@@ -7,9 +7,16 @@ import '../models/file_item.dart';
 import '../services/file_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/notification_service.dart';
+import '../services/view_mode_service.dart';
+import '../services/status_bar_service.dart';
+import '../services/icon_size_service.dart';
 import '../widgets/file_item_widget.dart';
+import '../widgets/grid_item_widget.dart';
+import '../widgets/split_folder_view.dart';
 import '../widgets/theme_switcher.dart';
+import '../widgets/view_mode_switcher.dart';
 import '../widgets/bookmark_sidebar.dart';
+import '../widgets/status_bar.dart';
 import '../services/usb_drive_service.dart';
 
 class FileExplorerScreen extends StatefulWidget {
@@ -23,6 +30,7 @@ class FileExplorerScreen extends StatefulWidget {
 class _FileExplorerScreenState extends State<FileExplorerScreen> {
   final FileService _fileService = FileService();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode(); // Add focus node for keyboard events
   
   String _currentPath = '';
   List<FileItem> _items = [];
@@ -49,6 +57,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _focusNode.dispose(); // Dispose the focus node
     super.dispose();
   }
 
@@ -934,59 +943,163 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       const SingleActivator(LogicalKeyboardKey.keyX, control: true): const CopyIntent.cut(),
       const SingleActivator(LogicalKeyboardKey.keyC, control: true): const CopyIntent.copy(),
       const SingleActivator(LogicalKeyboardKey.keyV, control: true): const PasteIntent(),
+      
+      // Add zoom in/out shortcuts with more key combinations
+      const SingleActivator(LogicalKeyboardKey.equal, control: true): const ZoomIntent(zoomIn: true),
+      const SingleActivator(LogicalKeyboardKey.minus, control: true): const ZoomIntent(zoomIn: false),
+      
+      // Add numeric keypad plus/minus
+      const SingleActivator(LogicalKeyboardKey.numpadAdd, control: true): const ZoomIntent(zoomIn: true),
+      const SingleActivator(LogicalKeyboardKey.numpadSubtract, control: true): const ZoomIntent(zoomIn: false),
+      
+      // Add alternatives for different keyboard layouts
+      const SingleActivator(LogicalKeyboardKey.bracketRight, control: true): const ZoomIntent(zoomIn: true), // ] key on some layouts
+      const SingleActivator(LogicalKeyboardKey.slash, control: true): const ZoomIntent(zoomIn: false), // / key on some layouts
     };
 
-    return PopScope(
-      canPop: _navigationHistory.isEmpty,
-      onPopInvokedWithResult: (didPop, __) {
-        if (!didPop) {
-          // If we shouldn't pop (because we can navigate back), handle it manually
-          setState(() {
-            _navigateBack();
-          });
+    final statusBarService = Provider.of<StatusBarService>(context);
+
+    return KeyboardListener(
+      focusNode: _focusNode,
+      autofocus: true,
+      onKeyEvent: (KeyEvent event) {
+        if (event is KeyDownEvent) {
+          // Check for Ctrl+Plus/Minus combinations directly to debug
+          final isControlPressed = HardwareKeyboard.instance.isControlPressed;
+          
+          if (isControlPressed) {
+            final viewModeService = Provider.of<ViewModeService>(context, listen: false);
+            final iconSizeService = Provider.of<IconSizeService>(context, listen: false);
+            
+            // Handle various zoom in key combinations
+            if (event.logicalKey == LogicalKeyboardKey.equal || 
+                event.logicalKey == LogicalKeyboardKey.numpadAdd || 
+                event.logicalKey.keyLabel == '+' || 
+                event.logicalKey.keyLabel == '=') {
+              
+              // Plus sign was pressed with Ctrl
+              if (viewModeService.isGrid) {
+                iconSizeService.increaseGridIconSize();
+              } else {
+                iconSizeService.increaseListIconSize();
+              }
+              
+              NotificationService.showNotification(
+                context,
+                message: 'Zooming in UI',
+                type: NotificationType.success,
+                duration: const Duration(milliseconds: 500),
+              );
+            } 
+            // Handle various zoom out key combinations
+            else if (event.logicalKey == LogicalKeyboardKey.minus || 
+                     event.logicalKey == LogicalKeyboardKey.numpadSubtract || 
+                     event.logicalKey.keyLabel == '-') {
+              
+              // Minus sign was pressed with Ctrl
+              if (viewModeService.isGrid) {
+                iconSizeService.decreaseGridIconSize();
+              } else {
+                iconSizeService.decreaseListIconSize();
+              }
+              
+              NotificationService.showNotification(
+                context,
+                message: 'Zooming out UI',
+                type: NotificationType.success,
+                duration: const Duration(milliseconds: 500),
+              );
+            }
+          }
         }
       },
-      child: Scaffold(
-        body: Shortcuts(
-          shortcuts: shortcuts,
-          child: Actions(
-            actions: {
-              CopyIntent: CallbackAction<CopyIntent>(
-                onInvoke: (CopyIntent intent) {
-                  if (_selectedItem == null) return null;
-                  if (intent.isCut) {
-                    _cutItem(_selectedItem!);
-                  } else {
-                    _copyItem(_selectedItem!);
-                  }
-                  return null;
-                },
-              ),
-              PasteIntent: CallbackAction<PasteIntent>(
-                onInvoke: (PasteIntent intent) {
-                  _pasteItem();
-                  return null;
-                },
-              ),
-            },
-            child: Row(
-              children: [
-                if (_showBookmarkSidebar)
-                  BookmarkSidebar(
-                    onNavigate: _navigateToDirectory,
-                    currentPath: _currentPath,
-                  ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      _buildPathBar(),
-                      Expanded(
-                        child: _buildContent(),
-                      ),
-                    ],
-                  ),
+      child: PopScope(
+        canPop: _navigationHistory.isEmpty,
+        onPopInvokedWithResult: (didPop, __) {
+          if (!didPop) {
+            // If we shouldn't pop (because we can navigate back), handle it manually
+            setState(() {
+              _navigateBack();
+            });
+          }
+        },
+        child: Scaffold(
+          body: Shortcuts(
+            shortcuts: shortcuts,
+            child: Actions(
+              actions: {
+                CopyIntent: CallbackAction<CopyIntent>(
+                  onInvoke: (CopyIntent intent) {
+                    if (_selectedItem == null) return null;
+                    if (intent.isCut) {
+                      _cutItem(_selectedItem!);
+                    } else {
+                      _copyItem(_selectedItem!);
+                    }
+                    return null;
+                  },
                 ),
-              ],
+                PasteIntent: CallbackAction<PasteIntent>(
+                  onInvoke: (PasteIntent intent) {
+                    _pasteItem();
+                    return null;
+                  },
+                ),
+                ZoomIntent: CallbackAction<ZoomIntent>(
+                  onInvoke: (ZoomIntent intent) {
+                    final viewModeService = Provider.of<ViewModeService>(context, listen: false);
+                    final iconSizeService = Provider.of<IconSizeService>(context, listen: false);
+                    
+                    // Show a notification to confirm the shortcut was triggered
+                    NotificationService.showNotification(
+                      context,
+                      message: intent.isZoomIn ? 'Zooming in UI' : 'Zooming out UI',
+                      type: NotificationType.success,
+                      duration: const Duration(milliseconds: 500),
+                    );
+                    
+                    if (intent.isZoomIn) {
+                      if (viewModeService.isGrid) {
+                        iconSizeService.increaseGridIconSize();
+                      } else {
+                        iconSizeService.increaseListIconSize();
+                      }
+                    } else {
+                      if (viewModeService.isGrid) {
+                        iconSizeService.decreaseGridIconSize();
+                      } else {
+                        iconSizeService.decreaseListIconSize();
+                      }
+                    }
+                    return null;
+                  },
+                ),
+              },
+              child: Row(
+                children: [
+                  if (_showBookmarkSidebar)
+                    BookmarkSidebar(
+                      onNavigate: _navigateToDirectory,
+                      currentPath: _currentPath,
+                    ),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _buildPathBar(),
+                        Expanded(
+                          child: _buildContent(),
+                        ),
+                        // Add status bar to the bottom if enabled
+                        if (statusBarService.showStatusBar)
+                          StatusBar(
+                            items: _items,
+                            showIconControls: statusBarService.showIconControls,
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1071,10 +1184,14 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   }
   
   Widget _buildActionButtons() {
+    final statusBarService = Provider.of<StatusBarService>(context);
+    
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         const ThemeSwitcher(),
+        const SizedBox(width: 8),
+        const ViewModeSwitcher(),
         PopupMenuButton<String>(
           tooltip: 'Menu',
           icon: const Icon(Icons.menu),
@@ -1094,6 +1211,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
               _openCurrentDirectoryInTerminal();
             } else if (value == 'paste') {
               _pasteItem();
+            } else if (value == 'toggle_status_bar') {
+              statusBarService.toggleStatusBar();
+            } else if (value == 'toggle_icon_controls') {
+              statusBarService.toggleIconControls();
             }
           },
           itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -1107,6 +1228,56 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
                 ],
               ),
             ),
+            PopupMenuItem<String>(
+              value: 'toggle_status_bar',
+              child: Row(
+                children: [
+                  Icon(
+                    statusBarService.showStatusBar
+                        ? Icons.info
+                        : Icons.info_outline,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    statusBarService.showStatusBar
+                        ? 'Hide Status Bar'
+                        : 'Show Status Bar',
+                  ),
+                ],
+              ),
+            ),
+            if (statusBarService.showStatusBar)
+              PopupMenuItem<String>(
+                value: 'toggle_icon_controls',
+                child: Row(
+                  children: [
+                    Icon(
+                      statusBarService.showIconControls
+                          ? Icons.zoom_in
+                          : Icons.zoom_out_map,
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          statusBarService.showIconControls
+                              ? 'Hide Icon Controls'
+                              : 'Show Icon Controls',
+                        ),
+                        Text(
+                          'Shortcuts: Ctrl+=, Ctrl+-',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             const PopupMenuDivider(),
             const PopupMenuItem<String>(
               value: 'file',
@@ -1168,7 +1339,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
 
   Widget _buildContent() {
     if (_isLoading) {
-      return Center(child: CircularProgressIndicator());
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
     }
 
     if (_hasError) {
@@ -1176,11 +1349,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              'Error!',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
+            Icon(Icons.error_outline, color: Colors.red, size: 48),
+            SizedBox(height: 16),
             Text(_errorMessage),
             SizedBox(height: 16),
             ElevatedButton(
@@ -1193,132 +1363,106 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     }
 
     if (_items.isEmpty) {
-      return MouseRegion(
-        cursor: SystemMouseCursors.basic,
-        child: RefreshIndicator(
-          onRefresh: _refreshCurrentDirectory,
-          child: GestureDetector(
-            onSecondaryTapUp: (details) {
-              _showEmptySpaceContextMenu(details.globalPosition);
-            },
-            onTap: () {
-              setState(() {
-                _selectedItem = null;
-              });
-            },
-            behavior: HitTestBehavior.opaque,
-            child: ListView(
-              // Using ListView instead of SizedBox to enable pull-to-refresh
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  height: MediaQuery.of(context).size.height - 100, // Adjust height to work with ListView
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.folder_open,
-                          size: 64,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.grey.shade600
-                              : Colors.grey.shade400,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'This directory is empty',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey.shade300
-                                : Colors.grey.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Right-click anywhere to create new files or folders',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey.shade400
-                                : Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.folder_off, color: Colors.grey, size: 48),
+            SizedBox(height: 16),
+            Text('This folder is empty'),
+          ],
         ),
       );
     }
 
-    // For non-empty directories, use a better layering approach for event handling
-    return MouseRegion(
-      cursor: SystemMouseCursors.basic,
-      child: Listener(
-        // This will intercept all pointer down events to check if they're in empty spaces
-        onPointerDown: (event) {
-          // Secondary button (right click)
-          if (event.buttons == 2) {
-            // Check if we're clicking on an empty space by checking if the event hits anything in the ListView
-            // We'll let the event continue to propagate to allow the GestureDetector to handle it
-          }
-        },
-        child: GestureDetector(
-          // Capture right clicks in empty space (will only trigger if not captured by list items)
-          onSecondaryTapUp: (details) {
-            // Make sure we're really clicking on empty space by checking position is not within any list item
-            _showEmptySpaceContextMenu(details.globalPosition);
+    // Get the current view mode
+    final viewModeService = Provider.of<ViewModeService>(context);
+    final viewMode = viewModeService.viewMode;
+
+    // Just use a GestureDetector for right-click handling, remove the Ctrl+scroll functionality
+    return GestureDetector(
+      onSecondaryTapUp: (details) {
+        // Handle right-click on empty space
+        _showEmptySpaceContextMenu(details.globalPosition);
+      },
+      child: _buildViewContent(viewMode),
+    );
+  }
+
+  Widget _buildViewContent(ViewMode viewMode) {
+    final iconSizeService = Provider.of<IconSizeService>(context);
+    
+    switch (viewMode) {
+      case ViewMode.grid:
+        final uiScale = iconSizeService.gridUIScale;
+        
+        // Calculate a responsive cross axis count based on screen width and UI scale
+        final screenWidth = MediaQuery.of(context).size.width;
+        final minCellSize = 120.0 * uiScale; // Base cell size with scaling
+        int crossAxisCount = (screenWidth / minCellSize).floor();
+        crossAxisCount = crossAxisCount.clamp(2, 8); // Keep between 2 and 8 columns
+        
+        return GridView.builder(
+          controller: _scrollController,
+          padding: EdgeInsets.all(8.0 * uiScale),
+          physics: const AlwaysScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: 0.85,
+            crossAxisSpacing: 10.0 * uiScale,
+            mainAxisSpacing: 10.0 * uiScale,
+          ),
+          itemCount: _items.length,
+          itemBuilder: (context, index) {
+            final item = _items[index];
+            return GridItemWidget(
+              key: ValueKey(item.path),
+              item: item,
+              onTap: () => _handleItemTap(item),
+              onDoubleTap: () => _handleItemDoubleTap(item),
+              onLongPress: _showOptionsDialog,
+              onRightClick: _showContextMenu,
+              isSelected: _selectedItem?.path == item.path,
+            );
           },
-          // Allow taps to deselect items
-          onTap: () {
+        );
+
+      case ViewMode.split:
+        return SplitFolderView(
+          items: _items,
+          onItemTap: _handleItemTap,
+          onItemDoubleTap: _handleItemDoubleTap,
+          onItemLongPress: _showOptionsDialog,
+          onItemRightClick: _showContextMenu,
+          selectedItem: _selectedItem,
+          onEmptyAreaTap: () {
             setState(() {
               _selectedItem = null;
             });
           },
-          behavior: HitTestBehavior.translucent,
-          child: NotificationListener<ScrollNotification>(
-            onNotification: (notification) {
-              // Improve scroll handling by preventing automatic scroll-to-top issues
-              if (notification is ScrollEndNotification) {
-                // Keep track of current scroll position
-                // No action needed, just prevent any default behavior
-              }
-              return false; // Allow the notification to continue to bubble up
-            },
-            child: RefreshIndicator(
-              onRefresh: _refreshCurrentDirectory,
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: EdgeInsets.only(bottom: 100),
-                physics: const AlwaysScrollableScrollPhysics(),
-                itemCount: _items.length,
-                itemBuilder: (context, index) {
-                  final item = _items[index];
-                  return FileItemWidget(
-                    key: ValueKey(item.path), // Add key for better identification
-                    item: item,
-                    onTap: () => _handleItemTap(item),
-                    onDoubleTap: () => _handleItemDoubleTap(item),
-                    onLongPress: _showOptionsDialog,
-                    onRightClick: _showContextMenu,
-                    isSelected: _selectedItem?.path == item.path,
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+          onEmptyAreaRightClick: _showEmptySpaceContextMenu,
+        );
 
-  Future<void> _refreshCurrentDirectory() async {
-    return _loadDirectory(_currentPath);
+      case ViewMode.list:
+        return ListView.builder(
+          controller: _scrollController,
+          padding: EdgeInsets.only(bottom: 100.0 * iconSizeService.listUIScale),
+          physics: const AlwaysScrollableScrollPhysics(),
+          itemCount: _items.length,
+          itemBuilder: (context, index) {
+            final item = _items[index];
+            return FileItemWidget(
+              key: ValueKey(item.path),
+              item: item,
+              onTap: () => _handleItemTap(item),
+              onDoubleTap: () => _handleItemDoubleTap(item),
+              onLongPress: _showOptionsDialog,
+              onRightClick: _showContextMenu,
+              isSelected: _selectedItem?.path == item.path,
+            );
+          },
+        );
+    }
   }
 
   /// Check if a directory is a mount point
@@ -1426,4 +1570,13 @@ class CopyIntent extends Intent {
 
 class PasteIntent extends Intent {
   const PasteIntent();
+}
+
+// Intent for zoom in/out operations
+class ZoomIntent extends Intent {
+  final bool zoomIn;
+  
+  const ZoomIntent({required this.zoomIn});
+  
+  bool get isZoomIn => zoomIn;
 } 

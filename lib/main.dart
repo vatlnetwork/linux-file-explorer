@@ -4,7 +4,11 @@ import 'package:window_manager/window_manager.dart';
 import 'package:logging/logging.dart';
 import 'screens/file_explorer_screen.dart';
 import 'services/theme_service.dart';
+import 'services/view_mode_service.dart';
 import 'services/bookmark_service.dart';
+import 'services/notification_service.dart';
+import 'services/icon_size_service.dart';
+import 'services/status_bar_service.dart';
 import 'widgets/window_title_bar.dart';
 
 void main() async {
@@ -22,7 +26,7 @@ void main() async {
   await windowManager.ensureInitialized();
   
   WindowOptions windowOptions = const WindowOptions(
-    size: Size(1280, 720),
+    size: Size(1000, 800),
     center: true,
     backgroundColor: Colors.transparent,
     skipTaskbar: false,
@@ -37,12 +41,15 @@ void main() async {
   // Initialize bookmark service
   final bookmarkService = BookmarkService();
   await bookmarkService.init();
-  
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeService()),
+        ChangeNotifierProvider(create: (_) => ViewModeService()),
         ChangeNotifierProvider.value(value: bookmarkService),
+        ChangeNotifierProvider(create: (_) => IconSizeService()),
+        ChangeNotifierProvider(create: (_) => StatusBarService()),
       ],
       child: const MyApp(),
     ),
@@ -111,6 +118,7 @@ class MyApp extends StatelessWidget {
         title: 'Linux File Explorer',
         child: FileExplorerScreen(),
       ),
+      scaffoldMessengerKey: NotificationService.messengerKey,
     );
   }
 }
