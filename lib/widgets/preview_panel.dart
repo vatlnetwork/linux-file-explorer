@@ -1,10 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:path/path.dart' as p;
 import '../models/file_item.dart';
 import '../services/preview_panel_service.dart';
-import 'file_item_widget.dart';
 
 class PreviewPanel extends StatefulWidget {
   final Function(String) onNavigate;

@@ -83,7 +83,7 @@ class PreviewPanelService extends ChangeNotifier {
       final lines = content.split('\n');
       
       if (lines.length > maxLines) {
-        return lines.take(maxLines).join('\n') + '\n\n[File truncated, too many lines to display]';
+        return '${lines.take(maxLines).join('\n')}\n\n[File truncated, too many lines to display]';
       }
       
       return content;

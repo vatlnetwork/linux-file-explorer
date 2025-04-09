@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import '../models/file_item.dart';
@@ -1060,10 +1059,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   @override
   Widget build(BuildContext context) {
     final statusBarService = Provider.of<StatusBarService>(context);
-    final iconSizeService = Provider.of<IconSizeService>(context);
     final previewPanelService = Provider.of<PreviewPanelService>(context);
-    
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
       body: Column(
@@ -1157,7 +1153,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     // Filter out empty parts (like at the beginning of an absolute path)
     final validParts = pathParts.where((part) => part.isNotEmpty).toList();
     
-    return Container(
+    return SizedBox(
       key: _breadcrumbKey,
       height: 36,
       child: ListView(
