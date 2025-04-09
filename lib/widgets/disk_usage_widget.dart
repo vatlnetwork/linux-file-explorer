@@ -132,69 +132,87 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
           ),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minWidth: double.infinity,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.storage,
-                size: 16,
-                color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+              Row(
+                children: [
+                  Icon(
+                    Icons.storage,
+                    size: 16,
+                    color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Disk Usage',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${_diskSpace!.usagePercentage.toStringAsFixed(1)}%',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: _getDiskSpaceColor(_diskSpace!.usagePercentage),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Text(
-                'Disk Usage',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800,
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: _diskSpace!.usagePercentage / 100,
+                  backgroundColor: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    _getDiskSpaceColor(_diskSpace!.usagePercentage),
+                  ),
+                  minHeight: 8,
                 ),
               ),
-              const Spacer(),
-              Text(
-                '${_diskSpace!.usagePercentage.toStringAsFixed(1)}%',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: _getDiskSpaceColor(_diskSpace!.usagePercentage),
-                ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Free: ${_diskService.formatBytes(_diskSpace!.availableBytes)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Total: ${_diskService.formatBytes(_diskSpace!.totalBytes)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: _diskSpace!.usagePercentage / 100,
-              backgroundColor: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                _getDiskSpaceColor(_diskSpace!.usagePercentage),
-              ),
-              minHeight: 8,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Free: ${_diskService.formatBytes(_diskSpace!.availableBytes)}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
-                ),
-              ),
-              Text(
-                'Total: ${_diskService.formatBytes(_diskSpace!.totalBytes)}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
