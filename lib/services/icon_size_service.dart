@@ -23,7 +23,7 @@ class IconSizeService extends ChangeNotifier {
   static const double _minListUIScale = 0.7;
   static const double _maxListUIScale = 1.5;
   static const double _minGridUIScale = 0.7;
-  static const double _maxGridUIScale = 1.5;
+  static const double _maxGridUIScale = 1.4;
   
   // Step sizes for resizing
   static const double _listResizeStep = 4.0;

@@ -104,9 +104,17 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              TextButton(
-                onPressed: _loadDiskInfo,
-                child: const Text('Retry'),
+              SizedBox(
+                height: 24, // Fixed height button container
+                child: TextButton(
+                  onPressed: _loadDiskInfo,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('Retry', style: TextStyle(fontSize: 12)),
+                ),
               ),
             ],
           ),

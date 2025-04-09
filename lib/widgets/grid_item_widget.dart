@@ -100,7 +100,7 @@ class GridItemWidget extends StatelessWidget {
                             children: [
                               // Icon container that takes most space
                               SizedBox(
-                                height: iconHeight.clamp(minContainerHeight, double.infinity),
+                                height: iconHeight.clamp(minContainerHeight, constraints.maxHeight * 0.6),
                                 width: double.infinity,
                                 child: Center(
                                   child: _buildItemIcon(iconSize),
@@ -109,29 +109,33 @@ class GridItemWidget extends StatelessWidget {
                               
                               // Only show text if there's enough space
                               if (hasSpaceForText) ...[
-                                SizedBox(height: 4.0 * uiScale.clamp(0.7, 1.0)),
-                                Text(
-                                  item.name,
-                                  textAlign: TextAlign.center,
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                  style: TextStyle(
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                    fontSize: titleSize,
-                                    color: isDarkMode ? Colors.white : Colors.black87,
+                                SizedBox(height: (4.0 * uiScale).clamp(0.0, 4.0)),
+                                Flexible(
+                                  child: Text(
+                                    item.name,
+                                    textAlign: TextAlign.center,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                      fontSize: (titleSize * (1.0 / uiScale).clamp(0.5, 1.0)).clamp(10.0, 14.0),
+                                      color: isDarkMode ? Colors.white : Colors.black87,
+                                    ),
                                   ),
                                 ),
                                 
                                 // Subtitle - only if we have even more space
                                 if (hasSpaceForSubtitle) ...[
-                                  SizedBox(height: 2.0 * uiScale.clamp(0.7, 1.0)),
-                                  Text(
-                                    item.type == FileItemType.directory ? 'Folder' : item.formattedSize,
-                                    textAlign: TextAlign.center,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: subtitleSize,
-                                      color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                                  SizedBox(height: (2.0 * uiScale).clamp(0.0, 2.0)),
+                                  Flexible(
+                                    child: Text(
+                                      item.type == FileItemType.directory ? 'Folder' : item.formattedSize,
+                                      textAlign: TextAlign.center,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: (subtitleSize * (1.0 / uiScale).clamp(0.5, 1.0)).clamp(8.0, 11.0),
+                                        color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                                      ),
                                     ),
                                   ),
                                 ],

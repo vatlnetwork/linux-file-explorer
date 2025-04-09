@@ -1464,7 +1464,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                 maxCrossAxisExtent: Provider.of<IconSizeService>(context).gridItemExtent,
-                childAspectRatio: 1.0,
+                childAspectRatio: 1.0 / (Provider.of<IconSizeService>(context).gridUIScale > 1.2 ? 1.1 : 1.0),
                 crossAxisSpacing: 5.0,
                 mainAxisSpacing: 5.0,
               ),
