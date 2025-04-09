@@ -115,23 +115,26 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
         child: Row(
           children: [
             Icon(
-              Icons.bookmark,
+              Icons.folder,
               color: isDarkMode 
                   ? Colors.blue.shade300 
                   : Colors.blue.shade700,
             ),
             const SizedBox(width: 8),
-            Text(
-              'Bookmarks',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: isDarkMode 
-                    ? Colors.grey.shade200 
-                    : Colors.grey.shade800,
+            Expanded(
+              child: Text(
+                'Linux File Explorer',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: isDarkMode 
+                      ? Colors.grey.shade200 
+                      : Colors.grey.shade800,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            const Spacer(),
+            const SizedBox(width: 4),
             IconButton(
               icon: Icon(
                 Icons.info_outline, 

@@ -58,7 +58,6 @@ class _WindowTitleBarState extends State<WindowTitleBar> with WindowListener {
       color: Colors.transparent,
       child: Column(
         children: [
-          _buildTitleBar(isDark),
           Expanded(child: widget.child),
           _buildResizeHandles(),
         ],

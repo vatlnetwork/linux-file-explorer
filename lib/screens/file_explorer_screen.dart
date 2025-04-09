@@ -19,6 +19,7 @@ import '../widgets/status_bar.dart';
 import '../services/usb_drive_service.dart';
 import '../services/preview_panel_service.dart';
 import '../widgets/preview_panel.dart';
+import 'package:window_manager/window_manager.dart';
 
 class FileExplorerScreen extends StatefulWidget {
   const FileExplorerScreen({super.key});
@@ -28,7 +29,7 @@ class FileExplorerScreen extends StatefulWidget {
   _FileExplorerScreenState createState() => _FileExplorerScreenState();
 }
 
-class _FileExplorerScreenState extends State<FileExplorerScreen> {
+class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowListener {
   final FileService _fileService = FileService();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode(); // Add focus node for keyboard events
@@ -41,6 +42,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   final List<String> _navigationHistory = [];
   final List<String> _forwardHistory = []; // Add forward history
   bool _showBookmarkSidebar = true;
+  bool _isMaximized = false;
   
   // Replace single item selection with a set for multiple selection
   Set<String> _selectedItemsPaths = {}; // Track the currently selected items by path
@@ -58,14 +60,32 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   @override
   void initState() {
     super.initState();
+    windowManager.addListener(this);
+    _initWindowState();
     _initHomeDirectory();
+  }
+
+  Future<void> _initWindowState() async {
+    _isMaximized = await windowManager.isMaximized();
+    setState(() {});
   }
 
   @override
   void dispose() {
+    windowManager.removeListener(this);
     _scrollController.dispose();
     _focusNode.dispose(); // Dispose the focus node
     super.dispose();
+  }
+  
+  @override
+  void onWindowMaximize() {
+    setState(() => _isMaximized = true);
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    setState(() => _isMaximized = false);
   }
 
   Future<void> _initHomeDirectory() async {
@@ -1121,29 +1141,36 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   }
 
   Widget _buildAppBar(BuildContext context) {
-    return AppBar(
-      leadingWidth: 100, // Provide enough space for two icons
-      leading: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: _navigationHistory.isEmpty ? null : _navigateBack,
-            tooltip: 'Go back',
-          ),
-          IconButton(
-            icon: Icon(Icons.arrow_forward),
-            onPressed: _forwardHistory.isEmpty ? null : _navigateForward,
-            tooltip: 'Go forward',
-          ),
+    return GestureDetector(
+      onPanStart: (details) {
+        // Make the app bar draggable
+        windowManager.startDragging();
+      },
+      child: AppBar(
+        leadingWidth: 100, // Provide enough space for two icons
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: _navigationHistory.isEmpty ? null : _navigateBack,
+              tooltip: 'Go back',
+            ),
+            IconButton(
+              icon: Icon(Icons.arrow_forward),
+              onPressed: _forwardHistory.isEmpty ? null : _navigateForward,
+              tooltip: 'Go forward',
+            ),
+          ],
+        ),
+        title: _buildPathBreadcrumbs(), // Put the breadcrumbs back in the app bar
+        titleSpacing: 0,
+        elevation: 1,
+        actions: [
+          _buildActionButtons(context),
+          _buildWindowControls(),
         ],
       ),
-      title: _buildPathBreadcrumbs(), // Put the breadcrumbs back in the app bar
-      titleSpacing: 0,
-      elevation: 1,
-      actions: [
-        _buildActionButtons(context),
-      ],
     );
   }
 
@@ -1403,6 +1430,72 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildWindowControls() {
+    return Row(
+      children: [
+        _buildWindowControlButton(
+          icon: Icons.minimize,
+          tooltip: 'Minimize',
+          onPressed: () async {
+            await windowManager.minimize();
+          },
+        ),
+        _buildWindowControlButton(
+          icon: _isMaximized ? Icons.crop_square : Icons.crop_din,
+          tooltip: _isMaximized ? 'Restore' : 'Maximize',
+          onPressed: () async {
+            if (_isMaximized) {
+              await windowManager.unmaximize();
+            } else {
+              await windowManager.maximize();
+            }
+          },
+        ),
+        _buildWindowControlButton(
+          icon: Icons.close,
+          tooltip: 'Close',
+          isCloseButton: true,
+          onPressed: () async {
+            await windowManager.close();
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWindowControlButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+    bool isCloseButton = false,
+  }) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onPressed,
+        hoverColor: isCloseButton 
+          ? Colors.red 
+          : (isDarkMode ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1)),
+        child: Container(
+          width: 40,
+          height: 40,
+          color: Colors.transparent,
+          child: Center(
+            child: Icon(
+              icon,
+              size: 16,
+              color: isCloseButton && !isDarkMode
+                ? Colors.red.shade700
+                : null,
+            ),
+          ),
+        ),
+      ),
     );
   }
 

@@ -116,10 +116,7 @@ class MyApp extends StatelessWidget {
         ),
         cardColor: const Color(0xFF1E1E1E),
       ),
-      home: const WindowTitleBar(
-        title: 'Linux File Explorer',
-        child: FileExplorerScreen(),
-      ),
+      home: const FileExplorerScreen(),
       scaffoldMessengerKey: NotificationService.messengerKey,
     );
   }
