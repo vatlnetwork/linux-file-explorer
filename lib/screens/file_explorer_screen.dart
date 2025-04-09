@@ -1087,19 +1087,28 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
                       // Top app bar with navigation and breadcrumbs
                       _buildAppBar(context),
                       
-                      // Main content area
+                      // Content area with optional preview panel
                       Expanded(
-                        child: _buildContent(context),
+                        child: previewPanelService.showPreviewPanel 
+                          ? Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // Main content area
+                                Expanded(
+                                  child: _buildContent(context),
+                                ),
+                                
+                                // Preview panel
+                                PreviewPanel(
+                                  onNavigate: _navigateToDirectory,
+                                ),
+                              ],
+                            )
+                          : _buildContent(context),
                       ),
                     ],
                   ),
                 ),
-                
-                // Preview panel (conditionally shown)
-                if (previewPanelService.showPreviewPanel)
-                  PreviewPanel(
-                    onNavigate: _navigateToDirectory,
-                  ),
               ],
             ),
           ),
