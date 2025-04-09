@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:path/path.dart' as p;
 import '../models/file_item.dart';
 
 class PreviewPanelService extends ChangeNotifier {

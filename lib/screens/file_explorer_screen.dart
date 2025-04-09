@@ -20,7 +20,6 @@ import '../widgets/status_bar.dart';
 import '../services/usb_drive_service.dart';
 import '../services/preview_panel_service.dart';
 import '../widgets/preview_panel.dart';
-import '../services/theme_service.dart';
 
 class FileExplorerScreen extends StatefulWidget {
   const FileExplorerScreen({super.key});
@@ -41,6 +40,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   bool _hasError = false;
   String _errorMessage = '';
   final List<String> _navigationHistory = [];
+  final List<String> _forwardHistory = []; // Add forward history
   bool _showBookmarkSidebar = true;
   
   // Replace single item selection with a set for multiple selection
@@ -112,18 +112,31 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   }
 
   void _navigateToDirectory(String path) {
+    // Add current path to history before navigating
     _navigationHistory.add(_currentPath);
+    // Clear forward history when navigating to a new path
+    _forwardHistory.clear();
     _loadDirectory(path);
   }
 
-  bool _navigateBack() {
-    if (_navigationHistory.isEmpty) {
-      return false;
+  void _navigateBack() {
+    if (_navigationHistory.isNotEmpty) {
+      // Add current path to forward history
+      _forwardHistory.add(_currentPath);
+      // Navigate to previous path
+      final previousPath = _navigationHistory.removeLast();
+      _loadDirectory(previousPath);
     }
-    
-    final String previousPath = _navigationHistory.removeLast();
-    _loadDirectory(previousPath);
-    return true;
+  }
+
+  void _navigateForward() {
+    if (_forwardHistory.isNotEmpty) {
+      // Add current path to backward history
+      _navigationHistory.add(_currentPath);
+      // Navigate to forward path
+      final forwardPath = _forwardHistory.removeLast();
+      _loadDirectory(forwardPath);
+    }
   }
 
   Future<void> _showCreateDialog(bool isDirectory) async {
@@ -1055,7 +1068,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     return Scaffold(
       body: Column(
         children: [
+          // Top app bar with navigation buttons and actions
           _buildAppBar(context),
+          
+          // Main content area with bookmarks sidebar and content
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1067,9 +1083,22 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
                     currentPath: _currentPath,
                   ),
                 
-                // Main content area
+                // Main content column (breadcrumbs + file area)
                 Expanded(
-                  child: _buildContent(context),
+                  child: Column(
+                    children: [
+                      // Breadcrumb navigation bar
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                        child: _buildPathBreadcrumbs(),
+                      ),
+                      
+                      // Main content area
+                      Expanded(
+                        child: _buildContent(context),
+                      ),
+                    ],
+                  ),
                 ),
                 
                 // Preview panel (conditionally shown)
@@ -1094,7 +1123,23 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
 
   Widget _buildAppBar(BuildContext context) {
     return AppBar(
-      title: _buildPathBreadcrumbs(),
+      leadingWidth: 100, // Provide enough space for two icons
+      leading: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: _navigationHistory.isEmpty ? null : _navigateBack,
+            tooltip: 'Go back',
+          ),
+          IconButton(
+            icon: Icon(Icons.arrow_forward),
+            onPressed: _forwardHistory.isEmpty ? null : _navigateForward,
+            tooltip: 'Go forward',
+          ),
+        ],
+      ),
+      title: null, // Remove title since breadcrumbs are now elsewhere
       actions: [
         _buildActionButtons(context),
       ],
@@ -1110,11 +1155,19 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     return Container(
       key: _breadcrumbKey,
       height: 36,
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey[800]
+            : Colors.grey[200],
+        borderRadius: BorderRadius.circular(4.0),
+      ),
+      margin: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(horizontal: 8.0),
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
           // Root directory
-          _buildBreadcrumbItem('/', 'Root', true, 0),
+          _buildBreadcrumbItem('/', 'Root', validParts.isEmpty, 0),
           
           // Path parts
           for (int i = 0; i < validParts.length; i++)
@@ -1133,15 +1186,27 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          Icons.chevron_right,
-          size: 18,
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.white70
-              : Colors.black54,
-        ),
+        if (index > 0)
+          Icon(
+            Icons.chevron_right,
+            size: 18,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white70
+                : Colors.black54,
+          ),
         TextButton(
-          onPressed: isLast ? null : () => _navigateToDirectory(path),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          onPressed: isLast ? null : () {
+            if (path != _currentPath) {
+              _navigationHistory.add(_currentPath);
+              _forwardHistory.clear(); // Clear forward history when using breadcrumbs
+              _loadDirectory(path);
+            }
+          },
           child: Text(
             label,
             style: TextStyle(
