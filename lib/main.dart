@@ -9,6 +9,7 @@ import 'services/bookmark_service.dart';
 import 'services/notification_service.dart';
 import 'services/icon_size_service.dart';
 import 'services/status_bar_service.dart';
+import 'services/preview_panel_service.dart';
 import 'widgets/window_title_bar.dart';
 
 void main() async {
@@ -50,6 +51,7 @@ void main() async {
         ChangeNotifierProvider.value(value: bookmarkService),
         ChangeNotifierProvider(create: (_) => IconSizeService()),
         ChangeNotifierProvider(create: (_) => StatusBarService()),
+        ChangeNotifierProvider(create: (_) => PreviewPanelService()),
       ],
       child: const MyApp(),
     ),

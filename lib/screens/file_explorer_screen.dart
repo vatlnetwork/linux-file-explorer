@@ -18,6 +18,9 @@ import '../widgets/view_mode_switcher.dart';
 import '../widgets/bookmark_sidebar.dart';
 import '../widgets/status_bar.dart';
 import '../services/usb_drive_service.dart';
+import '../services/preview_panel_service.dart';
+import '../widgets/preview_panel.dart';
+import '../services/theme_service.dart';
 
 class FileExplorerScreen extends StatefulWidget {
   const FileExplorerScreen({super.key});
@@ -49,6 +52,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
 
   // Add UsbDriveService
   final UsbDriveService _usbDriveService = UsbDriveService();
+
+  // Add a key for the breadcrumb bar
+  final GlobalKey _breadcrumbKey = GlobalKey();
 
   @override
   void initState() {
@@ -272,41 +278,87 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     }
   }
 
-  void _handleItemTap(FileItem item, [bool isCtrlPressed = false]) {
+  void _selectItem(FileItem item, [bool multiSelect = false]) {
+    final String itemPath = item.path;
+    final previewPanelService = Provider.of<PreviewPanelService>(context, listen: false);
+    
     setState(() {
-      final itemPath = item.path;
-      
-      // If Ctrl is pressed, toggle selection without affecting other selections
-      if (isCtrlPressed) {
+      if (multiSelect) {
+        // Multi-select logic (when holding Ctrl/Cmd)
         if (_selectedItemsPaths.contains(itemPath)) {
           _selectedItemsPaths.remove(itemPath);
+          
+          // If we removed the current preview item, try to set a new one
+          if (previewPanelService.selectedItem?.path == itemPath) {
+            if (_selectedItemsPaths.isNotEmpty) {
+              final firstSelectedPath = _selectedItemsPaths.first;
+              final firstSelectedItem = _items.firstWhere(
+                (item) => item.path == firstSelectedPath,
+                orElse: () => FileItem(
+                  path: '',
+                  name: '',
+                  type: FileItemType.unknown,
+                ),
+              );
+              
+              if (firstSelectedItem.type != FileItemType.unknown) {
+                previewPanelService.setSelectedItem(firstSelectedItem);
+              } else {
+                previewPanelService.setSelectedItem(null);
+              }
+            } else {
+              previewPanelService.setSelectedItem(null);
+            }
+          }
         } else {
           _selectedItemsPaths.add(itemPath);
+          
+          // If this is the first item or we're replacing a previous selection, update preview
+          if (_selectedItemsPaths.length == 1 || previewPanelService.selectedItem == null) {
+            previewPanelService.setSelectedItem(item);
+          }
         }
-      } else {
-        // Regular click: deselect all and select only this item
+      } else if (item.type == FileItemType.directory) {
+        // If clicked on a directory without multi-select, navigate to it
         if (_selectedItemsPaths.length == 1 && _selectedItemsPaths.contains(itemPath)) {
-          // If clicking the only selected item, deselect it
+          // Double click behavior - navigate into directory
           _selectedItemsPaths = {};
+          _navigateToDirectory(itemPath);
         } else {
-          // Otherwise select only this item
           _selectedItemsPaths = {itemPath};
         }
+        
+        // Set selected item for preview
+        previewPanelService.setSelectedItem(item);
+      } else {
+        // If clicked on a file, just select it
+        if (!_selectedItemsPaths.contains(item.path)) {
+          _selectedItemsPaths = {item.path};
+        }
+        
+        // Set selected item for preview
+        previewPanelService.setSelectedItem(item);
       }
     });
   }
   
   void _handleItemDoubleTap(FileItem item) {
-    // Double click opens the item
+    // For files, try to open them, for directories navigate into them
     if (item.type == FileItemType.directory) {
       _navigateToDirectory(item.path);
     } else {
-      // For files, we could implement a file viewer or open with default app
-      NotificationService.showNotification(
-        context,
-        message: 'Opening file: ${item.name}',
-        type: NotificationType.info,
-      );
+      // Handle file open using the platform's default application
+      try {
+        Process.start('xdg-open', [item.path]);
+      } catch (e) {
+        if (mounted) {
+          NotificationService.showNotification(
+            context,
+            message: 'Failed to open file: $e',
+            type: NotificationType.error,
+          );
+        }
+      }
     }
   }
 
@@ -995,258 +1047,118 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   @override
   Widget build(BuildContext context) {
     final statusBarService = Provider.of<StatusBarService>(context);
+    final iconSizeService = Provider.of<IconSizeService>(context);
+    final previewPanelService = Provider.of<PreviewPanelService>(context);
     
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (bool didPop, Object? result) {
-        if (didPop) return;
-        _navigateBack();
-      },
-      child: KeyboardListener(
-        focusNode: _focusNode,
-        autofocus: true,
-        onKeyEvent: (key) {
-          // Handle zoom shortcuts
-          if (key is KeyDownEvent && HardwareKeyboard.instance.isControlPressed) {
-            if (key.logicalKey == LogicalKeyboardKey.equal ||
-                key.logicalKey == LogicalKeyboardKey.numpadAdd) {
-              // Handle zoom in
-              final viewModeService = Provider.of<ViewModeService>(context, listen: false);
-              if (viewModeService.isGrid) {
-                Provider.of<IconSizeService>(context, listen: false).increaseGridIconSize();
-              } else {
-                Provider.of<IconSizeService>(context, listen: false).increaseListIconSize();
-              }
-              NotificationService.showNotification(
-                context,
-                message: 'Zooming in UI',
-                type: NotificationType.success,
-                duration: const Duration(milliseconds: 500),
-              );
-              return;
-            } else if (key.logicalKey == LogicalKeyboardKey.minus ||
-                       key.logicalKey == LogicalKeyboardKey.numpadSubtract) {
-              // Handle zoom out
-              final viewModeService = Provider.of<ViewModeService>(context, listen: false);
-              if (viewModeService.isGrid) {
-                Provider.of<IconSizeService>(context, listen: false).decreaseGridIconSize();
-              } else {
-                Provider.of<IconSizeService>(context, listen: false).decreaseListIconSize();
-              }
-              NotificationService.showNotification(
-                context,
-                message: 'Zooming out UI',
-                type: NotificationType.success,
-                duration: const Duration(milliseconds: 500),
-              );
-              return;
-            }
-          }
-        },
-        child: Scaffold(
-          body: Shortcuts(
-            shortcuts: {
-              const SingleActivator(LogicalKeyboardKey.keyX, control: true): const CopyIntent.cut(),
-              const SingleActivator(LogicalKeyboardKey.keyC, control: true): const CopyIntent.copy(),
-              const SingleActivator(LogicalKeyboardKey.keyV, control: true): const PasteIntent(),
-              
-              // Add zoom in/out shortcuts with more key combinations
-              const SingleActivator(LogicalKeyboardKey.equal, control: true): const ZoomIntent(zoomIn: true),
-              const SingleActivator(LogicalKeyboardKey.minus, control: true): const ZoomIntent(zoomIn: false),
-              
-              // Add numeric keypad plus/minus
-              const SingleActivator(LogicalKeyboardKey.numpadAdd, control: true): const ZoomIntent(zoomIn: true),
-              const SingleActivator(LogicalKeyboardKey.numpadSubtract, control: true): const ZoomIntent(zoomIn: false),
-              
-              // Add alternatives for different keyboard layouts
-              const SingleActivator(LogicalKeyboardKey.bracketRight, control: true): const ZoomIntent(zoomIn: true), // ] key on some layouts
-              const SingleActivator(LogicalKeyboardKey.slash, control: true): const ZoomIntent(zoomIn: false), // / key on some layouts
-            },
-            child: Actions(
-              actions: {
-                CopyIntent: CallbackAction<CopyIntent>(
-                  onInvoke: (CopyIntent intent) {
-                    if (_selectedItemsPaths.isEmpty) return null;
-                    if (intent.isCut) {
-                      for (final path in _selectedItemsPaths) {
-                        _cutItem(_items.firstWhere((item) => item.path == path));
-                      }
-                    } else {
-                      for (final path in _selectedItemsPaths) {
-                        _copyItem(_items.firstWhere((item) => item.path == path));
-                      }
-                    }
-                    return null;
-                  },
-                ),
-                PasteIntent: CallbackAction<PasteIntent>(
-                  onInvoke: (PasteIntent intent) {
-                    _pasteItems();
-                    return null;
-                  },
-                ),
-                ZoomIntent: CallbackAction<ZoomIntent>(
-                  onInvoke: (ZoomIntent intent) {
-                    final viewModeService = Provider.of<ViewModeService>(context, listen: false);
-                    
-                    // Show a notification to confirm the shortcut was triggered
-                    NotificationService.showNotification(
-                      context,
-                      message: intent.isZoomIn ? 'Zooming in UI' : 'Zooming out UI',
-                      type: NotificationType.success,
-                      duration: const Duration(milliseconds: 500),
-                    );
-                    
-                    if (intent.isZoomIn) {
-                      if (viewModeService.isGrid) {
-                        Provider.of<IconSizeService>(context, listen: false).increaseGridIconSize();
-                      } else {
-                        Provider.of<IconSizeService>(context, listen: false).increaseListIconSize();
-                      }
-                    } else {
-                      if (viewModeService.isGrid) {
-                        Provider.of<IconSizeService>(context, listen: false).decreaseGridIconSize();
-                      } else {
-                        Provider.of<IconSizeService>(context, listen: false).decreaseListIconSize();
-                      }
-                    }
-                    return null;
-                  },
-                ),
-              },
-              child: Focus(
-                autofocus: true,
-                onKeyEvent: (node, event) {
-                  // Handle keyboard shortcuts
-                  if (event is KeyDownEvent) {
-                    if (event.logicalKey == LogicalKeyboardKey.keyA && 
-                        (HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed)) {
-                      // Ctrl+A or Cmd+A: Select all
-                      setState(() {
-                        _selectedItemsPaths = _items.map((item) => item.path).toSet();
-                      });
-                      return KeyEventResult.handled;
-                    } else if (event.logicalKey == LogicalKeyboardKey.escape) {
-                      // Escape: Clear selection
-                      setState(() {
-                        _selectedItemsPaths = {};
-                      });
-                      return KeyEventResult.handled;
-                    }
-                  }
-                  return KeyEventResult.ignored;
-                },
-                child: Row(
-                  children: [
-                    if (_showBookmarkSidebar)
-                      BookmarkSidebar(
-                        onNavigate: _navigateToDirectory,
-                        currentPath: _currentPath,
-                      ),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          _buildPathBar(),
-                          Expanded(
-                            child: _buildFileExplorerContent(),
-                          ),
-                          // Add status bar to the bottom if enabled
-                          if (statusBarService.showStatusBar)
-                            StatusBar(
-                              items: _items,
-                              showIconControls: statusBarService.showIconControls,
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPathBar() {
-    final pathParts = _currentPath.split('/').where((p) => p.isNotEmpty).toList();
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark 
-            ? Color(0xFF373737) 
-            : Color(0xFFE3F2FD),
-        border: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).brightness == Brightness.dark 
-                ? Colors.black54 
-                : Colors.black12,
-            width: 1.0,
-          ),
-        ),
-      ),
-      child: Row(
+    return Scaffold(
+      body: Column(
         children: [
+          _buildAppBar(context),
           Expanded(
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: pathParts.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return TextButton.icon(
-                    onPressed: () {
-                      _navigateToDirectory('/');
-                    },
-                    icon: Icon(Icons.home),
-                    label: Text('Root'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white70
-                          : Colors.blue.shade700,
-                    ),
-                  );
-                }
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Bookmark sidebar
+                if (_showBookmarkSidebar)
+                  BookmarkSidebar(
+                    onNavigate: _navigateToDirectory,
+                    currentPath: _currentPath,
+                  ),
                 
-                final path = '/${pathParts.sublist(0, index).join('/')}';
-                final isLast = index == pathParts.length;
+                // Main content area
+                Expanded(
+                  child: _buildContent(context),
+                ),
                 
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.chevron_right,
-                      size: 18,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white70
-                          : Colors.black54,
-                    ),
-                    TextButton(
-                      onPressed: isLast ? null : () => _navigateToDirectory(path),
-                      child: Text(
-                        pathParts[index - 1],
-                        style: TextStyle(
-                          fontWeight: isLast ? FontWeight.bold : FontWeight.normal,
-                          color: isLast 
-                              ? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87)
-                              : null,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
+                // Preview panel (conditionally shown)
+                if (previewPanelService.showPreviewPanel)
+                  PreviewPanel(
+                    onNavigate: _navigateToDirectory,
+                  ),
+              ],
             ),
           ),
-          _buildActionButtons(),
+          
+          // Status bar
+          if (statusBarService.showStatusBar)
+            StatusBar(
+              items: _items,
+              showIconControls: statusBarService.showIconControls,
+            ),
         ],
       ),
     );
   }
-  
-  Widget _buildActionButtons() {
+
+  Widget _buildAppBar(BuildContext context) {
+    return AppBar(
+      title: _buildPathBreadcrumbs(),
+      actions: [
+        _buildActionButtons(context),
+      ],
+    );
+  }
+
+  Widget _buildPathBreadcrumbs() {
+    final pathParts = _currentPath.split('/');
+    
+    // Filter out empty parts (like at the beginning of an absolute path)
+    final validParts = pathParts.where((part) => part.isNotEmpty).toList();
+    
+    return Container(
+      key: _breadcrumbKey,
+      height: 36,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          // Root directory
+          _buildBreadcrumbItem('/', 'Root', true, 0),
+          
+          // Path parts
+          for (int i = 0; i < validParts.length; i++)
+            _buildBreadcrumbItem(
+              '/${validParts.sublist(0, i + 1).join('/')}',
+              validParts[i],
+              i == validParts.length - 1,
+              i + 1,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBreadcrumbItem(String path, String label, bool isLast, int index) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.chevron_right,
+          size: 18,
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white70
+              : Colors.black54,
+        ),
+        TextButton(
+          onPressed: isLast ? null : () => _navigateToDirectory(path),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontWeight: isLast ? FontWeight.bold : FontWeight.normal,
+              color: isLast 
+                  ? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87)
+                  : null,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context) {
     final statusBarService = Provider.of<StatusBarService>(context);
+    final previewPanelService = Provider.of<PreviewPanelService>(context);
     
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -1277,6 +1189,25 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
               statusBarService.toggleStatusBar();
             } else if (value == 'toggle_icon_controls') {
               statusBarService.toggleIconControls();
+            } else if (value == 'toggle_preview_panel') {
+              previewPanelService.togglePreviewPanel();
+              
+              // If toggling on and there's a selected item, make sure it's set in the service
+              if (previewPanelService.showPreviewPanel && _selectedItemsPaths.length == 1) {
+                final selectedPath = _selectedItemsPaths.first;
+                final selectedItem = _items.firstWhere(
+                  (item) => item.path == selectedPath,
+                  orElse: () => FileItem(
+                    path: '',
+                    name: '',
+                    type: FileItemType.unknown,
+                  ),
+                );
+                
+                if (selectedItem.type != FileItemType.unknown) {
+                  previewPanelService.setSelectedItem(selectedItem);
+                }
+              }
             }
           },
           itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -1287,6 +1218,24 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
                   Icon(_showBookmarkSidebar ? Icons.bookmark : Icons.bookmark_border),
                   const SizedBox(width: 8),
                   Text(_showBookmarkSidebar ? 'Hide Bookmarks' : 'Show Bookmarks'),
+                ],
+              ),
+            ),
+            PopupMenuItem<String>(
+              value: 'toggle_preview_panel',
+              child: Row(
+                children: [
+                  Icon(
+                    previewPanelService.showPreviewPanel
+                        ? Icons.preview
+                        : Icons.preview_outlined,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    previewPanelService.showPreviewPanel
+                        ? 'Hide Preview Panel'
+                        : 'Show Preview Panel',
+                  ),
                 ],
               ),
             ),
@@ -1399,7 +1348,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     );
   }
 
-  Widget _buildFileExplorerContent() {
+  Widget _buildContent(BuildContext context) {
     final viewModeService = Provider.of<ViewModeService>(context);
     
     // Handle loading state
@@ -1474,7 +1423,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
                 return GridItemWidget(
                   key: ValueKey(item.path),
                   item: item,
-                  onTap: _handleItemTap,
+                  onTap: _selectItem,
                   onDoubleTap: () => _handleItemDoubleTap(item),
                   onLongPress: _showOptionsDialog,
                   onRightClick: _showContextMenu,
@@ -1488,7 +1437,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       case ViewMode.split:
         return SplitFolderView(
           items: _items,
-          onItemTap: _handleItemTap,
+          onItemTap: _selectItem,
           onItemDoubleTap: _handleItemDoubleTap,
           onItemLongPress: _showOptionsDialog,
           onItemRightClick: _showContextMenu,
@@ -1519,7 +1468,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
               return FileItemWidget(
                 key: ValueKey(item.path),
                 item: item,
-                onTap: _handleItemTap,
+                onTap: _selectItem,
                 onDoubleTap: () => _handleItemDoubleTap(item),
                 onLongPress: _showOptionsDialog,
                 onRightClick: _showContextMenu,
