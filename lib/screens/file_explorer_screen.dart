@@ -1430,14 +1430,18 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
 
     // Handle empty directory
     if (_items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.folder_off, color: Colors.grey, size: 48),
-            SizedBox(height: 16),
-            Text('This folder is empty'),
-          ],
+      return GestureDetector(
+        onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
+        behavior: HitTestBehavior.opaque,  // Ensure taps are registered on transparent areas
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.folder_off, color: Colors.grey, size: 48),
+              SizedBox(height: 16),
+              Text('This folder is empty'),
+            ],
+          ),
         ),
       );
     }
@@ -1498,23 +1502,31 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         );
 
       case ViewMode.list:
-        return ListView.builder(
-          controller: _scrollController,
-          padding: EdgeInsets.only(bottom: 100.0 * Provider.of<IconSizeService>(context).listUIScale),
-          physics: const AlwaysScrollableScrollPhysics(),
-          itemCount: _items.length,
-          itemBuilder: (context, index) {
-            final item = _items[index];
-            return FileItemWidget(
-              key: ValueKey(item.path),
-              item: item,
-              onTap: _handleItemTap,
-              onDoubleTap: () => _handleItemDoubleTap(item),
-              onLongPress: _showOptionsDialog,
-              onRightClick: _showContextMenu,
-              isSelected: _selectedItemsPaths.contains(item.path),
-            );
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              _selectedItemsPaths = {};
+            });
           },
+          onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: EdgeInsets.only(bottom: 100.0 * Provider.of<IconSizeService>(context).listUIScale),
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: _items.length,
+            itemBuilder: (context, index) {
+              final item = _items[index];
+              return FileItemWidget(
+                key: ValueKey(item.path),
+                item: item,
+                onTap: _handleItemTap,
+                onDoubleTap: () => _handleItemDoubleTap(item),
+                onLongPress: _showOptionsDialog,
+                onRightClick: _showContextMenu,
+                isSelected: _selectedItemsPaths.contains(item.path),
+              );
+            },
+          ),
         );
     }
   }
