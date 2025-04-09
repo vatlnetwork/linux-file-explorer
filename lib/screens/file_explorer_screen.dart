@@ -996,9 +996,11 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   Widget build(BuildContext context) {
     final statusBarService = Provider.of<StatusBarService>(context);
     
-    return WillPopScope(
-      onWillPop: () async {
-        return !_navigateBack();
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop) return;
+        _navigateBack();
       },
       child: KeyboardListener(
         focusNode: _focusNode,
