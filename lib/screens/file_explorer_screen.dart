@@ -1068,9 +1068,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     return Scaffold(
       body: Column(
         children: [
-          // Top app bar with navigation buttons and actions
-          _buildAppBar(context),
-          
           // Main content area with bookmarks sidebar and content
           Expanded(
             child: Row(
@@ -1083,15 +1080,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
                     currentPath: _currentPath,
                   ),
                 
-                // Main content column (breadcrumbs + file area)
+                // Main content column with app bar and content
                 Expanded(
                   child: Column(
                     children: [
-                      // Breadcrumb navigation bar
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                        child: _buildPathBreadcrumbs(),
-                      ),
+                      // Top app bar with navigation and breadcrumbs
+                      _buildAppBar(context),
                       
                       // Main content area
                       Expanded(
@@ -1139,7 +1133,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
           ),
         ],
       ),
-      title: null, // Remove title since breadcrumbs are now elsewhere
+      title: _buildPathBreadcrumbs(), // Put the breadcrumbs back in the app bar
+      titleSpacing: 0,
+      elevation: 1,
       actions: [
         _buildActionButtons(context),
       ],
@@ -1155,14 +1151,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     return Container(
       key: _breadcrumbKey,
       height: 36,
-      decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark
-            ? Colors.grey[800]
-            : Colors.grey[200],
-        borderRadius: BorderRadius.circular(4.0),
-      ),
-      margin: const EdgeInsets.symmetric(vertical: 4.0),
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
