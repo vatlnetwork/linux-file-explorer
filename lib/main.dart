@@ -10,7 +10,6 @@ import 'services/notification_service.dart';
 import 'services/icon_size_service.dart';
 import 'services/status_bar_service.dart';
 import 'services/preview_panel_service.dart';
-import 'widgets/window_title_bar.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

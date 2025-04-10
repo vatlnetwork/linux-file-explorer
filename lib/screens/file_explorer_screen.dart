@@ -1480,7 +1480,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         onTap: onPressed,
         hoverColor: isCloseButton 
           ? Colors.red 
-          : (isDarkMode ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1)),
+          : (isDarkMode ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1)),
         child: Container(
           width: 40,
           height: 40,
