@@ -19,7 +19,6 @@ import '../services/usb_drive_service.dart';
 import '../services/preview_panel_service.dart';
 import '../widgets/preview_panel.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
 
@@ -63,7 +62,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   bool _isDragging = false;
   Offset? _dragStartPosition;
   Offset? _dragEndPosition;
-  Map<String, Rect> _itemPositions = {}; // Store positions of items for hit testing
+  final Map<String, Rect> _itemPositions = {}; // Store positions of items for hit testing
   final GlobalKey _gridViewKey = GlobalKey(); // Key for the grid container
 
   @override
@@ -1082,10 +1081,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
 
   @override
   Widget build(BuildContext context) {
+    // Provider services
     final statusBarService = Provider.of<StatusBarService>(context);
     final previewPanelService = Provider.of<PreviewPanelService>(context);
     final viewModeService = Provider.of<ViewModeService>(context);
-    final bookmarkSidebarKey = GlobalKey<BookmarkSidebarState>();
     
     return Scaffold(
       body: Column(
@@ -1667,8 +1666,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                 // Add drag selection functionality
                 onPanDown: (details) {
                   // Check if this is a direct hit on an item or empty space
-                  final RenderBox renderBox = _gridViewKey.currentContext!.findRenderObject() as RenderBox;
-                  final hitPosition = renderBox.globalToLocal(details.globalPosition);
                   
                   // Only start dragging if not clicking directly on an item
                   // and if not holding Ctrl (which is for multi-select)
@@ -1734,6 +1731,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                     return LayoutBuilder(
                       builder: (context, constraints) {
                         return ItemPositionTracker(
+                          key: ValueKey(item.path),
                           path: item.path,
                           onPositionChanged: _registerItemPosition,
                           child: GridItemWidget(
@@ -1840,6 +1838,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                 itemBuilder: (context, index) {
                   final item = _items[index];
                   return ItemPositionTracker(
+                    key: ValueKey(item.path),
                     path: item.path,
                     onPositionChanged: _registerItemPosition,
                     child: FileItemWidget(
@@ -2250,15 +2249,15 @@ class SelectionRectanglePainter extends CustomPainter {
     // Fill with semi-transparent color
     final fillPaint = Paint()
       ..color = isDarkMode
-          ? Colors.blue.withOpacity(0.2)
-          : Colors.blue.withOpacity(0.15)
+          ? Colors.blue.withValues(alpha: 51, red: 33, green: 150, blue: 243)  // 0.2 * 255 = 51
+          : Colors.blue.withValues(alpha: 38, red: 33, green: 150, blue: 243)  // 0.15 * 255 = 38
       ..style = PaintingStyle.fill;
     
     // Create a border with a slightly more opaque color
     final borderPaint = Paint()
       ..color = isDarkMode
-          ? Colors.blue.withOpacity(0.6)
-          : Colors.blue.withOpacity(0.5)
+          ? Colors.blue.withValues(alpha: 153, red: 33, green: 150, blue: 243)  // 0.6 * 255 = 153
+          : Colors.blue.withValues(alpha: 127, red: 33, green: 150, blue: 243)  // 0.5 * 255 = 127
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     
@@ -2284,13 +2283,14 @@ class ItemPositionTracker extends StatefulWidget {
   final Function(String, Rect) onPositionChanged;
   
   const ItemPositionTracker({
+    super.key,
     required this.path,
     required this.child,
     required this.onPositionChanged,
   });
   
   @override
-  _ItemPositionTrackerState createState() => _ItemPositionTrackerState();
+  State<ItemPositionTracker> createState() => _ItemPositionTrackerState();
 }
 
 class _ItemPositionTrackerState extends State<ItemPositionTracker> {
