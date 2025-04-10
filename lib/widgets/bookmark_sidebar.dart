@@ -143,7 +143,7 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
               icon: Icon(
                 Icons.info_outline, 
                 size: 16,
-                color: Theme.of(context).iconTheme.color?.withOpacity(0.8),
+                color: Theme.of(context).iconTheme.color?.withValues(alpha: 0.8),
               ),
               iconSize: 20,
               padding: EdgeInsets.symmetric(horizontal: 6, vertical: 0),

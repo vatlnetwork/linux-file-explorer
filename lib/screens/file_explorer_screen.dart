@@ -13,7 +13,6 @@ import '../services/theme_service.dart';
 import '../widgets/file_item_widget.dart';
 import '../widgets/grid_item_widget.dart';
 import '../widgets/split_folder_view.dart';
-import '../widgets/view_mode_switcher.dart';
 import '../widgets/bookmark_sidebar.dart';
 import '../widgets/status_bar.dart';
 import '../services/usb_drive_service.dart';
