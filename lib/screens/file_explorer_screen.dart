@@ -13,7 +13,6 @@ import '../services/theme_service.dart';
 import '../widgets/file_item_widget.dart';
 import '../widgets/grid_item_widget.dart';
 import '../widgets/split_folder_view.dart';
-import '../widgets/theme_switcher.dart';
 import '../widgets/view_mode_switcher.dart';
 import '../widgets/bookmark_sidebar.dart';
 import '../widgets/status_bar.dart';
@@ -1274,15 +1273,53 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        IconButton(
-          icon: const Icon(Icons.dark_mode),
-          iconSize: 22,
+        // Replace the IconButton with PopupMenuButton for theme selection
+        PopupMenuButton<ThemeMode>(
+          tooltip: 'Theme Settings',
+          icon: const Icon(Icons.dark_mode, size: 22),
           padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
           constraints: BoxConstraints(),
-          tooltip: 'Toggle Theme',
-          onPressed: () {
+          onSelected: (ThemeMode mode) {
             final themeService = Provider.of<ThemeService>(context, listen: false);
-            themeService.toggleTheme();
+            themeService.setThemeMode(mode);
+          },
+          itemBuilder: (BuildContext context) {
+            final themeService = Provider.of<ThemeService>(context, listen: false);
+            return <PopupMenuEntry<ThemeMode>>[
+              CheckedPopupMenuItem<ThemeMode>(
+                value: ThemeMode.system,
+                checked: themeService.isSystemMode,
+                child: Row(
+                  children: [
+                    Icon(Icons.brightness_auto),
+                    SizedBox(width: 8),
+                    Text('System Theme'),
+                  ],
+                ),
+              ),
+              CheckedPopupMenuItem<ThemeMode>(
+                value: ThemeMode.light,
+                checked: themeService.isLightMode,
+                child: Row(
+                  children: [
+                    Icon(Icons.light_mode),
+                    SizedBox(width: 8),
+                    Text('Light Theme'),
+                  ],
+                ),
+              ),
+              CheckedPopupMenuItem<ThemeMode>(
+                value: ThemeMode.dark,
+                checked: themeService.isDarkMode,
+                child: Row(
+                  children: [
+                    Icon(Icons.dark_mode),
+                    SizedBox(width: 8),
+                    Text('Dark Theme'),
+                  ],
+                ),
+              ),
+            ];
           },
         ),
         IconButton(
