@@ -9,6 +9,7 @@ import '../services/notification_service.dart';
 import '../services/view_mode_service.dart';
 import '../services/status_bar_service.dart';
 import '../services/icon_size_service.dart';
+import '../services/theme_service.dart';
 import '../widgets/file_item_widget.dart';
 import '../widgets/grid_item_widget.dart';
 import '../widgets/split_folder_view.dart';
@@ -1141,35 +1142,60 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   }
 
   Widget _buildAppBar(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
     return GestureDetector(
       onPanStart: (details) {
         // Make the app bar draggable
         windowManager.startDragging();
       },
-      child: AppBar(
-        leadingWidth: 100, // Provide enough space for two icons
-        leading: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: Icon(Icons.arrow_back),
-              onPressed: _navigationHistory.isEmpty ? null : _navigateBack,
-              tooltip: 'Go back',
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).appBarTheme.backgroundColor,
+          border: Border(
+            bottom: BorderSide(
+              color: isDarkMode 
+                  ? Colors.black 
+                  : Colors.grey.shade300,
+              width: 1.0,
             ),
-            IconButton(
-              icon: Icon(Icons.arrow_forward),
-              onPressed: _forwardHistory.isEmpty ? null : _navigateForward,
-              tooltip: 'Go forward',
-            ),
-          ],
+          ),
         ),
-        title: _buildPathBreadcrumbs(), // Put the breadcrumbs back in the app bar
-        titleSpacing: 0,
-        elevation: 1,
-        actions: [
-          _buildActionButtons(context),
-          _buildWindowControls(),
-        ],
+        child: PreferredSize(
+          preferredSize: Size.fromHeight(52), // Increased from 49px to 52px to match sidebar header
+          child: AppBar(
+            leadingWidth: 100, // Provide enough space for two icons
+            leading: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.arrow_back),
+                  onPressed: _navigationHistory.isEmpty ? null : _navigateBack,
+                  tooltip: 'Go back',
+                  iconSize: 22, // Adjusted size to match bookmark sidebar
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                  constraints: BoxConstraints(), // Remove default constraints
+                ),
+                IconButton(
+                  icon: Icon(Icons.arrow_forward),
+                  onPressed: _forwardHistory.isEmpty ? null : _navigateForward,
+                  tooltip: 'Go forward',
+                  iconSize: 22, // Adjusted size to match bookmark sidebar
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                  constraints: BoxConstraints(), // Remove default constraints
+                ),
+              ],
+            ),
+            title: _buildPathBreadcrumbs(), // Put the breadcrumbs back in the app bar
+            titleSpacing: 0,
+            elevation: 0, // Remove elevation to match bookmark header
+            backgroundColor: Colors.transparent, // Make transparent to show the Container's decoration
+            actions: [
+              _buildActionButtons(context),
+              _buildWindowControls(),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1182,7 +1208,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     
     return SizedBox(
       key: _breadcrumbKey,
-      height: 36,
+      height: 52, // Increased from 49px to 52px to match new heights
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
@@ -1248,12 +1274,45 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const ThemeSwitcher(),
-        const SizedBox(width: 8),
-        const ViewModeSwitcher(),
+        IconButton(
+          icon: const Icon(Icons.dark_mode),
+          iconSize: 22,
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+          constraints: BoxConstraints(),
+          tooltip: 'Toggle Theme',
+          onPressed: () {
+            final themeService = Provider.of<ThemeService>(context, listen: false);
+            themeService.toggleTheme();
+          },
+        ),
+        IconButton(
+          icon: Icon(
+            Provider.of<ViewModeService>(context).viewMode == ViewMode.grid
+                ? Icons.grid_view
+                : Provider.of<ViewModeService>(context).viewMode == ViewMode.list
+                    ? Icons.view_list
+                    : Icons.splitscreen,
+          ),
+          iconSize: 22,
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+          constraints: BoxConstraints(),
+          tooltip: 'Change View Mode',
+          onPressed: () {
+            final viewModeService = Provider.of<ViewModeService>(context, listen: false);
+            // Cycle through view modes (list -> grid -> split -> list)
+            if (viewModeService.viewMode == ViewMode.list) {
+              viewModeService.setViewMode(ViewMode.grid);
+            } else if (viewModeService.viewMode == ViewMode.grid) {
+              viewModeService.setViewMode(ViewMode.split);
+            } else {
+              viewModeService.setViewMode(ViewMode.list);
+            }
+          },
+        ),
         PopupMenuButton<String>(
           tooltip: 'Menu',
-          icon: const Icon(Icons.menu),
+          icon: const Icon(Icons.menu, size: 22),
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
           offset: const Offset(0, 40),
           onSelected: (String value) {
             if (value == 'file') {
@@ -1482,8 +1541,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           ? Colors.red 
           : (isDarkMode ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1)),
         child: Container(
-          width: 40,
-          height: 40,
+          width: 36,  // Adjusted to match other button sizes
+          height: 52, // Increased from 49px to 52px to match new header height
           color: Colors.transparent,
           child: Center(
             child: Icon(

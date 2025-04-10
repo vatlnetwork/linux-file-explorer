@@ -98,7 +98,8 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        height: 57,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
           color: isDarkMode
               ? const Color(0xFF252525) 
@@ -113,20 +114,23 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
           ),
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Icon(
               Icons.folder,
+              size: 20,
               color: isDarkMode 
                   ? Colors.blue.shade300 
                   : Colors.blue.shade700,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Expanded(
               child: Text(
                 'Linux File Explorer',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: 15,
                   color: isDarkMode 
                       ? Colors.grey.shade200 
                       : Colors.grey.shade800,
@@ -134,17 +138,16 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 3),
             IconButton(
               icon: Icon(
                 Icons.info_outline, 
-                size: 18,
-                color: isDarkMode 
-                    ? Colors.grey.shade400 
-                    : Colors.grey.shade600,
+                size: 16,
+                color: Theme.of(context).iconTheme.color?.withOpacity(0.8),
               ),
-              padding: EdgeInsets.zero,
-              constraints: BoxConstraints.tight(const Size(24, 24)),
+              iconSize: 20,
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 0),
+              constraints: BoxConstraints(),
               tooltip: 'Drag to reorder bookmarks',
               onPressed: () {
                 NotificationService.showNotification(
