@@ -19,6 +19,9 @@ import '../services/usb_drive_service.dart';
 import '../services/preview_panel_service.dart';
 import '../widgets/preview_panel.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'dart:math';
 
 class FileExplorerScreen extends StatefulWidget {
   const FileExplorerScreen({super.key});
@@ -55,6 +58,13 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
 
   // Add a key for the breadcrumb bar
   final GlobalKey _breadcrumbKey = GlobalKey();
+
+  // Added state variables for drag selection
+  bool _isDragging = false;
+  Offset? _dragStartPosition;
+  Offset? _dragEndPosition;
+  Map<String, Rect> _itemPositions = {}; // Store positions of items for hit testing
+  final GlobalKey _gridViewKey = GlobalKey(); // Key for the grid container
 
   @override
   void initState() {
@@ -349,26 +359,21 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             previewPanelService.setSelectedItem(item);
           }
         }
-      } else if (item.type == FileItemType.directory) {
-        // If clicked on a directory without multi-select, navigate to it
-        if (_selectedItemsPaths.length == 1 && _selectedItemsPaths.contains(itemPath)) {
+      } else {
+        // If clicked on a directory and not multi-selecting
+        if (item.type == FileItemType.directory && !multiSelect) {
           // Double click behavior - navigate into directory
           _selectedItemsPaths = {};
           _navigateToDirectory(itemPath);
         } else {
-          _selectedItemsPaths = {itemPath};
+          // If clicked on a file, just select it
+          if (!_selectedItemsPaths.contains(item.path)) {
+            _selectedItemsPaths = {item.path};
+          }
+          
+          // Set selected item for preview
+          previewPanelService.setSelectedItem(item);
         }
-        
-        // Set selected item for preview
-        previewPanelService.setSelectedItem(item);
-      } else {
-        // If clicked on a file, just select it
-        if (!_selectedItemsPaths.contains(item.path)) {
-          _selectedItemsPaths = {item.path};
-        }
-        
-        // Set selected item for preview
-        previewPanelService.setSelectedItem(item);
       }
     });
   }
@@ -1079,6 +1084,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   Widget build(BuildContext context) {
     final statusBarService = Provider.of<StatusBarService>(context);
     final previewPanelService = Provider.of<PreviewPanelService>(context);
+    final viewModeService = Provider.of<ViewModeService>(context);
+    final bookmarkSidebarKey = GlobalKey<BookmarkSidebarState>();
     
     return Scaffold(
       body: Column(
@@ -1110,7 +1117,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                               children: [
                                 // Main content area
                                 Expanded(
-                                  child: _buildContent(context),
+                                  child: _buildFileView(viewModeService),
                                 ),
                                 
                                 // Preview panel
@@ -1119,7 +1126,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                                 ),
                               ],
                             )
-                          : _buildContent(context),
+                          : _buildFileView(viewModeService),
                       ),
                     ],
                   ),
@@ -1594,9 +1601,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     );
   }
 
-  Widget _buildContent(BuildContext context) {
-    final viewModeService = Provider.of<ViewModeService>(context);
-    
+  Widget _buildFileView(ViewModeService viewModeService) {
     // Handle loading state
     if (_isLoading) {
       return const Center(
@@ -1641,43 +1646,227 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       );
     }
     
-    // Display content based on view mode
+    // Display content based on view mode with drag selection overlay
     switch (viewModeService.viewMode) {
       case ViewMode.grid:
-        return Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedItemsPaths = {};
-              });
-            },
-            onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
-            child: GridView.builder(
-              controller: _scrollController,
-              padding: EdgeInsets.only(bottom: 100.0 * Provider.of<IconSizeService>(context).gridUIScale),
-              physics: const AlwaysScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: Provider.of<IconSizeService>(context).gridItemExtent,
-                childAspectRatio: 1.0 / (Provider.of<IconSizeService>(context).gridUIScale > 1.2 ? 1.1 : 1.0),
-                crossAxisSpacing: 5.0,
-                mainAxisSpacing: 5.0,
+        return Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: GestureDetector(
+                key: _gridViewKey,
+                onTap: () {
+                  setState(() {
+                    _selectedItemsPaths = {};
+                    _isDragging = false;
+                    _dragStartPosition = null;
+                    _dragEndPosition = null;
+                  });
+                },
+                onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
+                // Add drag selection functionality
+                onPanDown: (details) {
+                  // Check if this is a direct hit on an item or empty space
+                  final RenderBox renderBox = _gridViewKey.currentContext!.findRenderObject() as RenderBox;
+                  final hitPosition = renderBox.globalToLocal(details.globalPosition);
+                  
+                  // Only start dragging if not clicking directly on an item
+                  // and if not holding Ctrl (which is for multi-select)
+                  if (!HardwareKeyboard.instance.isControlPressed) {
+                    setState(() {
+                      _isDragging = true;
+                      // Convert to local coordinates for precise positioning
+                      _dragStartPosition = details.globalPosition;
+                      _dragEndPosition = details.globalPosition;
+                      
+                      // Clear selection when starting new drag
+                      _selectedItemsPaths = {};
+                    });
+                  }
+                },
+                onPanUpdate: (details) {
+                  if (_isDragging) {
+                    setState(() {
+                      _dragEndPosition = details.globalPosition;
+                      
+                      // Update selected items based on selection rectangle
+                      final selectionRect = _getSelectionRect();
+                      _selectedItemsPaths = _getItemsInSelectionArea(selectionRect);
+                      
+                      // Update preview panel if exactly one item is selected
+                      if (_selectedItemsPaths.length == 1) {
+                        final selectedPath = _selectedItemsPaths.first;
+                        final selectedItem = _items.firstWhere(
+                          (item) => item.path == selectedPath,
+                          orElse: () => FileItem(
+                            path: '',
+                            name: '',
+                            type: FileItemType.unknown,
+                          ),
+                        );
+                        
+                        if (selectedItem.type != FileItemType.unknown) {
+                          Provider.of<PreviewPanelService>(context, listen: false)
+                              .setSelectedItem(selectedItem);
+                        }
+                      }
+                    });
+                  }
+                },
+                onPanEnd: (details) {
+                  setState(() {
+                    _isDragging = false;
+                  });
+                },
+                child: GridView.builder(
+                  controller: _scrollController,
+                  padding: EdgeInsets.only(bottom: 100.0 * Provider.of<IconSizeService>(context).gridUIScale),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: Provider.of<IconSizeService>(context).gridItemExtent,
+                    childAspectRatio: 1.0 / (Provider.of<IconSizeService>(context).gridUIScale > 1.2 ? 1.1 : 1.0),
+                    crossAxisSpacing: 5.0,
+                    mainAxisSpacing: 5.0,
+                  ),
+                  itemCount: _items.length,
+                  itemBuilder: (context, index) {
+                    final item = _items[index];
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        return ItemPositionTracker(
+                          path: item.path,
+                          onPositionChanged: _registerItemPosition,
+                          child: GridItemWidget(
+                            key: ValueKey(item.path),
+                            item: item,
+                            onTap: _selectItem,
+                            onDoubleTap: () => _handleItemDoubleTap(item),
+                            onLongPress: _showOptionsDialog,
+                            onRightClick: _showContextMenu,
+                            isSelected: _selectedItemsPaths.contains(item.path),
+                          ),
+                        );
+                      }
+                    );
+                  },
+                ),
               ),
-              itemCount: _items.length,
-              itemBuilder: (context, index) {
-                final item = _items[index];
-                return GridItemWidget(
-                  key: ValueKey(item.path),
-                  item: item,
-                  onTap: _selectItem,
-                  onDoubleTap: () => _handleItemDoubleTap(item),
-                  onLongPress: _showOptionsDialog,
-                  onRightClick: _showContextMenu,
-                  isSelected: _selectedItemsPaths.contains(item.path),
-                );
-              },
             ),
-          ),
+            // Draw selection rectangle if dragging
+            if (_isDragging && _dragStartPosition != null && _dragEndPosition != null)
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: SelectionRectanglePainter(
+                    startPoint: _dragStartPosition!,
+                    endPoint: _dragEndPosition!,
+                    isDarkMode: Theme.of(context).brightness == Brightness.dark,
+                  ),
+                ),
+              ),
+          ],
+        );
+
+      case ViewMode.list:
+        return Stack(
+          children: [
+            GestureDetector(
+              key: _gridViewKey,
+              onTap: () {
+                setState(() {
+                  _selectedItemsPaths = {};
+                  _isDragging = false;
+                  _dragStartPosition = null;
+                  _dragEndPosition = null;
+                });
+              },
+              onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
+              // Add drag selection functionality
+              onPanDown: (details) {
+                // Clear item positions to rebuild them as we drag
+                _itemPositions.clear();
+                
+                // Start drag selection only if not clicking on an item
+                // and if not holding down Ctrl (which is for multi-select)
+                if (!HardwareKeyboard.instance.isControlPressed) {
+                  setState(() {
+                    _isDragging = true;
+                    _dragStartPosition = details.globalPosition;
+                    _dragEndPosition = details.globalPosition;
+                    
+                    // Clear selection when starting new drag
+                    _selectedItemsPaths = {};
+                  });
+                }
+              },
+              onPanUpdate: (details) {
+                if (_isDragging) {
+                  setState(() {
+                    _dragEndPosition = details.globalPosition;
+                    
+                    // Update selected items based on selection rectangle
+                    final selectionRect = _getSelectionRect();
+                    _selectedItemsPaths = _getItemsInSelectionArea(selectionRect);
+                    
+                    // Update preview panel if exactly one item is selected
+                    if (_selectedItemsPaths.length == 1) {
+                      final selectedPath = _selectedItemsPaths.first;
+                      final selectedItem = _items.firstWhere(
+                        (item) => item.path == selectedPath,
+                        orElse: () => FileItem(
+                          path: '',
+                          name: '',
+                          type: FileItemType.unknown,
+                        ),
+                      );
+                      
+                      if (selectedItem.type != FileItemType.unknown) {
+                        Provider.of<PreviewPanelService>(context, listen: false)
+                            .setSelectedItem(selectedItem);
+                      }
+                    }
+                  });
+                }
+              },
+              onPanEnd: (details) {
+                setState(() {
+                  _isDragging = false;
+                });
+              },
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: EdgeInsets.only(bottom: 100.0 * Provider.of<IconSizeService>(context).listUIScale),
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: _items.length,
+                itemBuilder: (context, index) {
+                  final item = _items[index];
+                  return ItemPositionTracker(
+                    path: item.path,
+                    onPositionChanged: _registerItemPosition,
+                    child: FileItemWidget(
+                      key: ValueKey(item.path),
+                      item: item,
+                      onTap: _selectItem,
+                      onDoubleTap: () => _handleItemDoubleTap(item),
+                      onLongPress: _showOptionsDialog,
+                      onRightClick: _showContextMenu,
+                      isSelected: _selectedItemsPaths.contains(item.path),
+                    ),
+                  );
+                },
+              ),
+            ),
+            // Draw selection rectangle if dragging
+            if (_isDragging && _dragStartPosition != null && _dragEndPosition != null)
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: SelectionRectanglePainter(
+                    startPoint: _dragStartPosition!,
+                    endPoint: _dragEndPosition!,
+                    isDarkMode: Theme.of(context).brightness == Brightness.dark,
+                  ),
+                ),
+              ),
+          ],
         );
 
       case ViewMode.split:
@@ -1694,34 +1883,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             });
           },
           onEmptyAreaRightClick: _showEmptySpaceContextMenu,
-        );
-
-      case ViewMode.list:
-        return GestureDetector(
-          onTap: () {
-            setState(() {
-              _selectedItemsPaths = {};
-            });
-          },
-          onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
-          child: ListView.builder(
-            controller: _scrollController,
-            padding: EdgeInsets.only(bottom: 100.0 * Provider.of<IconSizeService>(context).listUIScale),
-            physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: _items.length,
-            itemBuilder: (context, index) {
-              final item = _items[index];
-              return FileItemWidget(
-                key: ValueKey(item.path),
-                item: item,
-                onTap: _selectItem,
-                onDoubleTap: () => _handleItemDoubleTap(item),
-                onLongPress: _showOptionsDialog,
-                onRightClick: _showContextMenu,
-                isSelected: _selectedItemsPaths.contains(item.path),
-              );
-            },
-          ),
         );
     }
   }
@@ -1903,25 +2064,31 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       ),
     ]);
     
-    // Add mounted check before context usage
-    if (!mounted) return;
-    
     final result = await showMenu<String>(
       context: context,
       position: menuPosition,
       items: menuItems,
     );
-
-    if (result == 'new_folder') {
-      _showCreateDialog(true);
-    } else if (result == 'new_file') {
-      _showCreateDialog(false);
-    } else if (result == 'paste') {
-      _pasteItems();
-    } else if (result == 'open_in_terminal') {
-      _openCurrentDirectoryInTerminal();
-    } else if (result == 'refresh') {
-      _loadDirectory(_currentPath);
+    
+    // Process the selected menu option
+    if (result == null || !mounted) return;
+    
+    switch (result) {
+      case 'new_folder':
+        _showCreateDialog(true);
+        break;
+      case 'new_file':
+        _showCreateDialog(false);
+        break;
+      case 'paste':
+        _pasteItems();
+        break;
+      case 'open_in_terminal':
+        _openCurrentDirectoryInTerminal();
+        break;
+      case 'refresh':
+        _loadDirectory(_currentPath);
+        break;
     }
   }
 
@@ -2028,6 +2195,144 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     } catch (e) {
       return false;
     }
+  }
+
+  // Add method to determine which items are within the selection rectangle
+  Set<String> _getItemsInSelectionArea(Rect selectionRect) {
+    final Set<String> itemsInRect = {};
+    
+    _itemPositions.forEach((path, rect) {
+      if (rect.overlaps(selectionRect)) {
+        itemsInRect.add(path);
+      }
+    });
+    
+    return itemsInRect;
+  }
+  
+  // Calculate selection rectangle from drag points
+  Rect _getSelectionRect() {
+    if (_dragStartPosition == null || _dragEndPosition == null) {
+      return Rect.zero;
+    }
+    
+    final double left = min(_dragStartPosition!.dx, _dragEndPosition!.dx);
+    final double top = min(_dragStartPosition!.dy, _dragEndPosition!.dy);
+    final double right = max(_dragStartPosition!.dx, _dragEndPosition!.dx);
+    final double bottom = max(_dragStartPosition!.dy, _dragEndPosition!.dy);
+    
+    return Rect.fromLTRB(left, top, right, bottom);
+  }
+  
+  // Method to register item positions for hit testing during drag selection
+  void _registerItemPosition(String path, Rect position) {
+    _itemPositions[path] = position;
+  }
+}
+
+// Custom painter for drawing the selection rectangle
+class SelectionRectanglePainter extends CustomPainter {
+  final Offset startPoint;
+  final Offset endPoint;
+  final bool isDarkMode;
+  
+  SelectionRectanglePainter({
+    required this.startPoint,
+    required this.endPoint,
+    required this.isDarkMode,
+  });
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Create a selection rectangle with exact start and end points
+    final rect = Rect.fromPoints(startPoint, endPoint);
+    
+    // Fill with semi-transparent color
+    final fillPaint = Paint()
+      ..color = isDarkMode
+          ? Colors.blue.withOpacity(0.2)
+          : Colors.blue.withOpacity(0.15)
+      ..style = PaintingStyle.fill;
+    
+    // Create a border with a slightly more opaque color
+    final borderPaint = Paint()
+      ..color = isDarkMode
+          ? Colors.blue.withOpacity(0.6)
+          : Colors.blue.withOpacity(0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    
+    // Draw the filled rectangle first
+    canvas.drawRect(rect, fillPaint);
+    
+    // Then draw the border on top
+    canvas.drawRect(rect, borderPaint);
+  }
+  
+  @override
+  bool shouldRepaint(SelectionRectanglePainter oldDelegate) {
+    return oldDelegate.startPoint != startPoint || 
+           oldDelegate.endPoint != endPoint ||
+           oldDelegate.isDarkMode != isDarkMode;
+  }
+}
+
+// Widget to track the position of an item and report it to parent
+class ItemPositionTracker extends StatefulWidget {
+  final String path;
+  final Widget child;
+  final Function(String, Rect) onPositionChanged;
+  
+  const ItemPositionTracker({
+    required this.path,
+    required this.child,
+    required this.onPositionChanged,
+  });
+  
+  @override
+  _ItemPositionTrackerState createState() => _ItemPositionTrackerState();
+}
+
+class _ItemPositionTrackerState extends State<ItemPositionTracker> {
+  final GlobalKey _key = GlobalKey();
+  
+  @override
+  void initState() {
+    super.initState();
+    // Schedule a post-frame callback to get the position
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updatePosition();
+    });
+  }
+  
+  @override
+  void didUpdateWidget(ItemPositionTracker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _updatePosition();
+  }
+  
+  void _updatePosition() {
+    final RenderBox? renderBox = _key.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox != null && renderBox.attached) {
+      final Offset position = renderBox.localToGlobal(Offset.zero);
+      final Size size = renderBox.size;
+      final Rect rect = Rect.fromLTWH(
+        position.dx,
+        position.dy,
+        size.width,
+        size.height,
+      );
+      
+      widget.onPositionChanged(widget.path, rect);
+    }
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: _key,
+      child: widget.child,
+    );
   }
 }
 
