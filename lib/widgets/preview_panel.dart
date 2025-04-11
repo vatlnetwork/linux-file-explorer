@@ -252,26 +252,32 @@ class _PreviewPanelState extends State<PreviewPanel> {
       itemCount: _directoryContent!.length,
       itemBuilder: (context, index) {
         final dirItem = _directoryContent![index];
-        return ListTile(
-          leading: dirItem.type == FileItemType.directory
-              ? const Icon(Icons.folder, color: Colors.amber)
-              : const Icon(Icons.insert_drive_file, color: Colors.blue),
-          title: Text(
-            dirItem.name,
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: Text(
-            dirItem.type == FileItemType.directory
-                ? 'Directory'
-                : dirItem.formattedSize,
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 12,
-            ),
-          ),
-          onTap: () {
+        return GestureDetector(
+          onDoubleTap: () {
+            // Navigate on double tap
             widget.onNavigate(dirItem.path);
           },
+          child: ListTile(
+            leading: dirItem.type == FileItemType.directory
+                ? const Icon(Icons.folder, color: Colors.amber)
+                : const Icon(Icons.insert_drive_file, color: Colors.blue),
+            title: Text(
+              dirItem.name,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(
+              dirItem.type == FileItemType.directory
+                  ? 'Directory'
+                  : dirItem.formattedSize,
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 12,
+              ),
+            ),
+            onTap: () {
+              // Just select the item but don't navigate
+            },
+          ),
         );
       },
     );

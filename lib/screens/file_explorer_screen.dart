@@ -23,6 +23,14 @@ import 'package:flutter/services.dart';
 import 'dart:math';
 import 'dart:ui'; // Import for ImageFilter
 
+/// A file explorer screen that displays files and folders in a customizable interface.
+/// 
+/// Key interactions:
+/// - Single click: Selects files and folders
+/// - Double click: Opens files with default applications or navigates into folders
+/// - Right click: Shows context menu for file operations
+/// - Ctrl+click: Enables multi-selection of files and folders
+
 class FileExplorerScreen extends StatefulWidget {
   const FileExplorerScreen({super.key});
 
@@ -383,20 +391,14 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           }
         }
       } else {
-        // If clicked on a directory and not multi-selecting
-        if (item.type == FileItemType.directory && !multiSelect) {
-          // Double click behavior - navigate into directory
-          _selectedItemsPaths = {};
-          _navigateToDirectory(itemPath);
-        } else {
-          // If clicked on a file, just select it
-          if (!_selectedItemsPaths.contains(item.path)) {
-            _selectedItemsPaths = {item.path};
-          }
+        // Single-selection mode (no Ctrl key)
+        setState(() {
+          // Just select the item without navigating
+          _selectedItemsPaths = {itemPath};
           
           // Set selected item for preview
           previewPanelService.setSelectedItem(item);
-        }
+        });
       }
     });
   }
