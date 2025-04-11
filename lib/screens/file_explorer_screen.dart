@@ -21,6 +21,7 @@ import '../widgets/preview_panel.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
+import 'dart:ui'; // Import for ImageFilter
 
 class FileExplorerScreen extends StatefulWidget {
   const FileExplorerScreen({super.key});
@@ -1103,6 +1104,11 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     final viewModeService = Provider.of<ViewModeService>(context);
     
     return Scaffold(
+      // Use a solid background for the main content but keep bookmarks sidebar transparent for blur effect
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF121212)
+          : const Color(0xFFF5F5F5),
+      // Remove the container with gradient so we can see through to the desktop
       body: Column(
         children: [
           // Main content area with bookmarks sidebar and content
@@ -1110,40 +1116,80 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Bookmark sidebar
+                // Bookmark sidebar with frosted glass effect
                 if (_showBookmarkSidebar)
-                  BookmarkSidebar(
-                    onNavigate: _navigateToDirectory,
-                    currentPath: _currentPath,
+                  Stack(
+                    children: [
+                      // This is the backdrop that will be blurred
+                      Positioned.fill(
+                        child: Container(
+                          color: Colors.transparent,
+                        ),
+                      ),
+                      // Actual blur effect
+                      ClipRect(
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                          child: Container(
+                            width: 220,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.black.withValues(alpha: 0.25)
+                                : Colors.white.withValues(alpha: 0.25),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 10,
+                                  spreadRadius: 1,
+                                )
+                              ],
+                            ),
+                            // The actual BookmarkSidebar
+                            child: BookmarkSidebar(
+                              onNavigate: _navigateToDirectory,
+                              currentPath: _currentPath,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 
                 // Main content column with app bar and content
                 Expanded(
-                  child: Column(
-                    children: [
-                      // Top app bar with navigation and breadcrumbs
-                      _buildAppBar(context),
-                      
-                      // Content area with optional preview panel
-                      Expanded(
-                        child: previewPanelService.showPreviewPanel 
-                          ? Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                // Main content area
-                                Expanded(
-                                  child: _buildFileView(viewModeService),
-                                ),
-                                
-                                // Preview panel
-                                PreviewPanel(
-                                  onNavigate: _navigateToDirectory,
-                                ),
-                              ],
-                            )
-                          : _buildFileView(viewModeService),
-                      ),
-                    ],
+                  child: Container(
+                    // Add a solid background for the main content area
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF121212).withValues(alpha: 1.0)
+                          : const Color(0xFFF5F5F5).withValues(alpha: 1.0),
+                    ),
+                    child: Column(
+                      children: [
+                        // Top app bar with navigation and breadcrumbs
+                        _buildAppBar(context),
+                        
+                        // Content area with optional preview panel
+                        Expanded(
+                          child: previewPanelService.showPreviewPanel 
+                            ? Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  // Main content area
+                                  Expanded(
+                                    child: _buildFileView(viewModeService),
+                                  ),
+                                  
+                                  // Preview panel
+                                  PreviewPanel(
+                                    onNavigate: _navigateToDirectory,
+                                  ),
+                                ],
+                              )
+                            : _buildFileView(viewModeService),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

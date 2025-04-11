@@ -10,6 +10,7 @@ import 'services/notification_service.dart';
 import 'services/icon_size_service.dart';
 import 'services/status_bar_service.dart';
 import 'services/preview_panel_service.dart';
+import 'package:flutter/services.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,17 +26,26 @@ void main() async {
   // Initialize window_manager for custom window controls
   await windowManager.ensureInitialized();
   
+  // Enable transparent window support
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  
   WindowOptions windowOptions = const WindowOptions(
     size: Size(1000, 800),
     center: true,
     backgroundColor: Colors.transparent,
     skipTaskbar: false,
     titleBarStyle: TitleBarStyle.hidden,
+    windowButtonVisibility: true,
+    // Set these properties for transparent backdrop support
+    fullScreen: false,
+    alwaysOnTop: false,
   );
   
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
     await windowManager.focus();
+    // Set to be transparent for blur effect to work
+    await windowManager.setBackgroundColor(Colors.transparent);
   });
   
   // Initialize bookmark service
@@ -80,6 +90,8 @@ class MyApp extends StatelessWidget {
           foregroundColor: Colors.white,
           elevation: 4,
         ),
+        // Make scaffold background transparent for blur effect
+        scaffoldBackgroundColor: Colors.transparent,
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.blue,
@@ -97,7 +109,8 @@ class MyApp extends StatelessWidget {
           seedColor: Colors.blue,
           brightness: Brightness.dark,
         ),
-        scaffoldBackgroundColor: const Color(0xFF121212),
+        // Make scaffold background transparent for blur effect
+        scaffoldBackgroundColor: Colors.transparent,
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF2C2C2C),
           foregroundColor: Colors.white,
