@@ -102,7 +102,7 @@ class _SplitFolderViewState extends State<SplitFolderView> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           color: Theme.of(context).brightness == Brightness.dark
               ? Colors.grey.shade800
-              : Colors.grey.shade200,
+              : const Color(0xFFE0E0E0),
           child: Row(
             children: [
               Icon(headerIcon, size: 16),

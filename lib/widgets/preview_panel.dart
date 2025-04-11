@@ -84,7 +84,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
         return Container(
           width: 300,
           decoration: BoxDecoration(
-            color: isDarkMode ? const Color(0xFF252525) : const Color(0xFFF5F5F5),
+            color: isDarkMode ? const Color(0xFF252525) : const Color(0xFFE0E0E0),
             border: Border(
               left: BorderSide(
                 color: isDarkMode ? Colors.black : Colors.grey.shade300,
@@ -117,7 +117,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: isDarkMode ? const Color(0xFF252525) : const Color(0xFFF5F5F5),
+        color: isDarkMode ? const Color(0xFF252525) : const Color(0xFFE0E0E0),
         border: Border(
           bottom: BorderSide(
             color: isDarkMode ? Colors.black : Colors.grey.shade300,

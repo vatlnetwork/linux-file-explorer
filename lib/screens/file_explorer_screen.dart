@@ -35,6 +35,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   final FileService _fileService = FileService();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode(); // Add focus node for keyboard events
+  final TextEditingController _searchController = TextEditingController();
   
   String _currentPath = '';
   List<FileItem> _items = [];
@@ -45,6 +46,11 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   final List<String> _forwardHistory = []; // Add forward history
   bool _showBookmarkSidebar = true;
   bool _isMaximized = false;
+  
+  // Search related state variables
+  bool _isSearchActive = false;
+  List<FileItem> _searchResults = [];
+  bool _isSearching = false;
   
   // Replace single item selection with a set for multiple selection
   Set<String> _selectedItemsPaths = {}; // Track the currently selected items by path
@@ -89,6 +95,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     windowManager.removeListener(this);
     _scrollController.dispose();
     _focusNode.dispose(); // Dispose the focus node
+    _searchController.dispose(); // Dispose the search controller
     super.dispose();
   }
   
@@ -1103,7 +1110,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     final previewPanelService = Provider.of<PreviewPanelService>(context);
     final viewModeService = Provider.of<ViewModeService>(context);
     
-    return Scaffold(
+    final scaffold = Scaffold(
       // Use a solid background for the main content but keep bookmarks sidebar transparent for blur effect
       backgroundColor: Theme.of(context).brightness == Brightness.dark
           ? const Color(0xFF121212)
@@ -1205,6 +1212,42 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         ],
       ),
     );
+    
+    // Wrap in Shortcuts and Actions for keyboard shortcuts
+    return Shortcuts(
+      shortcuts: <LogicalKeySet, Intent>{
+        // Add search shortcut (Ctrl+F)
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyF): 
+            const SearchIntent(),
+        // Add escape key to close search
+        LogicalKeySet(LogicalKeyboardKey.escape): 
+            const CloseSearchIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          SearchIntent: CallbackAction<SearchIntent>(
+            onInvoke: (SearchIntent intent) {
+              if (!_isSearchActive) {
+                _toggleSearch();
+              }
+              return null;
+            },
+          ),
+          CloseSearchIntent: CallbackAction<CloseSearchIntent>(
+            onInvoke: (CloseSearchIntent intent) {
+              if (_isSearchActive) {
+                _toggleSearch();
+              }
+              return null;
+            },
+          ),
+        },
+        child: Focus(
+          autofocus: true,
+          child: scaffold,
+        ),
+      ),
+    );
   }
 
   Widget _buildAppBar(BuildContext context) {
@@ -1252,7 +1295,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                 ),
               ],
             ),
-            title: _buildPathBreadcrumbs(), // Put the breadcrumbs back in the app bar
+            title: _isSearchActive ? _buildSearchBar() : _buildPathBreadcrumbs(), // Show search bar or breadcrumbs
             titleSpacing: 0,
             elevation: 0, // Remove elevation to match bookmark header
             backgroundColor: Colors.transparent, // Make transparent to show the Container's decoration
@@ -1340,6 +1383,15 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Search button
+        IconButton(
+          icon: Icon(_isSearchActive ? Icons.close : Icons.search),
+          iconSize: 22,
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+          constraints: BoxConstraints(),
+          tooltip: _isSearchActive ? 'Close Search' : 'Search Files',
+          onPressed: _toggleSearch,
+        ),
         // Replace the IconButton with PopupMenuButton for theme selection
         PopupMenuButton<ThemeMode>(
           tooltip: 'Theme Settings',
@@ -1689,8 +1741,13 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       );
     }
 
-    // Handle empty directory
-    if (_items.isEmpty) {
+    // Get the items to display (either all items or search results)
+    final displayItems = _isSearchActive && _isSearching 
+        ? _searchResults 
+        : _items;
+
+    // Handle empty directory or no search results
+    if (displayItems.isEmpty) {
       return GestureDetector(
         onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
         behavior: HitTestBehavior.opaque,  // Ensure taps are registered on transparent areas
@@ -1698,9 +1755,27 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.folder_off, color: Colors.grey, size: 48),
+              Icon(
+                _isSearchActive ? Icons.search_off : Icons.folder_off, 
+                color: Colors.grey, 
+                size: 48
+              ),
               SizedBox(height: 16),
-              Text('This folder is empty'),
+              Text(
+                _isSearchActive 
+                    ? 'No results found for "${_searchController.text}"' 
+                    : 'This folder is empty'
+              ),
+              if (_isSearchActive) ...[
+                SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    _searchController.clear();
+                    _performSearch('');
+                  },
+                  child: Text('Clear Search'),
+                ),
+              ],
             ],
           ),
         ),
@@ -1714,144 +1789,188 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           children: [
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: GestureDetector(
-                key: _gridViewKey,
-                onTap: () {
-                  // Check if we recently completed a selection
-                  if (_isSelectionCompleted) {
-                    setState(() {
-                      _isSelectionCompleted = false;
-                    });
-                    return;
-                  }
-                  
-                  // Clear selection only if not completing a drag operation
-                  if (!_isDragging) {
-                    setState(() {
-                      _selectedItemsPaths = {};
-                      _dragStartPosition = null;
-                      _dragEndPosition = null;
-                      _isSelectionCompleted = false;  // Reset completed flag
-                      
-                      // Clear the preview panel
-                      Provider.of<PreviewPanelService>(context, listen: false)
-                          .setSelectedItem(null);
-                    });
-                  }
-                },
-                onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
-                // Add drag selection functionality
-                onPanDown: (details) {
-                  // Reset any existing drag state
-                  _mightStartDragging = false;
-                  
-                  // Store the initial pan position but don't immediately start dragging
-                  // This allows for distinguishing between clicks and drags
-                  _initialPanPosition = details.globalPosition;
-                  
-                  // Only start tracking for possible dragging if not clicking on an item
-                  final hitPosition = details.globalPosition;
-                  bool hitOnItem = false;
-                  
-                  // See if we hit any item directly
-                  for (final item in _items) {
-                    final rect = _itemPositions[item.path];
-                    if (rect != null && rect.contains(hitPosition)) {
-                      hitOnItem = true;
-                      break;
-                    }
-                  }
-                  
-                  // Mark that we might start dragging, but don't actually start yet
-                  // We'll decide in onPanUpdate if this is a drag or just a click
-                  _mightStartDragging = !hitOnItem && !HardwareKeyboard.instance.isControlPressed;
-                },
-                onPanUpdate: (details) {
-                  // If we're already dragging, update the selection rectangle
-                  if (_isDragging) {
-                    setState(() {
-                      _dragEndPosition = details.globalPosition;
-                      
-                      // Update selected items based on selection rectangle
-                      final selectionRect = _getSelectionRect();
-                      _selectedItemsPaths = _getItemsInSelectionArea(selectionRect);
-                      
-                      // Update preview panel if exactly one item is selected
-                      if (_selectedItemsPaths.length == 1) {
-                        final selectedPath = _selectedItemsPaths.first;
-                        final selectedItem = _items.firstWhere(
-                          (item) => item.path == selectedPath,
-                          orElse: () => FileItem(
-                            path: '',
-                            name: '',
-                            type: FileItemType.unknown,
+              child: Column(
+                children: [
+                  // Show search results indicator
+                  if (_isSearchActive && _isSearching) 
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.blue.withValues(alpha: 0.1)
+                            : Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, size: 16, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Found ${_searchResults.length} results for "${_searchController.text}"',
+                              style: TextStyle(color: Colors.blue),
+                            ),
                           ),
-                        );
-                        
-                        if (selectedItem.type != FileItemType.unknown) {
-                          Provider.of<PreviewPanelService>(context, listen: false)
-                              .setSelectedItem(selectedItem);
+                          TextButton(
+                            onPressed: () {
+                              _searchController.clear();
+                              _performSearch('');
+                            },
+                            child: Text('Clear', style: TextStyle(fontSize: 12)),
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  
+                  // Grid view with items
+                  Expanded(
+                    child: GestureDetector(
+                      key: _gridViewKey,
+                      onTap: () {
+                        // Check if we recently completed a selection
+                        if (_isSelectionCompleted) {
+                          setState(() {
+                            _isSelectionCompleted = false;
+                          });
+                          return;
                         }
-                      }
-                    });
-                  } 
-                  // If we might start dragging and have moved enough, start actual dragging
-                  else if (_mightStartDragging && _initialPanPosition != null) {
-                    // Calculate distance moved
-                    final distance = (_initialPanPosition! - details.globalPosition).distance;
-                    // Only start dragging if moved more than a small threshold (prevents accidental drags)
-                    if (distance > 5.0) {
-                      setState(() {
-                        _isDragging = true;
-                        _dragStartPosition = _initialPanPosition;
-                        _dragEndPosition = details.globalPosition;
                         
-                        // Clear selection when starting new drag
-                        _selectedItemsPaths = {};
+                        // Clear selection only if not completing a drag operation
+                        if (!_isDragging) {
+                          setState(() {
+                            _selectedItemsPaths = {};
+                            _dragStartPosition = null;
+                            _dragEndPosition = null;
+                            _isSelectionCompleted = false;  // Reset completed flag
+                            
+                            // Clear the preview panel
+                            Provider.of<PreviewPanelService>(context, listen: false)
+                                .setSelectedItem(null);
+                          });
+                        }
+                      },
+                      onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
+                      // Add drag selection functionality
+                      onPanDown: (details) {
+                        // Reset any existing drag state
+                        _mightStartDragging = false;
                         
-                        // Clear the preview panel
-                        Provider.of<PreviewPanelService>(context, listen: false)
-                            .setSelectedItem(null);
-                      });
-                    }
-                  }
-                },
-                onPanEnd: (details) {
-                  _cleanupDragSelection();
-                },
-                child: GridView.builder(
-                  controller: _scrollController,
-                  padding: EdgeInsets.only(bottom: 100.0 * Provider.of<IconSizeService>(context).gridUIScale),
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: Provider.of<IconSizeService>(context).gridItemExtent,
-                    childAspectRatio: 1.0 / (Provider.of<IconSizeService>(context).gridUIScale > 1.2 ? 1.1 : 1.0),
-                    crossAxisSpacing: 5.0,
-                    mainAxisSpacing: 5.0,
+                        // Store the initial pan position but don't immediately start dragging
+                        // This allows for distinguishing between clicks and drags
+                        _initialPanPosition = details.globalPosition;
+                        
+                        // Only start tracking for possible dragging if not clicking on an item
+                        final hitPosition = details.globalPosition;
+                        bool hitOnItem = false;
+                        
+                        // See if we hit any item directly
+                        for (final item in displayItems) {
+                          final rect = _itemPositions[item.path];
+                          if (rect != null && rect.contains(hitPosition)) {
+                            hitOnItem = true;
+                            break;
+                          }
+                        }
+                        
+                        // Mark that we might start dragging, but don't actually start yet
+                        // We'll decide in onPanUpdate if this is a drag or just a click
+                        _mightStartDragging = !hitOnItem && !HardwareKeyboard.instance.isControlPressed;
+                      },
+                      onPanUpdate: (details) {
+                        // If we're already dragging, update the selection rectangle
+                        if (_isDragging) {
+                          setState(() {
+                            _dragEndPosition = details.globalPosition;
+                            
+                            // Update selected items based on selection rectangle
+                            final selectionRect = _getSelectionRect();
+                            _selectedItemsPaths = _getItemsInSelectionArea(selectionRect);
+                            
+                            // Update preview panel if exactly one item is selected
+                            if (_selectedItemsPaths.length == 1) {
+                              final selectedPath = _selectedItemsPaths.first;
+                              final selectedItem = displayItems.firstWhere(
+                                (item) => item.path == selectedPath,
+                                orElse: () => FileItem(
+                                  path: '',
+                                  name: '',
+                                  type: FileItemType.unknown,
+                                ),
+                              );
+                              
+                              if (selectedItem.type != FileItemType.unknown) {
+                                Provider.of<PreviewPanelService>(context, listen: false)
+                                    .setSelectedItem(selectedItem);
+                              }
+                            }
+                          });
+                        } 
+                        // If we might start dragging and have moved enough, start actual dragging
+                        else if (_mightStartDragging && _initialPanPosition != null) {
+                          // Calculate distance moved
+                          final distance = (_initialPanPosition! - details.globalPosition).distance;
+                          // Only start dragging if moved more than a small threshold (prevents accidental drags)
+                          if (distance > 5.0) {
+                            setState(() {
+                              _isDragging = true;
+                              _dragStartPosition = _initialPanPosition;
+                              _dragEndPosition = details.globalPosition;
+                              
+                              // Clear selection when starting new drag
+                              _selectedItemsPaths = {};
+                              
+                              // Clear the preview panel
+                              Provider.of<PreviewPanelService>(context, listen: false)
+                                  .setSelectedItem(null);
+                            });
+                          }
+                        }
+                      },
+                      onPanEnd: (details) {
+                        _cleanupDragSelection();
+                      },
+                      child: GridView.builder(
+                        controller: _scrollController,
+                        padding: EdgeInsets.only(bottom: 100.0 * Provider.of<IconSizeService>(context).gridUIScale),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: Provider.of<IconSizeService>(context).gridItemExtent,
+                          childAspectRatio: 1.0 / (Provider.of<IconSizeService>(context).gridUIScale > 1.2 ? 1.1 : 1.0),
+                          crossAxisSpacing: 5.0,
+                          mainAxisSpacing: 5.0,
+                        ),
+                        itemCount: displayItems.length,
+                        itemBuilder: (context, index) {
+                          final item = displayItems[index];
+                          return LayoutBuilder(
+                            builder: (context, constraints) {
+                              return ItemPositionTracker(
+                                key: ValueKey(item.path),
+                                path: item.path,
+                                onPositionChanged: _registerItemPosition,
+                                child: GridItemWidget(
+                                  key: ValueKey(item.path),
+                                  item: item,
+                                  onTap: _selectItem,
+                                  onDoubleTap: () => _handleItemDoubleTap(item),
+                                  onLongPress: _showOptionsDialog,
+                                  onRightClick: _showContextMenu,
+                                  isSelected: _selectedItemsPaths.contains(item.path),
+                                ),
+                              );
+                            }
+                          );
+                        },
+                      ),
+                    ),
                   ),
-                  itemCount: _items.length,
-                  itemBuilder: (context, index) {
-                    final item = _items[index];
-                    return LayoutBuilder(
-                      builder: (context, constraints) {
-                        return ItemPositionTracker(
-                          key: ValueKey(item.path),
-                          path: item.path,
-                          onPositionChanged: _registerItemPosition,
-                          child: GridItemWidget(
-                            key: ValueKey(item.path),
-                            item: item,
-                            onTap: _selectItem,
-                            onDoubleTap: () => _handleItemDoubleTap(item),
-                            onLongPress: _showOptionsDialog,
-                            onRightClick: _showContextMenu,
-                            isSelected: _selectedItemsPaths.contains(item.path),
-                          ),
-                        );
-                      }
-                    );
-                  },
-                ),
+                ],
               ),
             ),
             // Draw selection rectangle if dragging
@@ -1871,134 +1990,179 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       case ViewMode.list:
         return Stack(
           children: [
-            GestureDetector(
-              key: _gridViewKey,
-              onTap: () {
-                // Check if we recently completed a selection
-                if (_isSelectionCompleted) {
-                  setState(() {
-                    _isSelectionCompleted = false;
-                  });
-                  return;
-                }
-                
-                // Clear selection only if not completing a drag operation
-                if (!_isDragging) {
-                  setState(() {
-                    _selectedItemsPaths = {};
-                    _dragStartPosition = null;
-                    _dragEndPosition = null;
-                    _isSelectionCompleted = false;  // Reset completed flag
-                    
-                    // Clear the preview panel
-                    Provider.of<PreviewPanelService>(context, listen: false)
-                        .setSelectedItem(null);
-                  });
-                }
-              },
-              onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
-              // Add drag selection functionality
-              onPanDown: (details) {
-                // Reset any existing drag state
-                _mightStartDragging = false;
-                
-                // Store the initial pan position but don't immediately start dragging
-                // This allows for distinguishing between clicks and drags
-                _initialPanPosition = details.globalPosition;
-                
-                // Only start tracking for possible dragging if not clicking on an item
-                final hitPosition = details.globalPosition;
-                bool hitOnItem = false;
-                
-                // See if we hit any item directly
-                for (final item in _items) {
-                  final rect = _itemPositions[item.path];
-                  if (rect != null && rect.contains(hitPosition)) {
-                    hitOnItem = true;
-                    break;
-                  }
-                }
-                
-                // Mark that we might start dragging, but don't actually start yet
-                // We'll decide in onPanUpdate if this is a drag or just a click
-                _mightStartDragging = !hitOnItem && !HardwareKeyboard.instance.isControlPressed;
-              },
-              onPanUpdate: (details) {
-                // If we're already dragging, update the selection rectangle
-                if (_isDragging) {
-                  setState(() {
-                    _dragEndPosition = details.globalPosition;
-                    
-                    // Update selected items based on selection rectangle
-                    final selectionRect = _getSelectionRect();
-                    _selectedItemsPaths = _getItemsInSelectionArea(selectionRect);
-                    
-                    // Update preview panel if exactly one item is selected
-                    if (_selectedItemsPaths.length == 1) {
-                      final selectedPath = _selectedItemsPaths.first;
-                      final selectedItem = _items.firstWhere(
-                        (item) => item.path == selectedPath,
-                        orElse: () => FileItem(
-                          path: '',
-                          name: '',
-                          type: FileItemType.unknown,
-                        ),
-                      );
-                      
-                      if (selectedItem.type != FileItemType.unknown) {
-                        Provider.of<PreviewPanelService>(context, listen: false)
-                            .setSelectedItem(selectedItem);
-                      }
-                    }
-                  });
-                } 
-                // If we might start dragging and have moved enough, start actual dragging
-                else if (_mightStartDragging && _initialPanPosition != null) {
-                  // Calculate distance moved
-                  final distance = (_initialPanPosition! - details.globalPosition).distance;
-                  // Only start dragging if moved more than a small threshold (prevents accidental drags)
-                  if (distance > 5.0) {
-                    setState(() {
-                      _isDragging = true;
-                      _dragStartPosition = _initialPanPosition;
-                      _dragEndPosition = details.globalPosition;
-                      
-                      // Clear selection when starting new drag
-                      _selectedItemsPaths = {};
-                      
-                      // Clear the preview panel
-                      Provider.of<PreviewPanelService>(context, listen: false)
-                          .setSelectedItem(null);
-                    });
-                  }
-                }
-              },
-              onPanEnd: (details) {
-                _cleanupDragSelection();
-              },
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: EdgeInsets.only(bottom: 100.0 * Provider.of<IconSizeService>(context).listUIScale),
-                physics: const AlwaysScrollableScrollPhysics(),
-                itemCount: _items.length,
-                itemBuilder: (context, index) {
-                  final item = _items[index];
-                  return ItemPositionTracker(
-                    key: ValueKey(item.path),
-                    path: item.path,
-                    onPositionChanged: _registerItemPosition,
-                    child: FileItemWidget(
-                      key: ValueKey(item.path),
-                      item: item,
-                      onTap: _selectItem,
-                      onDoubleTap: () => _handleItemDoubleTap(item),
-                      onLongPress: _showOptionsDialog,
-                      onRightClick: _showContextMenu,
-                      isSelected: _selectedItemsPaths.contains(item.path),
+            Column(
+              children: [
+                // Show search results indicator
+                if (_isSearchActive && _isSearching) 
+                  Container(
+                    width: double.infinity,
+                    margin: EdgeInsets.fromLTRB(8, 8, 8, 0),
+                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.blue.withValues(alpha: 0.1)
+                          : Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                  );
-                },
-              ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 16, color: Colors.blue),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Found ${_searchResults.length} results for "${_searchController.text}"',
+                            style: TextStyle(color: Colors.blue),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            _searchController.clear();
+                            _performSearch('');
+                          },
+                          child: Text('Clear', style: TextStyle(fontSize: 12)),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                
+                // List view with items
+                Expanded(
+                  child: GestureDetector(
+                    key: _gridViewKey,
+                    onTap: () {
+                      // Check if we recently completed a selection
+                      if (_isSelectionCompleted) {
+                        setState(() {
+                          _isSelectionCompleted = false;
+                        });
+                        return;
+                      }
+                      
+                      // Clear selection only if not completing a drag operation
+                      if (!_isDragging) {
+                        setState(() {
+                          _selectedItemsPaths = {};
+                          _dragStartPosition = null;
+                          _dragEndPosition = null;
+                          _isSelectionCompleted = false;  // Reset completed flag
+                          
+                          // Clear the preview panel
+                          Provider.of<PreviewPanelService>(context, listen: false)
+                              .setSelectedItem(null);
+                        });
+                      }
+                    },
+                    onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
+                    // Add drag selection functionality
+                    onPanDown: (details) {
+                      // Reset any existing drag state
+                      _mightStartDragging = false;
+                      
+                      // Store the initial pan position but don't immediately start dragging
+                      // This allows for distinguishing between clicks and drags
+                      _initialPanPosition = details.globalPosition;
+                      
+                      // Only start tracking for possible dragging if not clicking on an item
+                      final hitPosition = details.globalPosition;
+                      bool hitOnItem = false;
+                      
+                      // See if we hit any item directly
+                      for (final item in displayItems) {
+                        final rect = _itemPositions[item.path];
+                        if (rect != null && rect.contains(hitPosition)) {
+                          hitOnItem = true;
+                          break;
+                        }
+                      }
+                      
+                      // Mark that we might start dragging, but don't actually start yet
+                      // We'll decide in onPanUpdate if this is a drag or just a click
+                      _mightStartDragging = !hitOnItem && !HardwareKeyboard.instance.isControlPressed;
+                    },
+                    onPanUpdate: (details) {
+                      // If we're already dragging, update the selection rectangle
+                      if (_isDragging) {
+                        setState(() {
+                          _dragEndPosition = details.globalPosition;
+                          
+                          // Update selected items based on selection rectangle
+                          final selectionRect = _getSelectionRect();
+                          _selectedItemsPaths = _getItemsInSelectionArea(selectionRect);
+                          
+                          // Update preview panel if exactly one item is selected
+                          if (_selectedItemsPaths.length == 1) {
+                            final selectedPath = _selectedItemsPaths.first;
+                            final selectedItem = displayItems.firstWhere(
+                              (item) => item.path == selectedPath,
+                              orElse: () => FileItem(
+                                path: '',
+                                name: '',
+                                type: FileItemType.unknown,
+                              ),
+                            );
+                            
+                            if (selectedItem.type != FileItemType.unknown) {
+                              Provider.of<PreviewPanelService>(context, listen: false)
+                                  .setSelectedItem(selectedItem);
+                            }
+                          }
+                        });
+                      } 
+                      // If we might start dragging and have moved enough, start actual dragging
+                      else if (_mightStartDragging && _initialPanPosition != null) {
+                        // Calculate distance moved
+                        final distance = (_initialPanPosition! - details.globalPosition).distance;
+                        // Only start dragging if moved more than a small threshold (prevents accidental drags)
+                        if (distance > 5.0) {
+                          setState(() {
+                            _isDragging = true;
+                            _dragStartPosition = _initialPanPosition;
+                            _dragEndPosition = details.globalPosition;
+                            
+                            // Clear selection when starting new drag
+                            _selectedItemsPaths = {};
+                            
+                            // Clear the preview panel
+                            Provider.of<PreviewPanelService>(context, listen: false)
+                                .setSelectedItem(null);
+                          });
+                        }
+                      }
+                    },
+                    onPanEnd: (details) {
+                      _cleanupDragSelection();
+                    },
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      padding: EdgeInsets.only(bottom: 100.0 * Provider.of<IconSizeService>(context).listUIScale),
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: displayItems.length,
+                      itemBuilder: (context, index) {
+                        final item = displayItems[index];
+                        return ItemPositionTracker(
+                          key: ValueKey(item.path),
+                          path: item.path,
+                          onPositionChanged: _registerItemPosition,
+                          child: FileItemWidget(
+                            key: ValueKey(item.path),
+                            item: item,
+                            onTap: _selectItem,
+                            onDoubleTap: () => _handleItemDoubleTap(item),
+                            onLongPress: _showOptionsDialog,
+                            onRightClick: _showContextMenu,
+                            isSelected: _selectedItemsPaths.contains(item.path),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ),
             // Draw selection rectangle if dragging
             if (_isDragging && _dragStartPosition != null && _dragEndPosition != null)
@@ -2016,7 +2180,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
 
       case ViewMode.split:
         return SplitFolderView(
-          items: _items,
+          items: displayItems,
           onItemTap: _selectItem,
           onItemDoubleTap: _handleItemDoubleTap,
           onItemLongPress: _showOptionsDialog,
@@ -2434,6 +2598,89 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     // This is called to ensure positions are up to date
     // The actual updating happens in the ItemPositionTracker widgets
   }
+
+  void _toggleSearch() {
+    setState(() {
+      _isSearchActive = !_isSearchActive;
+      if (!_isSearchActive) {
+        // When closing search, clear search results and text
+        _searchController.clear();
+        _searchResults = [];
+        _isSearching = false;
+      } else {
+        // When activating search, focus the search field after the frame is built
+        _searchController.text = '';
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          // We need to schedule this focus request after the UI is built
+          FocusScope.of(context).requestFocus(FocusNode());
+        });
+      }
+    });
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      height: 36,
+      margin: EdgeInsets.symmetric(vertical: 8),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search in current folder...',
+          prefixIcon: Icon(Icons.search, size: 20),
+          suffixIcon: _searchController.text.isNotEmpty
+            ? IconButton(
+                icon: Icon(Icons.clear, size: 20),
+                onPressed: () {
+                  _searchController.clear();
+                  _performSearch('');
+                },
+                padding: EdgeInsets.zero,
+                constraints: BoxConstraints(),
+              )
+            : null,
+          contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(20),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey.shade800
+            : Colors.grey.shade200,
+        ),
+        onChanged: _performSearch,
+        textInputAction: TextInputAction.search,
+        onSubmitted: _performSearch,
+      ),
+    );
+  }
+
+  void _performSearch(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        _searchResults = [];
+        _isSearching = false;
+        return;
+      }
+      
+      _isSearching = true;
+      
+      // Convert to lowercase for case-insensitive search
+      final String lowercaseQuery = query.toLowerCase();
+      
+      // Filter the items based on the search query
+      _searchResults = _items.where((item) {
+        final String lowercaseName = item.name.toLowerCase();
+        final String lowercaseExtension = item.fileExtension.toLowerCase();
+        
+        // Match by name, extension, or type for more flexibility
+        return lowercaseName.contains(lowercaseQuery) ||
+               (item.type == FileItemType.file && lowercaseExtension.contains(lowercaseQuery)) ||
+               (lowercaseQuery == 'folder' && item.type == FileItemType.directory) ||
+               (lowercaseQuery == 'file' && item.type == FileItemType.file);
+      }).toList();
+    });
+  }
 }
 
 // Custom painter for drawing the selection rectangle
@@ -2582,4 +2829,13 @@ class ZoomIntent extends Intent {
   const ZoomIntent({required this.zoomIn});
   
   bool get isZoomIn => zoomIn;
+}
+
+// Add search-related intents
+class SearchIntent extends Intent {
+  const SearchIntent();
+}
+
+class CloseSearchIntent extends Intent {
+  const CloseSearchIntent();
 } 

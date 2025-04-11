@@ -86,8 +86,8 @@ class MyApp extends StatelessWidget {
           brightness: Brightness.light,
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1976D2),
-          foregroundColor: Colors.white,
+          backgroundColor: Color(0xFFE0E0E0),
+          foregroundColor: Colors.black87,
           elevation: 4,
         ),
         // Make scaffold background transparent for blur effect

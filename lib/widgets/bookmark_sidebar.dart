@@ -69,7 +69,7 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
           width: 220,
           color: isDarkMode
               ? Colors.black.withValues(alpha: 0.03)  // Very slight tint to enhance the blur
-              : Colors.white.withValues(alpha: 0.03),
+              : const Color(0xFFE0E0E0).withValues(alpha: 0.1),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -102,7 +102,7 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
         decoration: BoxDecoration(
           color: isDarkMode
               ? const Color(0xFF303030).withValues(alpha: 0.5)
-              : const Color(0xFFEEEEEE).withValues(alpha: 0.5),
+              : const Color(0xFFE0E0E0).withValues(alpha: 0.5),
           border: Border(
             bottom: BorderSide(
               color: isDarkMode 
@@ -211,14 +211,14 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
       decoration: BoxDecoration(
         color: isDarkMode
             ? const Color(0xFF1E1E1E).withValues(alpha: 0.4)
-            : const Color(0xFFFAFAFA).withValues(alpha: 0.4),
+            : const Color(0xFFE0E0E0).withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(
           canvasColor: isDarkMode
               ? const Color(0xFF303030).withValues(alpha: 0.3)
-              : Colors.grey.shade100.withValues(alpha: 0.3),
+              : const Color(0xFFE0E0E0).withValues(alpha: 0.3),
         ),
         child: NotificationListener<ScrollNotification>(
           // Detect scroll interactions which usually mean user is interacting
@@ -347,13 +347,13 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
                 ? highlightAnimation.value
                 : (isSelected 
                     ? (isDarkMode ? Colors.blueGrey.shade700.withValues(alpha: 0.6) : Colors.blue.shade100.withValues(alpha: 0.7))
-                    : (isDarkMode ? const Color(0xFF2A2A2A).withValues(alpha: 0.4) : Colors.white.withValues(alpha: 0.4))),
+                    : (isDarkMode ? const Color(0xFF2A2A2A).withValues(alpha: 0.4) : Colors.white)),
             borderRadius: BorderRadius.circular(4),
             border: isFocused ? Border.all(
               color: isDarkMode ? Colors.blue.shade400.withValues(alpha: 0.8) : Colors.blue.shade500.withValues(alpha: 0.8),
               width: 1.5,
             ) : Border.all(
-              color: isDarkMode ? Colors.grey.shade800.withValues(alpha: 0.3) : Colors.grey.shade200.withValues(alpha: 0.3),
+              color: isDarkMode ? Colors.grey.shade800.withValues(alpha: 0.3) : Colors.grey.shade300,
               width: 1.0,
             ),
             boxShadow: [
@@ -362,9 +362,9 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
                     ? (isDarkMode ? Colors.blue.shade700.withValues(alpha: 0.4) : Colors.blue.shade400.withValues(alpha: 0.4))
                     : isRecentlyReordered
                         ? (isDarkMode ? Colors.blue.shade700.withValues(alpha: 0.4) : Colors.blue.shade300.withValues(alpha: 0.4))
-                        : (isDarkMode ? Colors.black.withValues(alpha: 0.2) : Colors.grey.shade300.withValues(alpha: 0.2)),
+                        : (isDarkMode ? Colors.black.withValues(alpha: 0.2) : Colors.grey.shade400.withValues(alpha: 0.4)),
                 spreadRadius: isSelected ? 1 : 0,
-                blurRadius: isSelected ? 5 : (isRecentlyReordered ? 6 : 4),
+                blurRadius: isSelected ? 5 : (isRecentlyReordered ? 6 : 3),
                 offset: const Offset(0, 1),
               ),
             ],
