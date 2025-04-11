@@ -86,7 +86,7 @@ class MyApp extends StatelessWidget {
           brightness: Brightness.light,
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFE0E0E0),
+          backgroundColor: Color(0xFFBBDEFB),
           foregroundColor: Colors.black87,
           elevation: 4,
         ),
@@ -101,6 +101,14 @@ class MyApp extends StatelessWidget {
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
           backgroundColor: Colors.blue,
           foregroundColor: Colors.white,
+        ),
+        popupMenuTheme: const PopupMenuThemeData(
+          color: Color(0xFFBBDEFB),
+          elevation: 4,
+          textStyle: TextStyle(
+            color: Colors.black87,
+            fontSize: 14,
+          ),
         ),
       ),
       darkTheme: ThemeData(
@@ -127,6 +135,14 @@ class MyApp extends StatelessWidget {
           foregroundColor: Colors.white,
         ),
         cardColor: const Color(0xFF1E1E1E),
+        popupMenuTheme: const PopupMenuThemeData(
+          color: Color(0xFF2C2C2C),
+          elevation: 4,
+          textStyle: TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+          ),
+        ),
       ),
       home: const FileExplorerScreen(),
       scaffoldMessengerKey: NotificationService.messengerKey,
