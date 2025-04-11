@@ -64,6 +64,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   Offset? _dragEndPosition;
   final Map<String, Rect> _itemPositions = {}; // Store positions of items for hit testing
   final GlobalKey _gridViewKey = GlobalKey(); // Key for the grid container
+  bool _isSelectionCompleted = false; // Track if selection was completed properly
 
   @override
   void initState() {
@@ -102,16 +103,30 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       setState(() {
         _currentPath = homeDir;
       });
-      _loadDirectory(homeDir);
+      _loadDirectory(homeDir, addToHistory: false);
     } catch (e) {
       _handleError('Failed to get home directory: $e');
     }
   }
 
-  Future<void> _loadDirectory(String path) async {
+  Future<void> _loadDirectory(String path, {bool addToHistory = true}) async {
+    // Record current path in history if different
+    if (addToHistory && _currentPath != path && _currentPath.isNotEmpty) {
+      _navigationHistory.add(_currentPath);
+      _forwardHistory.clear(); // Clear forward history when navigating to a new path
+    }
+
     setState(() {
       _isLoading = true;
       _hasError = false;
+      _errorMessage = '';
+      _currentPath = path;
+      
+      // Clear item positions when changing directory
+      _itemPositions.clear();
+      _isDragging = false;
+      _dragStartPosition = null;
+      _dragEndPosition = null;
     });
 
     try {
@@ -119,7 +134,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       
       setState(() {
         _items = items;
-        _currentPath = path;
         _isLoading = false;
         
         // Reset selection when changing directories
@@ -139,10 +153,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   }
 
   void _navigateToDirectory(String path) {
-    // Add current path to history before navigating
-    _navigationHistory.add(_currentPath);
-    // Clear forward history when navigating to a new path
-    _forwardHistory.clear();
     _loadDirectory(path);
   }
 
@@ -152,7 +162,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       _forwardHistory.add(_currentPath);
       // Navigate to previous path
       final previousPath = _navigationHistory.removeLast();
-      _loadDirectory(previousPath);
+      _loadDirectory(previousPath, addToHistory: false);
     }
   }
 
@@ -162,7 +172,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       _navigationHistory.add(_currentPath);
       // Navigate to forward path
       final forwardPath = _forwardHistory.removeLast();
-      _loadDirectory(forwardPath);
+      _loadDirectory(forwardPath, addToHistory: false);
     }
   }
 
@@ -1619,7 +1629,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             Text(_errorMessage),
             SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () => _loadDirectory(_currentPath),
+              onPressed: () => _loadDirectory(_currentPath, addToHistory: false),
               child: Text('Retry'),
             ),
           ],
@@ -1655,21 +1665,45 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
               child: GestureDetector(
                 key: _gridViewKey,
                 onTap: () {
-                  setState(() {
-                    _selectedItemsPaths = {};
-                    _isDragging = false;
-                    _dragStartPosition = null;
-                    _dragEndPosition = null;
-                  });
+                  // Check if we recently completed a selection
+                  if (_isSelectionCompleted) {
+                    setState(() {
+                      _isSelectionCompleted = false;
+                    });
+                    return;
+                  }
+                  
+                  // Clear selection only if not completing a drag operation
+                  if (!_isDragging) {
+                    setState(() {
+                      _selectedItemsPaths = {};
+                      _dragStartPosition = null;
+                      _dragEndPosition = null;
+                      
+                      // Clear the preview panel
+                      Provider.of<PreviewPanelService>(context, listen: false)
+                          .setSelectedItem(null);
+                    });
+                  }
                 },
                 onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
                 // Add drag selection functionality
                 onPanDown: (details) {
                   // Check if this is a direct hit on an item or empty space
+                  final hitPosition = details.globalPosition;
+                  bool hitOnItem = false;
+                  
+                  // See if we hit any item directly
+                  for (final rect in _itemPositions.values) {
+                    if (rect.contains(hitPosition)) {
+                      hitOnItem = true;
+                      break;
+                    }
+                  }
                   
                   // Only start dragging if not clicking directly on an item
                   // and if not holding Ctrl (which is for multi-select)
-                  if (!HardwareKeyboard.instance.isControlPressed) {
+                  if (!hitOnItem && !HardwareKeyboard.instance.isControlPressed) {
                     setState(() {
                       _isDragging = true;
                       // Convert to local coordinates for precise positioning
@@ -1678,6 +1712,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                       
                       // Clear selection when starting new drag
                       _selectedItemsPaths = {};
+                      
+                      // Clear the preview panel
+                      Provider.of<PreviewPanelService>(context, listen: false)
+                          .setSelectedItem(null);
                     });
                   }
                 },
@@ -1711,9 +1749,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                   }
                 },
                 onPanEnd: (details) {
-                  setState(() {
-                    _isDragging = false;
-                  });
+                  _cleanupDragSelection();
                 },
                 child: GridView.builder(
                   controller: _scrollController,
@@ -1770,22 +1806,48 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             GestureDetector(
               key: _gridViewKey,
               onTap: () {
-                setState(() {
-                  _selectedItemsPaths = {};
-                  _isDragging = false;
-                  _dragStartPosition = null;
-                  _dragEndPosition = null;
-                });
+                // Check if we recently completed a selection
+                if (_isSelectionCompleted) {
+                  setState(() {
+                    _isSelectionCompleted = false;
+                  });
+                  return;
+                }
+                
+                // Clear selection only if not completing a drag operation
+                if (!_isDragging) {
+                  setState(() {
+                    _selectedItemsPaths = {};
+                    _dragStartPosition = null;
+                    _dragEndPosition = null;
+                    
+                    // Clear the preview panel
+                    Provider.of<PreviewPanelService>(context, listen: false)
+                        .setSelectedItem(null);
+                  });
+                }
               },
               onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
               // Add drag selection functionality
               onPanDown: (details) {
                 // Clear item positions to rebuild them as we drag
-                _itemPositions.clear();
+                // Don't clear positions as we need them to check for hits
+                
+                // Check if this is a direct hit on an item or empty space
+                final hitPosition = details.globalPosition;
+                bool hitOnItem = false;
+                
+                // See if we hit any item directly
+                for (final rect in _itemPositions.values) {
+                  if (rect.contains(hitPosition)) {
+                    hitOnItem = true;
+                    break;
+                  }
+                }
                 
                 // Start drag selection only if not clicking on an item
                 // and if not holding down Ctrl (which is for multi-select)
-                if (!HardwareKeyboard.instance.isControlPressed) {
+                if (!hitOnItem && !HardwareKeyboard.instance.isControlPressed) {
                   setState(() {
                     _isDragging = true;
                     _dragStartPosition = details.globalPosition;
@@ -1793,6 +1855,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                     
                     // Clear selection when starting new drag
                     _selectedItemsPaths = {};
+                    
+                    // Clear the preview panel
+                    Provider.of<PreviewPanelService>(context, listen: false)
+                        .setSelectedItem(null);
                   });
                 }
               },
@@ -1826,9 +1892,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                 }
               },
               onPanEnd: (details) {
-                setState(() {
-                  _isDragging = false;
-                });
+                _cleanupDragSelection();
               },
               child: ListView.builder(
                 controller: _scrollController,
@@ -2227,6 +2291,30 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   void _registerItemPosition(String path, Rect position) {
     _itemPositions[path] = position;
   }
+  
+  // Clean up after drag selection
+  void _cleanupDragSelection() {
+    setState(() {
+      _isDragging = false;
+      _isSelectionCompleted = true;
+      // We keep the _selectedItemsPaths populated with the final selection
+      
+      // Reset the drag positions
+      _dragStartPosition = null;
+      _dragEndPosition = null;
+    });
+    
+    // Schedule a cleanup of item positions after the current frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Only clear positions if we're not in the middle of another drag operation
+      if (!_isDragging) {
+        _itemPositions.clear();
+        setState(() {
+          _isSelectionCompleted = false;
+        });
+      }
+    });
+  }
 }
 
 // Custom painter for drawing the selection rectangle
@@ -2308,10 +2396,22 @@ class _ItemPositionTrackerState extends State<ItemPositionTracker> {
   @override
   void didUpdateWidget(ItemPositionTracker oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _updatePosition();
+    // If the path changed, we need to update the position
+    if (oldWidget.path != widget.path) {
+      _updatePosition();
+    }
+  }
+  
+  @override
+  void dispose() {
+    // Remove this item's position when the widget is disposed
+    widget.onPositionChanged(widget.path, Rect.zero);
+    super.dispose();
   }
   
   void _updatePosition() {
+    if (!mounted) return;
+    
     final RenderBox? renderBox = _key.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox != null && renderBox.attached) {
       final Offset position = renderBox.localToGlobal(Offset.zero);
@@ -2329,6 +2429,11 @@ class _ItemPositionTrackerState extends State<ItemPositionTracker> {
   
   @override
   Widget build(BuildContext context) {
+    // Schedule a position update when the layout happens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updatePosition();
+    });
+    
     return Container(
       key: _key,
       child: widget.child,
