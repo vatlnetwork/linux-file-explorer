@@ -2375,13 +2375,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     // Force position update on each layout pass
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        // Rebuild item positions map
-        for (final item in _items) {
-          final widget = _gridViewKey.currentContext?.findRenderObject();
-          if (widget != null) {
-            _updateItemPositions();
-            break;
-          }
+        // Rebuild item positions map if grid view is available
+        if (_gridViewKey.currentContext?.findRenderObject() != null) {
+          _updateItemPositions();
         }
       }
     });
@@ -2460,7 +2456,6 @@ class ItemPositionTracker extends StatefulWidget {
 
 class _ItemPositionTrackerState extends State<ItemPositionTracker> {
   final GlobalKey _key = GlobalKey();
-  Rect _lastRect = Rect.zero;
   
   @override
   void initState() {
@@ -2501,7 +2496,6 @@ class _ItemPositionTrackerState extends State<ItemPositionTracker> {
       
       // Always update the position to ensure selection works
       widget.onPositionChanged(widget.path, rect);
-      _lastRect = rect;
     }
   }
   
