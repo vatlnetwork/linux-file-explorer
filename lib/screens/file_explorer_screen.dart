@@ -66,6 +66,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   final GlobalKey _gridViewKey = GlobalKey(); // Key for the grid container
   bool _isSelectionCompleted = false; // Track if selection was completed properly
 
+  // Added state variables for drag selection
+  Offset? _initialPanPosition;
+  bool _mightStartDragging = false;
+
   @override
   void initState() {
     super.initState();
@@ -122,11 +126,13 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       _errorMessage = '';
       _currentPath = path;
       
-      // Clear item positions when changing directory
+      // Clear item positions when changing directory since items will be different
       _itemPositions.clear();
       _isDragging = false;
       _dragStartPosition = null;
       _dragEndPosition = null;
+      _mightStartDragging = false;
+      _initialPanPosition = null;
     });
 
     try {
@@ -1679,6 +1685,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                       _selectedItemsPaths = {};
                       _dragStartPosition = null;
                       _dragEndPosition = null;
+                      _isSelectionCompleted = false;  // Reset completed flag
                       
                       // Clear the preview panel
                       Provider.of<PreviewPanelService>(context, listen: false)
@@ -1689,37 +1696,32 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                 onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
                 // Add drag selection functionality
                 onPanDown: (details) {
-                  // Check if this is a direct hit on an item or empty space
+                  // Reset any existing drag state
+                  _mightStartDragging = false;
+                  
+                  // Store the initial pan position but don't immediately start dragging
+                  // This allows for distinguishing between clicks and drags
+                  _initialPanPosition = details.globalPosition;
+                  
+                  // Only start tracking for possible dragging if not clicking on an item
                   final hitPosition = details.globalPosition;
                   bool hitOnItem = false;
                   
                   // See if we hit any item directly
-                  for (final rect in _itemPositions.values) {
-                    if (rect.contains(hitPosition)) {
+                  for (final item in _items) {
+                    final rect = _itemPositions[item.path];
+                    if (rect != null && rect.contains(hitPosition)) {
                       hitOnItem = true;
                       break;
                     }
                   }
                   
-                  // Only start dragging if not clicking directly on an item
-                  // and if not holding Ctrl (which is for multi-select)
-                  if (!hitOnItem && !HardwareKeyboard.instance.isControlPressed) {
-                    setState(() {
-                      _isDragging = true;
-                      // Convert to local coordinates for precise positioning
-                      _dragStartPosition = details.globalPosition;
-                      _dragEndPosition = details.globalPosition;
-                      
-                      // Clear selection when starting new drag
-                      _selectedItemsPaths = {};
-                      
-                      // Clear the preview panel
-                      Provider.of<PreviewPanelService>(context, listen: false)
-                          .setSelectedItem(null);
-                    });
-                  }
+                  // Mark that we might start dragging, but don't actually start yet
+                  // We'll decide in onPanUpdate if this is a drag or just a click
+                  _mightStartDragging = !hitOnItem && !HardwareKeyboard.instance.isControlPressed;
                 },
                 onPanUpdate: (details) {
+                  // If we're already dragging, update the selection rectangle
                   if (_isDragging) {
                     setState(() {
                       _dragEndPosition = details.globalPosition;
@@ -1746,6 +1748,26 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                         }
                       }
                     });
+                  } 
+                  // If we might start dragging and have moved enough, start actual dragging
+                  else if (_mightStartDragging && _initialPanPosition != null) {
+                    // Calculate distance moved
+                    final distance = (_initialPanPosition! - details.globalPosition).distance;
+                    // Only start dragging if moved more than a small threshold (prevents accidental drags)
+                    if (distance > 5.0) {
+                      setState(() {
+                        _isDragging = true;
+                        _dragStartPosition = _initialPanPosition;
+                        _dragEndPosition = details.globalPosition;
+                        
+                        // Clear selection when starting new drag
+                        _selectedItemsPaths = {};
+                        
+                        // Clear the preview panel
+                        Provider.of<PreviewPanelService>(context, listen: false)
+                            .setSelectedItem(null);
+                      });
+                    }
                   }
                 },
                 onPanEnd: (details) {
@@ -1820,6 +1842,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                     _selectedItemsPaths = {};
                     _dragStartPosition = null;
                     _dragEndPosition = null;
+                    _isSelectionCompleted = false;  // Reset completed flag
                     
                     // Clear the preview panel
                     Provider.of<PreviewPanelService>(context, listen: false)
@@ -1830,39 +1853,32 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
               onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
               // Add drag selection functionality
               onPanDown: (details) {
-                // Clear item positions to rebuild them as we drag
-                // Don't clear positions as we need them to check for hits
+                // Reset any existing drag state
+                _mightStartDragging = false;
                 
-                // Check if this is a direct hit on an item or empty space
+                // Store the initial pan position but don't immediately start dragging
+                // This allows for distinguishing between clicks and drags
+                _initialPanPosition = details.globalPosition;
+                
+                // Only start tracking for possible dragging if not clicking on an item
                 final hitPosition = details.globalPosition;
                 bool hitOnItem = false;
                 
                 // See if we hit any item directly
-                for (final rect in _itemPositions.values) {
-                  if (rect.contains(hitPosition)) {
+                for (final item in _items) {
+                  final rect = _itemPositions[item.path];
+                  if (rect != null && rect.contains(hitPosition)) {
                     hitOnItem = true;
                     break;
                   }
                 }
                 
-                // Start drag selection only if not clicking on an item
-                // and if not holding down Ctrl (which is for multi-select)
-                if (!hitOnItem && !HardwareKeyboard.instance.isControlPressed) {
-                  setState(() {
-                    _isDragging = true;
-                    _dragStartPosition = details.globalPosition;
-                    _dragEndPosition = details.globalPosition;
-                    
-                    // Clear selection when starting new drag
-                    _selectedItemsPaths = {};
-                    
-                    // Clear the preview panel
-                    Provider.of<PreviewPanelService>(context, listen: false)
-                        .setSelectedItem(null);
-                  });
-                }
+                // Mark that we might start dragging, but don't actually start yet
+                // We'll decide in onPanUpdate if this is a drag or just a click
+                _mightStartDragging = !hitOnItem && !HardwareKeyboard.instance.isControlPressed;
               },
               onPanUpdate: (details) {
+                // If we're already dragging, update the selection rectangle
                 if (_isDragging) {
                   setState(() {
                     _dragEndPosition = details.globalPosition;
@@ -1889,6 +1905,26 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                       }
                     }
                   });
+                } 
+                // If we might start dragging and have moved enough, start actual dragging
+                else if (_mightStartDragging && _initialPanPosition != null) {
+                  // Calculate distance moved
+                  final distance = (_initialPanPosition! - details.globalPosition).distance;
+                  // Only start dragging if moved more than a small threshold (prevents accidental drags)
+                  if (distance > 5.0) {
+                    setState(() {
+                      _isDragging = true;
+                      _dragStartPosition = _initialPanPosition;
+                      _dragEndPosition = details.globalPosition;
+                      
+                      // Clear selection when starting new drag
+                      _selectedItemsPaths = {};
+                      
+                      // Clear the preview panel
+                      Provider.of<PreviewPanelService>(context, listen: false)
+                          .setSelectedItem(null);
+                    });
+                  }
                 }
               },
               onPanEnd: (details) {
@@ -2260,20 +2296,26 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     }
   }
 
-  // Add method to determine which items are within the selection rectangle
+  // Optimize the _getItemsInSelectionArea method
   Set<String> _getItemsInSelectionArea(Rect selectionRect) {
     final Set<String> itemsInRect = {};
     
-    _itemPositions.forEach((path, rect) {
-      if (rect.overlaps(selectionRect)) {
-        itemsInRect.add(path);
+    if (selectionRect == Rect.zero) {
+      return itemsInRect;
+    }
+    
+    // Ensure we have updated item positions
+    for (final item in _items) {
+      final rect = _itemPositions[item.path];
+      if (rect != null && rect != Rect.zero && rect.overlaps(selectionRect)) {
+        itemsInRect.add(item.path);
       }
-    });
+    }
     
     return itemsInRect;
   }
   
-  // Calculate selection rectangle from drag points
+  // Ensure selection rectangle is properly calculated
   Rect _getSelectionRect() {
     if (_dragStartPosition == null || _dragEndPosition == null) {
       return Rect.zero;
@@ -2284,7 +2326,11 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     final double right = max(_dragStartPosition!.dx, _dragEndPosition!.dx);
     final double bottom = max(_dragStartPosition!.dy, _dragEndPosition!.dy);
     
-    return Rect.fromLTRB(left, top, right, bottom);
+    // Ensure the rectangle has non-zero width and height
+    final width = max(right - left, 1.0);
+    final height = max(bottom - top, 1.0);
+    
+    return Rect.fromLTWH(left, top, width, height);
   }
   
   // Method to register item positions for hit testing during drag selection
@@ -2294,26 +2340,57 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   
   // Clean up after drag selection
   void _cleanupDragSelection() {
+    if (!mounted) return;  // Add mounted check to prevent setState on unmounted widget
+    
     setState(() {
       _isDragging = false;
       _isSelectionCompleted = true;
-      // We keep the _selectedItemsPaths populated with the final selection
+      _mightStartDragging = false;
+      _initialPanPosition = null;
       
       // Reset the drag positions
       _dragStartPosition = null;
       _dragEndPosition = null;
     });
     
-    // Schedule a cleanup of item positions after the current frame
+    // Schedule a cleanup of the selection completed flag after the current frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Only clear positions if we're not in the middle of another drag operation
+      if (!mounted) return;  // Add mounted check to prevent operations on unmounted widget
+      
+      // Only continue if we're not in the middle of another drag operation
       if (!_isDragging) {
-        _itemPositions.clear();
+        // Do NOT clear item positions as we need them for future drag selections
+        // _itemPositions.clear(); - Remove this line
+        
         setState(() {
           _isSelectionCompleted = false;
         });
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Force position update on each layout pass
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // Rebuild item positions map
+        for (final item in _items) {
+          final widget = _gridViewKey.currentContext?.findRenderObject();
+          if (widget != null) {
+            _updateItemPositions();
+            break;
+          }
+        }
+      }
+    });
+  }
+
+  // Helper method to update all item positions
+  void _updateItemPositions() {
+    // This is called to ensure positions are up to date
+    // The actual updating happens in the ItemPositionTracker widgets
   }
 }
 
@@ -2383,6 +2460,7 @@ class ItemPositionTracker extends StatefulWidget {
 
 class _ItemPositionTrackerState extends State<ItemPositionTracker> {
   final GlobalKey _key = GlobalKey();
+  Rect _lastRect = Rect.zero;
   
   @override
   void initState() {
@@ -2396,10 +2474,8 @@ class _ItemPositionTrackerState extends State<ItemPositionTracker> {
   @override
   void didUpdateWidget(ItemPositionTracker oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // If the path changed, we need to update the position
-    if (oldWidget.path != widget.path) {
-      _updatePosition();
-    }
+    // Always update position to ensure consistency
+    _updatePosition();
   }
   
   @override
@@ -2423,15 +2499,20 @@ class _ItemPositionTrackerState extends State<ItemPositionTracker> {
         size.height,
       );
       
+      // Always update the position to ensure selection works
       widget.onPositionChanged(widget.path, rect);
+      _lastRect = rect;
     }
   }
   
   @override
   Widget build(BuildContext context) {
-    // Schedule a position update when the layout happens
+    // Schedule a position update when the layout happens, but don't call
+    // setState as this would cause an infinite rebuild loop
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _updatePosition();
+      if (mounted) {
+        _updatePosition();
+      }
     });
     
     return Container(
