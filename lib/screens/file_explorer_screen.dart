@@ -1224,6 +1224,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         // Add escape key to close search
         LogicalKeySet(LogicalKeyboardKey.escape): 
             const CloseSearchIntent(),
+        // Add Ctrl+ to increase icon size
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.equal):
+            const ZoomIntent(zoomIn: true),
+        // Add Ctrl- to decrease icon size
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.minus):
+            const ZoomIntent(zoomIn: false),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
@@ -1239,6 +1245,30 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             onInvoke: (CloseSearchIntent intent) {
               if (_isSearchActive) {
                 _toggleSearch();
+              }
+              return null;
+            },
+          ),
+          // Add action for handling zoom intents
+          ZoomIntent: CallbackAction<ZoomIntent>(
+            onInvoke: (ZoomIntent intent) {
+              final iconSizeService = Provider.of<IconSizeService>(context, listen: false);
+              final viewModeService = Provider.of<ViewModeService>(context, listen: false);
+              
+              if (intent.zoomIn) {
+                // Increase icon size
+                if (viewModeService.isGrid) {
+                  iconSizeService.increaseGridIconSize();
+                } else {
+                  iconSizeService.increaseListIconSize();
+                }
+              } else {
+                // Decrease icon size
+                if (viewModeService.isGrid) {
+                  iconSizeService.decreaseGridIconSize();
+                } else {
+                  iconSizeService.decreaseListIconSize();
+                }
               }
               return null;
             },
@@ -2384,6 +2414,16 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           ],
         ),
       ),
+      PopupMenuItem<String>(
+        value: 'properties',
+        child: Row(
+          children: [
+            Icon(Icons.info_outline),
+            SizedBox(width: 8),
+            Text('Folder Properties'),
+          ],
+        ),
+      ),
     ]);
     
     final result = await showMenu<String>(
@@ -2410,6 +2450,15 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         break;
       case 'refresh':
         _loadDirectory(_currentPath);
+        break;
+      case 'properties':
+        // Create a FileItem for the current directory and show its properties
+        final currentDirItem = FileItem(
+          path: _currentPath,
+          name: p.basename(_currentPath),
+          type: FileItemType.directory,
+        );
+        _showPropertiesDialog(currentDirItem);
         break;
     }
   }
