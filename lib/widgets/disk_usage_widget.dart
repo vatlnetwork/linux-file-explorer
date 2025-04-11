@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/disk_service.dart';
 import 'largest_files_popup.dart';
+import 'dart:developer' as developer;
 
 class DiskUsageWidget extends StatefulWidget {
   final String path;
@@ -132,7 +133,7 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
           Overlay.of(context).insert(_overlayEntry!);
         }
       } catch (e) {
-        print('Error showing overlay: $e');
+        developer.log('Error showing overlay: $e');
         // Reset state if overlay creation fails
         setState(() {
           _showLargestFilesPopup = false;

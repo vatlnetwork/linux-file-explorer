@@ -1779,7 +1779,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                     _searchController.clear();
                     _performSearch('');
                   },
-                  child: Text('Clear Search'),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text('Clear Search', style: TextStyle(fontSize: 12)),
                 ),
               ],
             ],
@@ -1823,12 +1828,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                               _searchController.clear();
                               _performSearch('');
                             },
-                            child: Text('Clear', style: TextStyle(fontSize: 12)),
                             style: TextButton.styleFrom(
                               padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                               minimumSize: Size.zero,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
+                            child: Text('Clear', style: TextStyle(fontSize: 12)),
                           ),
                         ],
                       ),
@@ -2025,12 +2030,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                             _searchController.clear();
                             _performSearch('');
                           },
-                          child: Text('Clear', style: TextStyle(fontSize: 12)),
                           style: TextButton.styleFrom(
                             padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
+                          child: Text('Clear', style: TextStyle(fontSize: 12)),
                         ),
                       ],
                     ),

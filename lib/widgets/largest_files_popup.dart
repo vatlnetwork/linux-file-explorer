@@ -7,11 +7,11 @@ class LargestFilesPopup extends StatefulWidget {
   final Function onClose;
 
   const LargestFilesPopup({
-    Key? key,
+    super.key,
     required this.path,
     required this.size,
     required this.onClose,
-  }) : super(key: key);
+  });
 
   @override
   State<LargestFilesPopup> createState() => _LargestFilesPopupState();
@@ -79,7 +79,7 @@ class _LargestFilesPopupState extends State<LargestFilesPopup> {
         borderRadius: const BorderRadius.all(Radius.circular(8)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 51),
             spreadRadius: 1,
             blurRadius: 5,
             offset: const Offset(-2, 2),
