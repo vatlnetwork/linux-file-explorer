@@ -1691,22 +1691,28 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     
     return Tooltip(
       message: tooltip,
-      child: InkWell(
-        onTap: onPressed,
-        hoverColor: isCloseButton 
-          ? Colors.red 
-          : (isDarkMode ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1)),
-        child: Container(
-          width: 36,  // Adjusted to match other button sizes
-          height: 52, // Increased from 49px to 52px to match new header height
-          color: Colors.transparent,
-          child: Center(
-            child: Icon(
-              icon,
-              size: 16,
-              color: isCloseButton && !isDarkMode
-                ? Colors.red.shade700
-                : null,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20.0),
+          child: InkWell(
+            onTap: onPressed,
+            hoverColor: isCloseButton 
+              ? Colors.red 
+              : (isDarkMode ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1)),
+            child: Container(
+              width: 36,
+              height: 36,
+              color: Colors.transparent,
+              child: Center(
+                child: Icon(
+                  icon,
+                  size: 16,
+                  color: isCloseButton && !isDarkMode
+                    ? Colors.red.shade700
+                    : null,
+                ),
+              ),
             ),
           ),
         ),

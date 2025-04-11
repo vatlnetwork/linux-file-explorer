@@ -103,7 +103,7 @@ class MyApp extends StatelessWidget {
           foregroundColor: Colors.white,
         ),
         popupMenuTheme: const PopupMenuThemeData(
-          color: Color(0xFFBBDEFB),
+          color: Color(0xFFE0E0E0),
           elevation: 4,
           textStyle: TextStyle(
             color: Colors.black87,
@@ -136,7 +136,7 @@ class MyApp extends StatelessWidget {
         ),
         cardColor: const Color(0xFF1E1E1E),
         popupMenuTheme: const PopupMenuThemeData(
-          color: Color(0xFF2C2C2C),
+          color: Color(0xFF424242),
           elevation: 4,
           textStyle: TextStyle(
             color: Colors.white,

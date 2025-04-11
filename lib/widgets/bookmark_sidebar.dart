@@ -293,6 +293,7 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
                       color: Colors.transparent,
                       shadowColor: Colors.blue.withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(8),
+                      clipBehavior: Clip.antiAlias,
                       child: Container(
                         decoration: BoxDecoration(
                           color: isDarkMode
@@ -342,6 +343,8 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
       child: Material(
         color: Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        clipBehavior: Clip.antiAlias,
         child: Ink(
           decoration: BoxDecoration(
             color: isRecentlyReordered 
