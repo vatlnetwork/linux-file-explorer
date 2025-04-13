@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
+import 'package:clipboard/clipboard.dart';
 import '../models/file_item.dart';
 import '../services/file_service.dart';
 import '../services/bookmark_service.dart';
@@ -670,11 +671,17 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       _isItemCut = false;
     });
     
-    NotificationService.showNotification(
-      context,
-      message: 'Copied ${items.length} items',
-      type: NotificationType.info,
-    );
+    // Copy the paths to the system clipboard (joined with newlines)
+    final String clipboardText = items.map((item) => item.path).join('\n');
+    FlutterClipboard.copy(clipboardText).then((result) {
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Copied ${items.length} items to clipboard',
+          type: NotificationType.info,
+        );
+      }
+    });
   }
   
   void _cutMultipleItems() {
@@ -687,11 +694,17 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       _isItemCut = true;
     });
     
-    NotificationService.showNotification(
-      context,
-      message: 'Cut ${items.length} items',
-      type: NotificationType.info,
-    );
+    // Copy the paths to the system clipboard with a prefix indicating it's a cut operation
+    final String clipboardText = "CUT:\n${items.map((item) => item.path).join('\n')}";
+    FlutterClipboard.copy(clipboardText).then((result) {
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Cut ${items.length} items to clipboard',
+          type: NotificationType.info,
+        );
+      }
+    });
   }
   
   Future<void> _showDeleteMultipleConfirmation() async {
@@ -790,11 +803,16 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       _isItemCut = false;
     });
     
-    NotificationService.showNotification(
-      context,
-      message: 'Copied: ${item.name}',
-      type: NotificationType.info,
-    );
+    // Copy the path to the system clipboard
+    FlutterClipboard.copy(item.path).then((result) {
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Copied to clipboard: ${item.name}',
+          type: NotificationType.info,
+        );
+      }
+    });
   }
   
   void _cutItem(FileItem item) {
@@ -803,14 +821,122 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       _isItemCut = true;
     });
     
-    NotificationService.showNotification(
-      context,
-      message: 'Cut: ${item.name}',
-      type: NotificationType.info,
-    );
+    // Copy the path to the system clipboard with a prefix indicating it's a cut operation
+    // This is just to provide data to the system clipboard - the cut operation is still handled internally
+    FlutterClipboard.copy("CUT:${item.path}").then((result) {
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Cut to clipboard: ${item.name}',
+          type: NotificationType.info,
+        );
+      }
+    });
   }
   
   Future<void> _pasteItems() async {
+    // First try to use the internal clipboard
+    if (_clipboardItems != null && _clipboardItems!.isNotEmpty) {
+      await _pasteItemsFromInternalClipboard();
+    } else {
+      // If internal clipboard is empty, try system clipboard
+      await _pasteFromSystemClipboard();
+    }
+  }
+
+  Future<void> _pasteFromSystemClipboard() async {
+    try {
+      // Get data from system clipboard
+      final String clipboardData = await FlutterClipboard.paste();
+      
+      if (clipboardData.isEmpty) {
+        // Nothing to paste
+        return;
+      }
+      
+      // Check if it's a cut operation
+      bool isCut = false;
+      String processedData = clipboardData;
+      
+      if (clipboardData.startsWith("CUT:")) {
+        isCut = true;
+        // Remove the CUT: prefix
+        if (clipboardData.startsWith("CUT:\n")) {
+          processedData = clipboardData.substring(5); // Skip "CUT:\n"
+        } else {
+          processedData = clipboardData.substring(4); // Skip "CUT:"
+        }
+      }
+      
+      // Split by newlines to get multiple paths
+      final List<String> paths = processedData.split('\n')
+          .where((path) => path.trim().isNotEmpty)
+          .toList();
+      
+      if (paths.isEmpty) return;
+      
+      // Create temporary FileItems for these paths
+      final List<FileItem> tempClipboardItems = [];
+      
+      for (final path in paths) {
+        if (FileSystemEntity.isFileSync(path)) {
+          final file = File(path);
+          final stat = file.statSync();
+          tempClipboardItems.add(FileItem(
+            path: path,
+            name: p.basename(path),
+            type: FileItemType.file,
+            modifiedTime: stat.modified,
+            size: stat.size,
+          ));
+        } else if (FileSystemEntity.isDirectorySync(path)) {
+          final dir = Directory(path);
+          final stat = dir.statSync();
+          tempClipboardItems.add(FileItem(
+            path: path,
+            name: p.basename(path),
+            type: FileItemType.directory,
+            modifiedTime: stat.modified,
+          ));
+        }
+      }
+      
+      // If we have valid items, temporarily set them as clipboard items and paste
+      if (tempClipboardItems.isNotEmpty) {
+        // Save the current clipboard state
+        final oldClipboardItems = _clipboardItems;
+        final oldIsItemCut = _isItemCut;
+        
+        // Temporarily set the new clipboard data
+        setState(() {
+          _clipboardItems = tempClipboardItems;
+          _isItemCut = isCut;
+        });
+        
+        // Paste using the internal paste method
+        await _pasteItemsFromInternalClipboard();
+        
+        // Restore previous clipboard if it was a copy operation
+        // or if it was a cut but the operation failed
+        if (!isCut) {
+          setState(() {
+            _clipboardItems = oldClipboardItems;
+            _isItemCut = oldIsItemCut;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Error pasting from system clipboard: $e',
+          type: NotificationType.error,
+        );
+      }
+    }
+  }
+  
+  Future<void> _pasteItemsFromInternalClipboard() async {
     if (_clipboardItems == null || _clipboardItems!.isEmpty) return;
     
     try {
@@ -2285,7 +2411,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     NotificationService.showNotification(
       context,
       message: 'Unmounting ${item.name}...',
-      type: NotificationType.info,
+          type: NotificationType.info,
       duration: const Duration(milliseconds: 750),
     );
     
