@@ -7,6 +7,7 @@ import '../services/bookmark_service.dart';
 import '../services/notification_service.dart';
 import 'disk_usage_widget.dart';
 import 'mounted_usb_drives_widget.dart';
+import 'apps_bookmark_button.dart';
 
 class BookmarkSidebar extends StatefulWidget {
   final Function(String) onNavigate;
@@ -74,6 +75,10 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(context),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+                child: const AppsBookmarkButton(),
+              ),
               Expanded(
                 child: _buildBookmarksList(context, bookmarks, bookmarkService),
               ),

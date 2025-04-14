@@ -10,6 +10,7 @@ import 'services/notification_service.dart';
 import 'services/icon_size_service.dart';
 import 'services/status_bar_service.dart';
 import 'services/preview_panel_service.dart';
+import 'services/app_service.dart';
 import 'package:flutter/services.dart';
 
 void main() async {
@@ -52,6 +53,9 @@ void main() async {
   final bookmarkService = BookmarkService();
   await bookmarkService.init();
 
+  // Initialize app service
+  final appService = AppService();
+  
   runApp(
     MultiProvider(
       providers: [
@@ -61,6 +65,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => IconSizeService()),
         ChangeNotifierProvider(create: (_) => StatusBarService()),
         ChangeNotifierProvider(create: (_) => PreviewPanelService()),
+        ChangeNotifierProvider.value(value: appService),
       ],
       child: const MyApp(),
     ),
