@@ -11,6 +11,7 @@ import 'services/icon_size_service.dart';
 import 'services/status_bar_service.dart';
 import 'services/preview_panel_service.dart';
 import 'services/app_service.dart';
+import 'services/file_association_service.dart';
 import 'package:flutter/services.dart';
 
 void main() async {
@@ -54,6 +55,10 @@ void main() async {
   final appService = AppService();
   await appService.init();
   
+  // Initialize file association service
+  final fileAssociationService = FileAssociationService();
+  await fileAssociationService.init();
+  
   runApp(
     MultiProvider(
       providers: [
@@ -64,6 +69,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => StatusBarService()),
         ChangeNotifierProvider(create: (_) => PreviewPanelService()),
         ChangeNotifierProvider.value(value: appService),
+        ChangeNotifierProvider.value(value: fileAssociationService),
       ],
       child: const MyApp(),
     ),

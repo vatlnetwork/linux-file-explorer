@@ -23,6 +23,10 @@ import 'package:window_manager/window_manager.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
 import 'dart:ui'; // Import for ImageFilter
+import '../services/app_service.dart';
+import '../widgets/app_selection_dialog.dart';
+import '../services/file_association_service.dart';
+import 'file_associations_screen.dart';
 
 /// A file explorer screen that displays files and folders in a customizable interface.
 /// 
@@ -409,16 +413,39 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     if (item.type == FileItemType.directory) {
       _navigateToDirectory(item.path);
     } else {
-      // Handle file open using the platform's default application
-      try {
-        Process.start('xdg-open', [item.path]);
-      } catch (e) {
-        if (mounted) {
-          NotificationService.showNotification(
-            context,
-            message: 'Failed to open file: $e',
-            type: NotificationType.error,
-          );
+      // Check if there's a default app for this file type
+      final fileAssociationService = Provider.of<FileAssociationService>(context, listen: false);
+      final appService = Provider.of<AppService>(context, listen: false);
+      
+      // Get the default app desktop file path for this file
+      final defaultAppPath = fileAssociationService.getDefaultAppForFile(item.path);
+      
+      if (defaultAppPath != null) {
+        // Use gtk-launch to open the file with the default app
+        try {
+          final desktopFileName = defaultAppPath.split('/').last;
+          Process.start('gtk-launch', [desktopFileName, item.path]);
+        } catch (e) {
+          if (mounted) {
+            NotificationService.showNotification(
+              context,
+              message: 'Failed to open file with default app: $e',
+              type: NotificationType.error,
+            );
+          }
+        }
+      } else {
+        // Handle file open using the platform's default application if no custom default is set
+        try {
+          Process.start('xdg-open', [item.path]);
+        } catch (e) {
+          if (mounted) {
+            NotificationService.showNotification(
+              context,
+              message: 'Failed to open file: $e',
+              type: NotificationType.error,
+            );
+          }
         }
       }
     }
@@ -479,6 +506,19 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
               Icon(Icons.open_in_new),
               SizedBox(width: 8),
               Text('Open'),
+            ],
+          ),
+        ),
+      
+      // Open with option (only for files, not directories)
+      if (!hasMultipleSelection && item.type != FileItemType.directory)
+        PopupMenuItem<String>(
+          value: 'open_with',
+          child: Row(
+            children: [
+              Icon(Icons.apps),
+              SizedBox(width: 8),
+              Text('Open with...'),
             ],
           ),
         ),
@@ -603,6 +643,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     switch (result) {
       case 'open':
         _handleItemDoubleTap(item);
+        break;
+      case 'open_with':
+        _showOpenWithDialog(item);
         break;
       case 'copy':
         if (hasMultipleSelection) {
@@ -1800,6 +1843,26 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                 ],
               ),
             ),
+            const PopupMenuItem<String>(
+              value: 'file_associations',
+              child: Row(
+                children: [
+                  Icon(Icons.settings_applications),
+                  SizedBox(width: 8),
+                  Text('File Associations'),
+                ],
+              ),
+            ),
+            const PopupMenuItem<String>(
+              value: 'properties',
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline),
+                  SizedBox(width: 8),
+                  Text('Folder Properties'),
+                ],
+              ),
+            ),
           ],
         ),
       ],
@@ -2541,6 +2604,16 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         ),
       ),
       PopupMenuItem<String>(
+        value: 'file_associations',
+        child: Row(
+          children: [
+            Icon(Icons.settings_applications),
+            SizedBox(width: 8),
+            Text('File Associations'),
+          ],
+        ),
+      ),
+      PopupMenuItem<String>(
         value: 'properties',
         child: Row(
           children: [
@@ -2576,6 +2649,13 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         break;
       case 'refresh':
         _loadDirectory(_currentPath);
+        break;
+      case 'file_associations':
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => const FileAssociationsScreen(),
+          ),
+        );
         break;
       case 'properties':
         // Create a FileItem for the current directory and show its properties
@@ -2868,6 +2948,18 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                (lowercaseQuery == 'file' && item.type == FileItemType.file);
       }).toList();
     });
+  }
+
+  // Method to show the open with dialog
+  void _showOpenWithDialog(FileItem item) {
+    // Initialize the app service if needed
+    final appService = Provider.of<AppService>(context, listen: false);
+    if (appService.apps.isEmpty) {
+      appService.init();
+    }
+    
+    // Show the app selection dialog
+    AppSelectionDialog.show(context, item.path);
   }
 }
 
