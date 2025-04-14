@@ -10,11 +10,11 @@ class SystemIcon extends StatefulWidget {
   final Color? fallbackColor;
   
   const SystemIcon({
-    Key? key,
+    super.key,
     required this.app,
     required this.size,
     this.fallbackColor,
-  }) : super(key: key);
+  });
 
   @override
   State<SystemIcon> createState() => _SystemIconState();
