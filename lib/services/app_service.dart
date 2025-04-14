@@ -9,6 +9,9 @@ class AppService extends ChangeNotifier {
   static const String _storageKey = 'file_explorer_apps_cache';
   bool _isLoading = false;
   DateTime? _lastRefresh;
+  
+  // Map to store resolved icon paths
+  final Map<String, String?> _resolvedIconPaths = {};
 
   List<AppItem> get apps => _apps;
   bool get isLoading => _isLoading;
@@ -162,6 +165,113 @@ class AppService extends ChangeNotifier {
       return result.exitCode == 0;
     } catch (e) {
       debugPrint('Error launching app: $e');
+      return false;
+    }
+  }
+  
+  // Find the actual path for an icon by name
+  Future<String?> getIconPath(String iconName) async {
+    // Check if we've already resolved this icon
+    if (_resolvedIconPaths.containsKey(iconName)) {
+      return _resolvedIconPaths[iconName];
+    }
+    
+    String? resolvedPath;
+    
+    try {
+      // First check if the iconName is an absolute path and exists
+      if (iconName.startsWith('/') && File(iconName).existsSync()) {
+        resolvedPath = iconName;
+      } else {
+        // Standard icon search paths
+        final List<String> iconPaths = [
+          '/usr/share/icons',
+          '/usr/share/pixmaps',
+          '/usr/local/share/icons',
+          '${Platform.environment['HOME']}/.local/share/icons',
+        ];
+        
+        // Common theme names and sizes to check
+        final List<String> themes = [
+          'hicolor',
+          'Adwaita',
+          'gnome',
+          'oxygen',
+          'breeze',
+          'Papirus',
+        ];
+        
+        final List<String> sizes = [
+          '48x48',
+          '64x64',
+          '32x32',
+          '128x128',
+          'scalable',
+        ];
+        
+        // Common file extensions
+        final List<String> extensions = [
+          '.png', 
+          '.svg', 
+          '.xpm',
+        ];
+        
+        // Check theme icon directories
+        for (final iconPath in iconPaths) {
+          // First check for direct matches in pixmaps
+          if (iconPath.contains('pixmaps')) {
+            for (final ext in extensions) {
+              final String testPath = '$iconPath/$iconName$ext';
+              if (File(testPath).existsSync()) {
+                resolvedPath = testPath;
+                break;
+              }
+            }
+          }
+          
+          // Check in theme directories
+          for (final theme in themes) {
+            for (final size in sizes) {
+              // For most themes, icons are in {theme}/{size}/{category}
+              // Common categories
+              for (final category in ['apps', 'actions', 'mimetypes', 'places']) {
+                for (final ext in extensions) {
+                  final String testPath = '$iconPath/$theme/$size/$category/$iconName$ext';
+                  if (File(testPath).existsSync()) {
+                    resolvedPath = testPath;
+                    break;
+                  }
+                }
+                
+                if (resolvedPath != null) break;
+              }
+              
+              if (resolvedPath != null) break;
+            }
+            
+            if (resolvedPath != null) break;
+          }
+          
+          if (resolvedPath != null) break;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error resolving icon path for $iconName: $e');
+    }
+    
+    // Cache the result
+    _resolvedIconPaths[iconName] = resolvedPath;
+    return resolvedPath;
+  }
+  
+  // Check if an icon file exists and is readable
+  Future<bool> hasValidIcon(AppItem app) async {
+    final iconPath = await getIconPath(app.icon);
+    if (iconPath == null) return false;
+    
+    try {
+      return File(iconPath).existsSync();
+    } catch (e) {
       return false;
     }
   }

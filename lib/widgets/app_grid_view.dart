@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:io';
 import '../models/app_item.dart';
 import '../services/app_service.dart';
 import '../services/icon_size_service.dart';
+import 'system_icon.dart';
 
 class AppGridView extends StatefulWidget {
   const AppGridView({super.key});
@@ -46,7 +46,7 @@ class _AppGridViewState extends State<AppGridView> {
             Icon(
               Icons.apps,
               size: 64,
-              color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade400,
+              color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
             ),
             const SizedBox(height: 16),
             Text(
@@ -95,19 +95,9 @@ class _AppGridViewState extends State<AppGridView> {
   }
   
   Widget _buildAppItem(AppItem app, double iconSize, bool isDarkMode) {
-    // Check if icon is a valid file path
-    bool isValidIconFile = false;
-    if (app.icon.startsWith('/')) {
-      try {
-        isValidIconFile = File(app.icon).existsSync();
-      } catch (_) {
-        isValidIconFile = false;
-      }
-    }
-    
     return Card(
       elevation: 2,
-      color: isDarkMode ? Colors.grey.shade800.withOpacity(0.3) : Colors.white.withOpacity(0.7),
+      color: isDarkMode ? Colors.grey.shade800 : Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -119,19 +109,19 @@ class _AppGridViewState extends State<AppGridView> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // App icon
+              // App icon - use SystemIcon instead of default icon
               Container(
                 padding: const EdgeInsets.all(8.0),
                 decoration: BoxDecoration(
                   color: isDarkMode 
-                      ? Colors.grey.shade700.withOpacity(0.2) 
-                      : Colors.grey.shade200.withOpacity(0.5),
+                      ? Colors.grey.shade700 
+                      : Colors.grey.shade200,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  Icons.apps,
+                child: SystemIcon(
+                  app: app,
                   size: iconSize * 0.9,
-                  color: Colors.orange,
+                  fallbackColor: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
                 ),
               ),
               

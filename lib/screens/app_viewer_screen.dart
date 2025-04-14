@@ -44,8 +44,6 @@ class _AppViewerScreenState extends State<AppViewerScreen> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       body: Column(
         children: [
@@ -74,7 +72,7 @@ class _AppViewerScreenState extends State<AppViewerScreen> with WindowListener {
         color: backgroundColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withAlpha(26),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
