@@ -4,12 +4,11 @@ import '../services/file_association_service.dart';
 import '../services/app_service.dart';
 import '../services/notification_service.dart';
 import '../models/app_item.dart';
-import 'package:path/path.dart' as p;
 import '../widgets/system_icon.dart';
 import 'package:window_manager/window_manager.dart';
 
 class FileAssociationsScreen extends StatefulWidget {
-  const FileAssociationsScreen({Key? key}) : super(key: key);
+  const FileAssociationsScreen({super.key});
 
   @override
   State<FileAssociationsScreen> createState() => _FileAssociationsScreenState();
@@ -292,10 +291,10 @@ class _FileAssociationsScreenState extends State<FileAssociationsScreen> with Wi
                 type: NotificationType.success,
               );
             },
-            child: Text('Remove'),
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
             ),
+            child: Text('Remove'),
           ),
         ],
       ),

@@ -415,7 +415,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     } else {
       // Check if there's a default app for this file type
       final fileAssociationService = Provider.of<FileAssociationService>(context, listen: false);
-      final appService = Provider.of<AppService>(context, listen: false);
       
       // Get the default app desktop file path for this file
       final defaultAppPath = fileAssociationService.getDefaultAppForFile(item.path);

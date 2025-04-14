@@ -13,10 +13,10 @@ class AppSelectionDialog extends StatefulWidget {
   final String fileName;
 
   const AppSelectionDialog({
-    Key? key,
+    super.key,
     required this.filePath,
     required this.fileName,
-  }) : super(key: key);
+  });
 
   @override
   State<AppSelectionDialog> createState() => _AppSelectionDialogState();
