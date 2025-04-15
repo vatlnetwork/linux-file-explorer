@@ -11,13 +11,48 @@ class AppGridView extends StatefulWidget {
   State<AppGridView> createState() => _AppGridViewState();
 }
 
-class _AppGridViewState extends State<AppGridView> {
+class _AppGridViewState extends State<AppGridView> with SingleTickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
+  late AnimationController _staggeredAnimationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _staggeredAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    
+    // Delay slightly to coordinate with parent animations
+    Future.delayed(const Duration(milliseconds: 200), () {
+      _staggeredAnimationController.forward();
+    });
+  }
 
   @override
   void dispose() {
+    _staggeredAnimationController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // Create a staggered animation for a specific item index
+  Animation<double> _createStaggeredAnimation(int index, int total) {
+    // Calculate a staggered start time based on index 
+    // We want animations to cascade, so each item starts a bit after the previous one
+    final startInterval = 0.05 * (index % 12); // Group by rows of 12 for better performance
+    final endInterval = startInterval + 0.4; // Each animation lasts 40% of the total duration
+    
+    return Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _staggeredAnimationController,
+        curve: Interval(
+          startInterval.clamp(0.0, 0.6), // Don't start too late
+          endInterval.clamp(0.2, 1.0), // Ensure animations complete
+          curve: Curves.easeOutQuint,
+        ),
+      ),
+    );
   }
 
   @override
@@ -86,7 +121,22 @@ class _AppGridViewState extends State<AppGridView> {
             itemCount: appService.apps.length,
             itemBuilder: (context, index) {
               final app = appService.apps[index];
-              return _buildAppItem(app, fixedIconSize, isDarkMode);
+              // Create staggered animation for this specific item
+              final animation = _createStaggeredAnimation(index, appService.apps.length);
+              
+              return AnimatedBuilder(
+                animation: animation,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: animation.value,
+                    child: Opacity(
+                      opacity: animation.value,
+                      child: child,
+                    ),
+                  );
+                },
+                child: _buildAppItem(app, fixedIconSize, isDarkMode),
+              );
             },
           ),
         );

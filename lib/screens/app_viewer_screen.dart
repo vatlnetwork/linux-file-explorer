@@ -11,14 +11,77 @@ class AppViewerScreen extends StatefulWidget {
   State<AppViewerScreen> createState() => _AppViewerScreenState();
 }
 
-class _AppViewerScreenState extends State<AppViewerScreen> with WindowListener {
+class _AppViewerScreenState extends State<AppViewerScreen> with WindowListener, TickerProviderStateMixin {
   bool _isMaximized = false;
+  late AnimationController _titleBarAnimationController;
+  late AnimationController _contentAnimationController;
+  late Animation<double> _titleBarOpacity;
+  late Animation<Offset> _titleBarSlide;
+  late Animation<double> _contentOpacity;
+  late Animation<Offset> _contentSlide;
 
   @override
   void initState() {
     super.initState();
     windowManager.addListener(this);
     _initWindowState();
+    _initAnimations();
+  }
+  
+  void _initAnimations() {
+    // Title bar animation controller
+    _titleBarAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    
+    // Content animation controller with delay
+    _contentAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    
+    // Title bar animations
+    _titleBarOpacity = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _titleBarAnimationController,
+      curve: const Interval(0.0, 0.8, curve: Curves.easeOut),
+    ));
+    
+    _titleBarSlide = Tween<Offset>(
+      begin: const Offset(0, -0.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _titleBarAnimationController,
+      curve: const Interval(0.0, 0.7, curve: Curves.easeOutCubic),
+    ));
+    
+    // Content animations
+    _contentOpacity = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _contentAnimationController,
+      curve: const Interval(0.0, 0.8, curve: Curves.easeOut),
+    ));
+    
+    _contentSlide = Tween<Offset>(
+      begin: const Offset(0, 0.1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _contentAnimationController,
+      curve: const Interval(0.0, 0.9, curve: Curves.easeOutCubic),
+    ));
+    
+    // Start animations with a slight delay between them
+    Future.delayed(const Duration(milliseconds: 50), () {
+      _titleBarAnimationController.forward();
+      Future.delayed(const Duration(milliseconds: 150), () {
+        _contentAnimationController.forward();
+      });
+    });
   }
 
   Future<void> _initWindowState() async {
@@ -28,6 +91,8 @@ class _AppViewerScreenState extends State<AppViewerScreen> with WindowListener {
 
   @override
   void dispose() {
+    _titleBarAnimationController.dispose();
+    _contentAnimationController.dispose();
     windowManager.removeListener(this);
     super.dispose();
   }
@@ -47,12 +112,24 @@ class _AppViewerScreenState extends State<AppViewerScreen> with WindowListener {
     return Scaffold(
       body: Column(
         children: [
-          // Title bar
-          _buildTitleBar(context),
+          // Title bar with animation
+          FadeTransition(
+            opacity: _titleBarOpacity,
+            child: SlideTransition(
+              position: _titleBarSlide,
+              child: _buildTitleBar(context),
+            ),
+          ),
           
-          // Main content
+          // Main content with animation
           Expanded(
-            child: const AppGridView(),
+            child: FadeTransition(
+              opacity: _contentOpacity,
+              child: SlideTransition(
+                position: _contentSlide,
+                child: const AppGridView(),
+              ),
+            ),
           ),
         ],
       ),

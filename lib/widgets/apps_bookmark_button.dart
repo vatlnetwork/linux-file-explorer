@@ -48,30 +48,41 @@ class AppsBookmarkButton extends StatelessWidget {
     final appService = Provider.of<AppService>(context, listen: false);
     appService.init();
     
-    // Navigate to the app viewer screen with a pop-in animation
+    // Navigate to the app viewer screen with an enhanced pop-in animation
     Navigator.of(context).push(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => const AppViewerScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = 0.8;
-          const end = 1.0;
-          const curve = Curves.easeOutQuint;
+          // Use a spring curve for a more natural, bouncy feel
+          const curve = Curves.elasticOut;
+          const scaleCurve = Interval(0.0, 0.8, curve: Curves.easeOutCubic);
+          const opacityCurve = Interval(0.0, 0.6, curve: Curves.easeOut);
+          const slideCurve = Interval(0.0, 0.7, curve: Curves.easeOutCubic);
           
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-          var scaleAnimation = animation.drive(tween);
+          // Scale animation - starts smaller and bounces slightly past the target
+          var scaleTween = Tween(begin: 0.6, end: 1.0).chain(CurveTween(curve: scaleCurve));
+          var scaleAnimation = animation.drive(scaleTween);
           
-          var opacityTween = Tween(begin: 0.0, end: 1.0).chain(CurveTween(curve: curve));
+          // Opacity animation - fades in quickly
+          var opacityTween = Tween(begin: 0.0, end: 1.0).chain(CurveTween(curve: opacityCurve));
           var opacityAnimation = animation.drive(opacityTween);
           
-          return ScaleTransition(
-            scale: scaleAnimation,
-            child: FadeTransition(
-              opacity: opacityAnimation,
-              child: child,
+          // Slide up animation - slight upward movement
+          var slideTween = Tween(begin: const Offset(0, 0.2), end: Offset.zero).chain(CurveTween(curve: slideCurve));
+          var slideAnimation = animation.drive(slideTween);
+          
+          return SlideTransition(
+            position: slideAnimation,
+            child: ScaleTransition(
+              scale: scaleAnimation,
+              child: FadeTransition(
+                opacity: opacityAnimation,
+                child: child,
+              ),
             ),
           );
         },
-        transitionDuration: const Duration(milliseconds: 300),
+        transitionDuration: const Duration(milliseconds: 600),
       ),
     );
   }
