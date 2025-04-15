@@ -48,10 +48,30 @@ class AppsBookmarkButton extends StatelessWidget {
     final appService = Provider.of<AppService>(context, listen: false);
     appService.init();
     
-    // Navigate to the app viewer screen
+    // Navigate to the app viewer screen with a pop-in animation
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const AppViewerScreen(),
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => const AppViewerScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = 0.8;
+          const end = 1.0;
+          const curve = Curves.easeOutQuint;
+          
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          var scaleAnimation = animation.drive(tween);
+          
+          var opacityTween = Tween(begin: 0.0, end: 1.0).chain(CurveTween(curve: curve));
+          var opacityAnimation = animation.drive(opacityTween);
+          
+          return ScaleTransition(
+            scale: scaleAnimation,
+            child: FadeTransition(
+              opacity: opacityAnimation,
+              child: child,
+            ),
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 300),
       ),
     );
   }

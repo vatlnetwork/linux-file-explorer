@@ -27,6 +27,8 @@ import '../services/app_service.dart';
 import '../widgets/app_selection_dialog.dart';
 import '../services/file_association_service.dart';
 import 'file_associations_screen.dart';
+import 'package:flutter/animation.dart';
+import 'package:flutter/scheduler.dart';
 
 /// A file explorer screen that displays files and folders in a customizable interface.
 /// 
@@ -44,11 +46,17 @@ class FileExplorerScreen extends StatefulWidget {
   _FileExplorerScreenState createState() => _FileExplorerScreenState();
 }
 
-class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowListener {
+class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowListener, TickerProviderStateMixin {
   final FileService _fileService = FileService();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode(); // Add focus node for keyboard events
-  final TextEditingController _searchController = TextEditingController();
+  late TextEditingController _searchController;
+  late FocusNode _searchFocusNode;
+  bool _isSearchActive = false;
+  // Setup animation controller for bookmarks sidebar
+  late AnimationController _bookmarkSidebarAnimation;
+  // Animation controller for preview panel
+  late AnimationController _previewPanelAnimation;
   
   String _currentPath = '';
   List<FileItem> _items = [];
@@ -61,7 +69,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   bool _isMaximized = false;
   
   // Search related state variables
-  bool _isSearchActive = false;
   List<FileItem> _searchResults = [];
   bool _isSearching = false;
   
@@ -93,6 +100,22 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   @override
   void initState() {
     super.initState();
+    _searchController = TextEditingController();
+    _searchFocusNode = FocusNode();
+    _selectedItemsPaths = {};
+    _clipboardItems = [];
+    
+    // Initialize animation controllers
+    _bookmarkSidebarAnimation = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    
+    _previewPanelAnimation = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    
     windowManager.addListener(this);
     _initWindowState();
     _initHomeDirectory();
@@ -105,10 +128,13 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
 
   @override
   void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    _bookmarkSidebarAnimation.dispose();
+    _previewPanelAnimation.dispose();
     windowManager.removeListener(this);
     _scrollController.dispose();
     _focusNode.dispose(); // Dispose the focus node
-    _searchController.dispose(); // Dispose the search controller
     super.dispose();
   }
   
@@ -1280,6 +1306,20 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     final previewPanelService = Provider.of<PreviewPanelService>(context);
     final viewModeService = Provider.of<ViewModeService>(context);
     
+    // Update animation controllers based on panel visibility
+    if (previewPanelService.showPreviewPanel && _previewPanelAnimation.status != AnimationStatus.completed) {
+      _previewPanelAnimation.forward();
+    } else if (!previewPanelService.showPreviewPanel && _previewPanelAnimation.status != AnimationStatus.dismissed) {
+      _previewPanelAnimation.reverse();
+    }
+    
+    if (_showBookmarkSidebar && _bookmarkSidebarAnimation.status != AnimationStatus.completed) {
+      _bookmarkSidebarAnimation.forward();
+    } else if (!_showBookmarkSidebar && _bookmarkSidebarAnimation.status != AnimationStatus.dismissed && 
+              _bookmarkSidebarAnimation.status != AnimationStatus.reverse) {
+      _bookmarkSidebarAnimation.reverse();
+    }
+    
     final scaffold = Scaffold(
       // Use a solid background for the main content but keep bookmarks sidebar transparent for blur effect
       backgroundColor: Theme.of(context).brightness == Brightness.dark
@@ -1293,44 +1333,68 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Bookmark sidebar with frosted glass effect
-                if (_showBookmarkSidebar)
-                  Stack(
-                    children: [
-                      // This is the backdrop that will be blurred
-                      Positioned.fill(
-                        child: Container(
-                          color: Colors.transparent,
+                // Bookmark sidebar with frosted glass effect and animation
+                AnimatedBuilder(
+                  animation: _bookmarkSidebarAnimation,
+                  builder: (context, child) {
+                    // Calculate animations
+                    final slideValue = Tween<double>(begin: -220, end: 0)
+                        .animate(CurvedAnimation(parent: _bookmarkSidebarAnimation, curve: Curves.easeOutCubic))
+                        .value;
+                    
+                    final opacityValue = Tween<double>(begin: 0, end: 1)
+                        .animate(CurvedAnimation(parent: _bookmarkSidebarAnimation, curve: Curves.easeOut))
+                        .value;
+                    
+                    // Don't show at all if completely hidden and animation is done
+                    if (!_showBookmarkSidebar && _bookmarkSidebarAnimation.isDismissed) {
+                      return const SizedBox.shrink();
+                    }
+                    
+                    return Transform.translate(
+                      offset: Offset(slideValue, 0),
+                      child: Opacity(
+                        opacity: opacityValue,
+                        child: Stack(
+                          children: [
+                            // This is the backdrop that will be blurred
+                            Positioned.fill(
+                              child: Container(
+                                color: Colors.transparent,
+                              ),
+                            ),
+                            // Actual blur effect
+                            ClipRect(
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                                child: Container(
+                                  width: 220,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.black.withValues(alpha: 0.25)
+                                      : Colors.white.withValues(alpha: 0.25),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.1),
+                                        blurRadius: 10,
+                                        spreadRadius: 1,
+                                      )
+                                    ],
+                                  ),
+                                  // The actual BookmarkSidebar
+                                  child: BookmarkSidebar(
+                                    onNavigate: _navigateToDirectory,
+                                    currentPath: _currentPath,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      // Actual blur effect
-                      ClipRect(
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                          child: Container(
-                            width: 220,
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).brightness == Brightness.dark
-                                ? Colors.black.withValues(alpha: 0.25)
-                                : Colors.white.withValues(alpha: 0.25),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.1),
-                                  blurRadius: 10,
-                                  spreadRadius: 1,
-                                )
-                              ],
-                            ),
-                            // The actual BookmarkSidebar
-                            child: BookmarkSidebar(
-                              onNavigate: _navigateToDirectory,
-                              currentPath: _currentPath,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    );
+                  },
+                ),
                 
                 // Main content column with app bar and content
                 Expanded(
@@ -1346,24 +1410,47 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                         // Top app bar with navigation and breadcrumbs
                         _buildAppBar(context),
                         
-                        // Content area with optional preview panel
+                        // Content area with optional preview panel and animation
                         Expanded(
-                          child: previewPanelService.showPreviewPanel 
-                            ? Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  // Main content area
-                                  Expanded(
-                                    child: _buildFileView(viewModeService),
-                                  ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Main content area
+                              Expanded(
+                                child: _buildFileView(viewModeService),
+                              ),
+                              
+                              // Animated preview panel
+                              AnimatedBuilder(
+                                animation: _previewPanelAnimation,
+                                builder: (context, child) {
+                                  // Calculate animations
+                                  final slideValue = Tween<double>(begin: 300, end: 0)
+                                      .animate(CurvedAnimation(parent: _previewPanelAnimation, curve: Curves.easeOutCubic))
+                                      .value;
                                   
-                                  // Preview panel
-                                  PreviewPanel(
-                                    onNavigate: _navigateToDirectory,
-                                  ),
-                                ],
-                              )
-                            : _buildFileView(viewModeService),
+                                  final opacityValue = Tween<double>(begin: 0, end: 1)
+                                      .animate(CurvedAnimation(parent: _previewPanelAnimation, curve: Curves.easeOut))
+                                      .value;
+                                  
+                                  // Don't show at all if completely hidden and animation is done
+                                  if (!previewPanelService.showPreviewPanel && _previewPanelAnimation.isDismissed) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  
+                                  return Transform.translate(
+                                    offset: Offset(slideValue, 0),
+                                    child: Opacity(
+                                      opacity: opacityValue,
+                                      child: PreviewPanel(
+                                        onNavigate: _navigateToDirectory,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -1676,9 +1763,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             } else if (value == 'folder') {
               _showCreateDialog(true);
             } else if (value == 'toggle_bookmarks') {
-              setState(() {
-                _showBookmarkSidebar = !_showBookmarkSidebar;
-              });
+              _toggleBookmarkSidebar();
             } else if (value == 'refresh') {
               _loadDirectory(_currentPath);
             } else if (value == 'open_terminal') {
@@ -2959,6 +3044,18 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     
     // Show the app selection dialog
     AppSelectionDialog.show(context, item.path);
+  }
+
+  // Add a method to toggle the bookmark sidebar with animation
+  void _toggleBookmarkSidebar() {
+    setState(() {
+      _showBookmarkSidebar = !_showBookmarkSidebar;
+      if (_showBookmarkSidebar) {
+        _bookmarkSidebarAnimation.forward();
+      } else {
+        _bookmarkSidebarAnimation.reverse();
+      }
+    });
   }
 }
 

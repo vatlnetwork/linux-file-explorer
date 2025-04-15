@@ -27,8 +27,9 @@ class _AppGridViewState extends State<AppGridView> {
     final iconSizeService = Provider.of<IconSizeService>(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
-    final double iconSize = iconSizeService.gridIconSize;
-    final double uiScale = iconSizeService.gridUIScale;
+    // Use a fixed small icon size instead of the one from iconSizeService
+    final double fixedIconSize = 36.0;
+    final double uiScale = 1.0; // Fixed scale factor
     
     // If apps are loading and we don't have cached data
     if (appService.isLoading && appService.apps.isEmpty) {
@@ -61,16 +62,18 @@ class _AppGridViewState extends State<AppGridView> {
       );
     }
     
+    // Fixed item size for the grid (keeps icons the same size regardless of window size)
+    final double fixedItemWidth = 120.0;
+    final double fixedItemHeight = fixedItemWidth * 1.25; // Slightly taller than wide for labels
+    
     // Calculate the number of items per row based on available width
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Determine optimal items per row based on available width
-        // We want each item to be around 100-150 pixels wide
-        final double targetItemWidth = 130.0 * uiScale;
-        final int crossAxisCount = constraints.maxWidth ~/ targetItemWidth;
+        // Calculate how many items can fit in a row based on the fixed item size
+        final int crossAxisCount = (constraints.maxWidth / fixedItemWidth).floor().clamp(1, 12);
         
-        // Grid padding that scales with UI scale but has a reasonable minimum
-        final gridPadding = EdgeInsets.all((8 * uiScale).clamp(6, 16));
+        // Consistent padding regardless of window size
+        final gridPadding = const EdgeInsets.all(12.0);
         
         return RefreshIndicator(
           onRefresh: () => appService.refreshApps(),
@@ -78,15 +81,15 @@ class _AppGridViewState extends State<AppGridView> {
             padding: gridPadding,
             controller: _scrollController,
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: crossAxisCount.clamp(1, 8), // Min 1, max 8 icons per row
-              childAspectRatio: 0.8, // Slightly taller than wide for labels
-              crossAxisSpacing: 8 * uiScale,
-              mainAxisSpacing: 8 * uiScale,
+              crossAxisCount: crossAxisCount,
+              childAspectRatio: fixedItemWidth / fixedItemHeight,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
             ),
             itemCount: appService.apps.length,
             itemBuilder: (context, index) {
               final app = appService.apps[index];
-              return _buildAppItem(app, iconSize, isDarkMode);
+              return _buildAppItem(app, fixedIconSize, isDarkMode);
             },
           ),
         );
@@ -95,6 +98,11 @@ class _AppGridViewState extends State<AppGridView> {
   }
   
   Widget _buildAppItem(AppItem app, double iconSize, bool isDarkMode) {
+    // Fixed size values for consistent appearance regardless of window size
+    const double iconContainerSize = 48.0;
+    const double actualIconSize = 32.0;
+    const double fontSize = 12.0;
+    
     return Card(
       elevation: 2,
       color: isDarkMode ? Colors.grey.shade800 : Colors.white,
@@ -111,6 +119,8 @@ class _AppGridViewState extends State<AppGridView> {
             children: [
               // App icon - use SystemIcon instead of default icon
               Container(
+                width: iconContainerSize,
+                height: iconContainerSize,
                 padding: const EdgeInsets.all(8.0),
                 decoration: BoxDecoration(
                   color: isDarkMode 
@@ -120,7 +130,7 @@ class _AppGridViewState extends State<AppGridView> {
                 ),
                 child: SystemIcon(
                   app: app,
-                  size: iconSize * 0.9,
+                  size: actualIconSize,
                   fallbackColor: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
                 ),
               ),
@@ -134,7 +144,7 @@ class _AppGridViewState extends State<AppGridView> {
                 overflow: TextOverflow.ellipsis,
                 maxLines: 2,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: fontSize,
                   fontWeight: FontWeight.w500,
                   color: isDarkMode ? Colors.white : Colors.black87,
                 ),
