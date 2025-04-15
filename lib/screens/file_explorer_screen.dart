@@ -27,8 +27,6 @@ import '../services/app_service.dart';
 import '../widgets/app_selection_dialog.dart';
 import '../services/file_association_service.dart';
 import 'file_associations_screen.dart';
-import 'package:flutter/animation.dart';
-import 'package:flutter/scheduler.dart';
 
 /// A file explorer screen that displays files and folders in a customizable interface.
 /// 

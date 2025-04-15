@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/app_item.dart';
 import '../services/app_service.dart';
-import '../services/icon_size_service.dart';
 import 'system_icon.dart';
 
 class AppGridView extends StatefulWidget {
@@ -24,12 +23,10 @@ class _AppGridViewState extends State<AppGridView> {
   @override
   Widget build(BuildContext context) {
     final appService = Provider.of<AppService>(context);
-    final iconSizeService = Provider.of<IconSizeService>(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
     // Use a fixed small icon size instead of the one from iconSizeService
     final double fixedIconSize = 36.0;
-    final double uiScale = 1.0; // Fixed scale factor
     
     // If apps are loading and we don't have cached data
     if (appService.isLoading && appService.apps.isEmpty) {
