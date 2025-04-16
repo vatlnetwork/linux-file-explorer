@@ -54,7 +54,6 @@ class AppsBookmarkButton extends StatelessWidget {
         pageBuilder: (context, animation, secondaryAnimation) => const AppViewerScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           // Use a spring curve for a more natural, bouncy feel
-          const curve = Curves.elasticOut;
           const scaleCurve = Interval(0.0, 0.8, curve: Curves.easeOutCubic);
           const opacityCurve = Interval(0.0, 0.6, curve: Curves.easeOut);
           const slideCurve = Interval(0.0, 0.7, curve: Curves.easeOutCubic);

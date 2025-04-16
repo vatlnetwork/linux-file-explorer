@@ -1,8 +1,13 @@
 import 'dart:io';
+import 'dart:math';
+import 'dart:ui'; // Import for ImageFilter
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:clipboard/clipboard.dart';
+import 'package:window_manager/window_manager.dart';
 import '../models/file_item.dart';
 import '../services/file_service.dart';
 import '../services/bookmark_service.dart';
@@ -11,21 +16,17 @@ import '../services/view_mode_service.dart';
 import '../services/status_bar_service.dart';
 import '../services/icon_size_service.dart';
 import '../services/theme_service.dart';
+import '../services/usb_drive_service.dart';
+import '../services/preview_panel_service.dart';
+import '../services/app_service.dart';
+import '../services/file_association_service.dart';
 import '../widgets/file_item_widget.dart';
 import '../widgets/grid_item_widget.dart';
 import '../widgets/split_folder_view.dart';
 import '../widgets/bookmark_sidebar.dart';
 import '../widgets/status_bar.dart';
-import '../services/usb_drive_service.dart';
-import '../services/preview_panel_service.dart';
 import '../widgets/preview_panel.dart';
-import 'package:window_manager/window_manager.dart';
-import 'package:flutter/services.dart';
-import 'dart:math';
-import 'dart:ui'; // Import for ImageFilter
-import '../services/app_service.dart';
 import '../widgets/app_selection_dialog.dart';
-import '../services/file_association_service.dart';
 import 'file_associations_screen.dart';
 
 /// A file explorer screen that displays files and folders in a customizable interface.
@@ -1925,26 +1926,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                 ],
               ),
             ),
-            const PopupMenuItem<String>(
-              value: 'file_associations',
-              child: Row(
-                children: [
-                  Icon(Icons.settings_applications),
-                  SizedBox(width: 8),
-                  Text('File Associations'),
-                ],
-              ),
-            ),
-            const PopupMenuItem<String>(
-              value: 'properties',
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline),
-                  SizedBox(width: 8),
-                  Text('Folder Properties'),
-                ],
-              ),
-            ),
           ],
         ),
       ],
@@ -2002,7 +1983,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             onTap: onPressed,
             hoverColor: isCloseButton 
               ? Colors.red 
-              : (isDarkMode ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1)),
+              : (isDarkMode ? Colors.white.withValues(alpha: 26) : Colors.black.withValues(alpha: 26)),
             child: Container(
               width: 36,
               height: 36,
@@ -2675,7 +2656,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           ],
         ),
       ),
-      PopupMenuItem<String>(
+      const PopupMenuItem<String>(
         value: 'refresh',
         child: Row(
           children: [
@@ -2685,7 +2666,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           ],
         ),
       ),
-      PopupMenuItem<String>(
+      const PopupMenuItem<String>(
         value: 'file_associations',
         child: Row(
           children: [
