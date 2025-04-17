@@ -27,6 +27,7 @@ import '../widgets/bookmark_sidebar.dart';
 import '../widgets/status_bar.dart';
 import '../widgets/preview_panel.dart';
 import '../widgets/app_selection_dialog.dart';
+import '../widgets/column_view_widget.dart';
 import 'file_associations_screen.dart';
 
 /// A file explorer screen that displays files and folders in a customizable interface.
@@ -1733,7 +1734,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                 ? Icons.grid_view
                 : Provider.of<ViewModeService>(context).viewMode == ViewMode.list
                     ? Icons.view_list
-                    : Icons.splitscreen,
+                    : Provider.of<ViewModeService>(context).viewMode == ViewMode.column
+                        ? Icons.view_column
+                        : Icons.splitscreen,
           ),
           iconSize: 22,
           padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
@@ -1741,13 +1744,15 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           tooltip: 'Change View Mode',
           onPressed: () {
             final viewModeService = Provider.of<ViewModeService>(context, listen: false);
-            // Cycle through view modes (list -> grid -> split -> list)
+            // Cycle through view modes (list -> grid -> column -> split -> list)
             if (viewModeService.viewMode == ViewMode.list) {
-              viewModeService.setViewMode(ViewMode.grid);
+              viewModeService.transitionToViewMode(ViewMode.grid);
             } else if (viewModeService.viewMode == ViewMode.grid) {
-              viewModeService.setViewMode(ViewMode.split);
+              viewModeService.transitionToViewMode(ViewMode.column);
+            } else if (viewModeService.viewMode == ViewMode.column) {
+              viewModeService.transitionToViewMode(ViewMode.split);
             } else {
-              viewModeService.setViewMode(ViewMode.list);
+              viewModeService.transitionToViewMode(ViewMode.list);
             }
           },
         ),
@@ -2487,6 +2492,136 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             });
           },
           onEmptyAreaRightClick: _showEmptySpaceContextMenu,
+        );
+      case ViewMode.column:
+        return ColumnViewWidget(
+          currentPath: _currentPath,
+          items: displayItems,
+          onNavigate: _navigateToDirectory,
+          onItemTap: _selectItem,
+          onItemDoubleTap: _handleItemDoubleTap,
+          onItemLongPress: _showOptionsDialog,
+          onItemRightClick: _showContextMenu,
+          selectedItemsPaths: _selectedItemsPaths,
+          onEmptyAreaTap: () {
+            setState(() {
+              _selectedItemsPaths = {};
+            });
+          },
+          onEmptyAreaRightClick: _showEmptySpaceContextMenu,
+        );
+      default:
+        // Fall back to list view for any unhandled view modes
+        return Stack(
+          children: [
+            Column(
+              children: [
+                // Show search results indicator
+                if (_isSearchActive && _isSearching) 
+                  Container(
+                    width: double.infinity,
+                    margin: EdgeInsets.fromLTRB(8, 8, 8, 0),
+                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.blue.withValues(alpha: 0.1)
+                          : Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 16, color: Colors.blue),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Found ${_searchResults.length} results for "${_searchController.text}"',
+                            style: TextStyle(color: Colors.blue),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            _searchController.clear();
+                            _performSearch('');
+                          },
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text('Clear', style: TextStyle(fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                  ),
+                
+                // List view with items (same implementation as in the list view case)
+                Expanded(
+                  child: GestureDetector(
+                    key: _gridViewKey,
+                    onTap: () {
+                      // Check if we recently completed a selection
+                      if (_isSelectionCompleted) {
+                        setState(() {
+                          _isSelectionCompleted = false;
+                        });
+                        return;
+                      }
+                      
+                      // Clear selection only if not completing a drag operation
+                      if (!_isDragging) {
+                        setState(() {
+                          _selectedItemsPaths = {};
+                          _dragStartPosition = null;
+                          _dragEndPosition = null;
+                          _isSelectionCompleted = false;  // Reset completed flag
+                          
+                          // Clear the preview panel
+                          Provider.of<PreviewPanelService>(context, listen: false)
+                              .setSelectedItem(null);
+                        });
+                      }
+                    },
+                    onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
+                    // ... additional GestureDetector properties would be here
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      padding: EdgeInsets.only(bottom: 100.0),
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: displayItems.length,
+                      itemBuilder: (context, index) {
+                        final item = displayItems[index];
+                        return ItemPositionTracker(
+                          key: ValueKey(item.path),
+                          path: item.path,
+                          onPositionChanged: _registerItemPosition,
+                          child: FileItemWidget(
+                            key: ValueKey(item.path),
+                            item: item,
+                            onTap: _selectItem,
+                            onDoubleTap: () => _handleItemDoubleTap(item),
+                            onLongPress: _showOptionsDialog,
+                            onRightClick: _showContextMenu,
+                            isSelected: _selectedItemsPaths.contains(item.path),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            // Draw selection rectangle if dragging
+            if (_isDragging && _dragStartPosition != null && _dragEndPosition != null)
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: SelectionRectanglePainter(
+                    startPoint: _dragStartPosition!,
+                    endPoint: _dragEndPosition!,
+                    isDarkMode: Theme.of(context).brightness == Brightness.dark,
+                  ),
+                ),
+              ),
+          ],
         );
     }
   }

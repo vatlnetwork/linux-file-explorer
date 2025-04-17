@@ -24,7 +24,9 @@ class ViewModeSwitcher extends StatelessWidget {
               ? Icons.view_list 
               : viewModeService.isGrid
                   ? Icons.grid_view
-                  : Icons.view_quilt,
+                  : viewModeService.isColumn
+                      ? Icons.view_column
+                      : Icons.view_quilt,
           color: iconColor,
         ),
         offset: const Offset(0, 40),
@@ -49,6 +51,16 @@ class ViewModeSwitcher extends StatelessWidget {
                 Icon(Icons.grid_view),
                 SizedBox(width: 8),
                 Text('Grid View'),
+              ],
+            ),
+          ),
+          const PopupMenuItem<ViewMode>(
+            value: ViewMode.column,
+            child: Row(
+              children: [
+                Icon(Icons.view_column),
+                SizedBox(width: 8),
+                Text('Column View'),
               ],
             ),
           ),
