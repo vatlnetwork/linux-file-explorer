@@ -74,7 +74,6 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(context),
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
                 child: const AppsBookmarkButton(),
@@ -88,82 +87,6 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
           ),
         );
       },
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    return GestureDetector(
-      onTap: () {
-        // Clear focused bookmark when header is tapped
-        setState(() {
-          _focusedBookmarkPath = null;
-        });
-      },
-      child: Container(
-        height: 57,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: isDarkMode
-              ? const Color(0xFF303030).withValues(alpha: 0.5)
-              : const Color(0xFFBBDEFB).withValues(alpha: 0.9),
-          border: Border(
-            bottom: BorderSide(
-              color: isDarkMode 
-                  ? Colors.black.withValues(alpha: 0.3)
-                  : Colors.grey.shade300.withValues(alpha: 0.3),
-              width: 1.0,
-            ),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.folder,
-              size: 20,
-              color: isDarkMode 
-                  ? Colors.blue.shade300 
-                  : Colors.blue.shade700,
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                'Linux File Explorer',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: isDarkMode 
-                      ? Colors.grey.shade200 
-                      : Colors.grey.shade800,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 3),
-            IconButton(
-              icon: Icon(
-                Icons.info_outline, 
-                size: 16,
-                color: Theme.of(context).iconTheme.color?.withValues(alpha: 0.8),
-              ),
-              iconSize: 20,
-              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 0),
-              constraints: BoxConstraints(),
-              tooltip: 'Drag to reorder bookmarks',
-              onPressed: () {
-                NotificationService.showNotification(
-                  context,
-                  message: 'Drag bookmarks to reorder them',
-                  type: NotificationType.info,
-                );
-              },
-            ),
-          ],
-        ),
-      ),
     );
   }
 

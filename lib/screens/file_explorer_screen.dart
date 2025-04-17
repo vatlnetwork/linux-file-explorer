@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:clipboard/clipboard.dart';
 import 'package:window_manager/window_manager.dart';
 import '../models/file_item.dart';
+import '../models/app_item.dart'; // Add import for AppItem
 import '../services/file_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/notification_service.dart';
@@ -20,6 +21,7 @@ import '../services/usb_drive_service.dart';
 import '../services/preview_panel_service.dart';
 import '../services/app_service.dart';
 import '../services/file_association_service.dart';
+import '../services/quick_look_service.dart'; // Add import for QuickLookService
 import '../widgets/file_item_widget.dart';
 import '../widgets/grid_item_widget.dart';
 import '../widgets/split_folder_view.dart';
@@ -650,6 +652,16 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           ),
         ),
       ],
+      PopupMenuItem<String>(
+        value: 'quick_look',
+        child: Row(
+          children: [
+            Icon(Icons.preview),
+            SizedBox(width: 8),
+            Text('Quick Look (Space)'),
+          ],
+        ),
+      ),
     ];
     
     // Add mounted check again
@@ -668,6 +680,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     switch (result) {
       case 'open':
         _handleItemDoubleTap(item);
+        break;
+      case 'quick_look':
+        _showQuickLook(item);
         break;
       case 'open_with':
         _showOpenWithDialog(item);
@@ -902,14 +917,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     });
   }
   
-  Future<void> _pasteItems() async {
-    // First try to use the internal clipboard
-    if (_clipboardItems != null && _clipboardItems!.isNotEmpty) {
-      await _pasteItemsFromInternalClipboard();
-    } else {
-      // If internal clipboard is empty, try system clipboard
-      await _pasteFromSystemClipboard();
-    }
+  Future<void> _pasteItemsToCurrentDirectory() async {
+    await _pasteItemsFromInternalClipboard();
   }
 
   Future<void> _pasteFromSystemClipboard() async {
@@ -1299,1316 +1308,764 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Provider services
-    final statusBarService = Provider.of<StatusBarService>(context);
-    final previewPanelService = Provider.of<PreviewPanelService>(context);
-    final viewModeService = Provider.of<ViewModeService>(context);
-    
-    // Update animation controllers based on panel visibility
-    if (previewPanelService.showPreviewPanel && _previewPanelAnimation.status != AnimationStatus.completed) {
-      _previewPanelAnimation.forward();
-    } else if (!previewPanelService.showPreviewPanel && _previewPanelAnimation.status != AnimationStatus.dismissed) {
-      _previewPanelAnimation.reverse();
-    }
-    
-    if (_showBookmarkSidebar && _bookmarkSidebarAnimation.status != AnimationStatus.completed) {
-      _bookmarkSidebarAnimation.forward();
-    } else if (!_showBookmarkSidebar && _bookmarkSidebarAnimation.status != AnimationStatus.dismissed && 
-              _bookmarkSidebarAnimation.status != AnimationStatus.reverse) {
-      _bookmarkSidebarAnimation.reverse();
-    }
-    
-    final scaffold = Scaffold(
-      // Use a solid background for the main content but keep bookmarks sidebar transparent for blur effect
-      backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFF121212)
-          : const Color(0xFFF5F5F5),
-      // Remove the container with gradient so we can see through to the desktop
-      body: Column(
-        children: [
-          // Main content area with bookmarks sidebar and content
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Bookmark sidebar with frosted glass effect and animation
-                AnimatedBuilder(
-                  animation: _bookmarkSidebarAnimation,
-                  builder: (context, child) {
-                    // Calculate animations
-                    final slideValue = Tween<double>(begin: -220, end: 0)
-                        .animate(CurvedAnimation(parent: _bookmarkSidebarAnimation, curve: Curves.easeOutCubic))
-                        .value;
-                    
-                    final opacityValue = Tween<double>(begin: 0, end: 1)
-                        .animate(CurvedAnimation(parent: _bookmarkSidebarAnimation, curve: Curves.easeOut))
-                        .value;
-                    
-                    // Don't show at all if completely hidden and animation is done
-                    if (!_showBookmarkSidebar && _bookmarkSidebarAnimation.isDismissed) {
-                      return const SizedBox.shrink();
-                    }
-                    
-                    return Transform.translate(
-                      offset: Offset(slideValue, 0),
-                      child: Opacity(
-                        opacity: opacityValue,
-                        child: Stack(
-                          children: [
-                            // This is the backdrop that will be blurred
-                            Positioned.fill(
-                              child: Container(
-                                color: Colors.transparent,
-                              ),
-                            ),
-                            // Actual blur effect
-                            ClipRect(
-                              child: BackdropFilter(
-                                filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                                child: Container(
-                                  width: 220,
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).brightness == Brightness.dark
-                                      ? Colors.black.withValues(alpha: 0.25)
-                                      : Colors.white.withValues(alpha: 0.25),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.1),
-                                        blurRadius: 10,
-                                        spreadRadius: 1,
-                                      )
-                                    ],
-                                  ),
-                                  // The actual BookmarkSidebar
-                                  child: BookmarkSidebar(
-                                    onNavigate: _navigateToDirectory,
-                                    currentPath: _currentPath,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                
-                // Main content column with app bar and content
-                Expanded(
-                  child: Container(
-                    // Add a solid background for the main content area
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xFF121212).withValues(alpha: 1.0)
-                          : const Color(0xFFF5F5F5).withValues(alpha: 1.0),
-                    ),
-                    child: Column(
-                      children: [
-                        // Top app bar with navigation and breadcrumbs
-                        _buildAppBar(context),
-                        
-                        // Content area with optional preview panel and animation
-                        Expanded(
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // Main content area
-                              Expanded(
-                                child: _buildFileView(viewModeService),
-                              ),
-                              
-                              // Animated preview panel
-                              AnimatedBuilder(
-                                animation: _previewPanelAnimation,
-                                builder: (context, child) {
-                                  // Calculate animations
-                                  final slideValue = Tween<double>(begin: 300, end: 0)
-                                      .animate(CurvedAnimation(parent: _previewPanelAnimation, curve: Curves.easeOutCubic))
-                                      .value;
-                                  
-                                  final opacityValue = Tween<double>(begin: 0, end: 1)
-                                      .animate(CurvedAnimation(parent: _previewPanelAnimation, curve: Curves.easeOut))
-                                      .value;
-                                  
-                                  // Don't show at all if completely hidden and animation is done
-                                  if (!previewPanelService.showPreviewPanel && _previewPanelAnimation.isDismissed) {
-                                    return const SizedBox.shrink();
-                                  }
-                                  
-                                  return Transform.translate(
-                                    offset: Offset(slideValue, 0),
-                                    child: Opacity(
-                                      opacity: opacityValue,
-                                      child: PreviewPanel(
-                                        onNavigate: _navigateToDirectory,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Status bar
-          if (statusBarService.showStatusBar)
-            StatusBar(
-              items: _items,
-              showIconControls: statusBarService.showIconControls,
-            ),
-        ],
-      ),
+  // Add method to show quick look for selected file item
+  void _showQuickLook(FileItem item) {
+    final previewPanelService = Provider.of<PreviewPanelService>(context, listen: false);
+    final quickLookService = QuickLookService(
+      context: context,
+      previewPanelService: previewPanelService,
     );
-    
-    // Wrap in Shortcuts and Actions for keyboard shortcuts
-    return Shortcuts(
-      shortcuts: <LogicalKeySet, Intent>{
-        // Add search shortcut (Ctrl+F)
-        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyF): 
-            const SearchIntent(),
-        // Add escape key to close search
-        LogicalKeySet(LogicalKeyboardKey.escape): 
-            const CloseSearchIntent(),
-        // Add Ctrl+ to increase icon size
-        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.equal):
-            const ZoomIntent(zoomIn: true),
-        // Add Ctrl- to decrease icon size
-        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.minus):
-            const ZoomIntent(zoomIn: false),
-      },
-      child: Actions(
-        actions: <Type, Action<Intent>>{
-          SearchIntent: CallbackAction<SearchIntent>(
-            onInvoke: (SearchIntent intent) {
-              if (!_isSearchActive) {
-                _toggleSearch();
-              }
-              return null;
-            },
-          ),
-          CloseSearchIntent: CallbackAction<CloseSearchIntent>(
-            onInvoke: (CloseSearchIntent intent) {
-              if (_isSearchActive) {
-                _toggleSearch();
-              }
-              return null;
-            },
-          ),
-          // Add action for handling zoom intents
-          ZoomIntent: CallbackAction<ZoomIntent>(
-            onInvoke: (ZoomIntent intent) {
-              final iconSizeService = Provider.of<IconSizeService>(context, listen: false);
-              final viewModeService = Provider.of<ViewModeService>(context, listen: false);
-              
-              if (intent.zoomIn) {
-                // Increase icon size
-                if (viewModeService.isGrid) {
-                  iconSizeService.increaseGridIconSize();
-                } else {
-                  iconSizeService.increaseListIconSize();
-                }
-              } else {
-                // Decrease icon size
-                if (viewModeService.isGrid) {
-                  iconSizeService.decreaseGridIconSize();
-                } else {
-                  iconSizeService.decreaseListIconSize();
-                }
-              }
-              return null;
-            },
-          ),
-        },
-        child: Focus(
-          autofocus: true,
-          child: scaffold,
-        ),
-      ),
-    );
+    quickLookService.showQuickLook(item);
   }
 
-  Widget _buildAppBar(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    return GestureDetector(
-      onPanStart: (details) {
-        // Make the app bar draggable
-        windowManager.startDragging();
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).appBarTheme.backgroundColor,
-          border: Border(
-            bottom: BorderSide(
-              color: isDarkMode 
-                  ? Colors.black 
-                  : Colors.grey.shade300,
-              width: 1.0,
-            ),
-          ),
-        ),
-        child: PreferredSize(
-          preferredSize: Size.fromHeight(52), // Increased from 49px to 52px to match sidebar header
-          child: AppBar(
-            leadingWidth: 100, // Provide enough space for two icons
-            leading: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: Icon(Icons.arrow_back),
-                  onPressed: _navigationHistory.isEmpty ? null : _navigateBack,
-                  tooltip: 'Go back',
-                  iconSize: 22, // Adjusted size to match bookmark sidebar
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                  constraints: BoxConstraints(), // Remove default constraints
-                ),
-                IconButton(
-                  icon: Icon(Icons.arrow_forward),
-                  onPressed: _forwardHistory.isEmpty ? null : _navigateForward,
-                  tooltip: 'Go forward',
-                  iconSize: 22, // Adjusted size to match bookmark sidebar
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                  constraints: BoxConstraints(), // Remove default constraints
-                ),
-              ],
-            ),
-            title: _isSearchActive ? _buildSearchBar() : _buildPathBreadcrumbs(), // Show search bar or breadcrumbs
-            titleSpacing: 0,
-            elevation: 0, // Remove elevation to match bookmark header
-            backgroundColor: Colors.transparent, // Make transparent to show the Container's decoration
-            actions: [
-              _buildActionButtons(context),
-              _buildWindowControls(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPathBreadcrumbs() {
-    final pathParts = _currentPath.split('/');
-    
-    // Filter out empty parts (like at the beginning of an absolute path)
-    final validParts = pathParts.where((part) => part.isNotEmpty).toList();
-    
-    return SizedBox(
-      key: _breadcrumbKey,
-      height: 52, // Increased from 49px to 52px to match new heights
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          // Root directory
-          _buildBreadcrumbItem('/', 'Root', validParts.isEmpty, 0),
-          
-          // Path parts
-          for (int i = 0; i < validParts.length; i++)
-            _buildBreadcrumbItem(
-              '/${validParts.sublist(0, i + 1).join('/')}',
-              validParts[i],
-              i == validParts.length - 1,
-              i + 1,
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBreadcrumbItem(String path, String label, bool isLast, int index) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (index > 0)
-          Icon(
-            Icons.chevron_right,
-            size: 18,
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white70
-                : Colors.black54,
-          ),
-        TextButton(
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 4.0),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-          onPressed: isLast ? null : () {
-            if (path != _currentPath) {
-              _navigationHistory.add(_currentPath);
-              _forwardHistory.clear(); // Clear forward history when using breadcrumbs
-              _loadDirectory(path);
-            }
-          },
-          child: Text(
-            label,
-            style: TextStyle(
-              fontWeight: isLast ? FontWeight.bold : FontWeight.normal,
-              color: isLast 
-                  ? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87)
-                  : null,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionButtons(BuildContext context) {
-    final statusBarService = Provider.of<StatusBarService>(context);
-    final previewPanelService = Provider.of<PreviewPanelService>(context);
-    
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Search button
-        IconButton(
-          icon: Icon(_isSearchActive ? Icons.close : Icons.search),
-          iconSize: 22,
-          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-          constraints: BoxConstraints(),
-          tooltip: _isSearchActive ? 'Close Search' : 'Search Files',
-          onPressed: _toggleSearch,
-        ),
-        // Replace the IconButton with PopupMenuButton for theme selection
-        PopupMenuButton<ThemeMode>(
-          tooltip: 'Theme Settings',
-          icon: const Icon(Icons.dark_mode, size: 22),
-          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-          constraints: BoxConstraints(),
-          onSelected: (ThemeMode mode) {
-            final themeService = Provider.of<ThemeService>(context, listen: false);
-            themeService.setThemeMode(mode);
-          },
-          itemBuilder: (BuildContext context) {
-            final themeService = Provider.of<ThemeService>(context, listen: false);
-            return <PopupMenuEntry<ThemeMode>>[
-              CheckedPopupMenuItem<ThemeMode>(
-                value: ThemeMode.system,
-                checked: themeService.isSystemMode,
-                child: Row(
-                  children: [
-                    Icon(Icons.brightness_auto),
-                    SizedBox(width: 8),
-                    Text('System Theme'),
-                  ],
-                ),
-              ),
-              CheckedPopupMenuItem<ThemeMode>(
-                value: ThemeMode.light,
-                checked: themeService.isLightMode,
-                child: Row(
-                  children: [
-                    Icon(Icons.light_mode),
-                    SizedBox(width: 8),
-                    Text('Light Theme'),
-                  ],
-                ),
-              ),
-              CheckedPopupMenuItem<ThemeMode>(
-                value: ThemeMode.dark,
-                checked: themeService.isDarkMode,
-                child: Row(
-                  children: [
-                    Icon(Icons.dark_mode),
-                    SizedBox(width: 8),
-                    Text('Dark Theme'),
-                  ],
-                ),
-              ),
-            ];
-          },
-        ),
-        IconButton(
-          icon: Icon(
-            Provider.of<ViewModeService>(context).viewMode == ViewMode.grid
-                ? Icons.grid_view
-                : Provider.of<ViewModeService>(context).viewMode == ViewMode.list
-                    ? Icons.view_list
-                    : Provider.of<ViewModeService>(context).viewMode == ViewMode.column
-                        ? Icons.view_column
-                        : Icons.splitscreen,
-          ),
-          iconSize: 22,
-          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-          constraints: BoxConstraints(),
-          tooltip: 'Change View Mode',
-          onPressed: () {
-            final viewModeService = Provider.of<ViewModeService>(context, listen: false);
-            // Cycle through view modes (list -> grid -> column -> split -> list)
-            if (viewModeService.viewMode == ViewMode.list) {
-              viewModeService.transitionToViewMode(ViewMode.grid);
-            } else if (viewModeService.viewMode == ViewMode.grid) {
-              viewModeService.transitionToViewMode(ViewMode.column);
-            } else if (viewModeService.viewMode == ViewMode.column) {
-              viewModeService.transitionToViewMode(ViewMode.split);
-            } else {
-              viewModeService.transitionToViewMode(ViewMode.list);
-            }
-          },
-        ),
-        PopupMenuButton<String>(
-          tooltip: 'Menu',
-          icon: const Icon(Icons.menu, size: 22),
-          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-          offset: const Offset(0, 40),
-          onSelected: (String value) {
-            if (value == 'file') {
-              _showCreateDialog(false);
-            } else if (value == 'folder') {
-              _showCreateDialog(true);
-            } else if (value == 'toggle_bookmarks') {
-              _toggleBookmarkSidebar();
-            } else if (value == 'refresh') {
-              _loadDirectory(_currentPath);
-            } else if (value == 'open_terminal') {
-              _openCurrentDirectoryInTerminal();
-            } else if (value == 'paste') {
-              _pasteItems();
-            } else if (value == 'toggle_status_bar') {
-              statusBarService.toggleStatusBar();
-            } else if (value == 'toggle_icon_controls') {
-              statusBarService.toggleIconControls();
-            } else if (value == 'toggle_preview_panel') {
-              previewPanelService.togglePreviewPanel();
-              
-              // If toggling on and there's a selected item, make sure it's set in the service
-              if (previewPanelService.showPreviewPanel && _selectedItemsPaths.length == 1) {
-                final selectedPath = _selectedItemsPaths.first;
-                final selectedItem = _items.firstWhere(
-                  (item) => item.path == selectedPath,
-                  orElse: () => FileItem(
-                    path: '',
-                    name: '',
-                    type: FileItemType.unknown,
-                  ),
-                );
-                
-                if (selectedItem.type != FileItemType.unknown) {
-                  previewPanelService.setSelectedItem(selectedItem);
-                }
-              }
-            }
-          },
-          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-            PopupMenuItem<String>(
-              value: 'toggle_bookmarks',
-              child: Row(
-                children: [
-                  Icon(_showBookmarkSidebar ? Icons.bookmark : Icons.bookmark_border),
-                  const SizedBox(width: 8),
-                  Text(_showBookmarkSidebar ? 'Hide Bookmarks' : 'Show Bookmarks'),
-                ],
-              ),
-            ),
-            PopupMenuItem<String>(
-              value: 'toggle_preview_panel',
-              child: Row(
-                children: [
-                  Icon(
-                    previewPanelService.showPreviewPanel
-                        ? Icons.preview
-                        : Icons.preview_outlined,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    previewPanelService.showPreviewPanel
-                        ? 'Hide Preview Panel'
-                        : 'Show Preview Panel',
-                  ),
-                ],
-              ),
-            ),
-            PopupMenuItem<String>(
-              value: 'toggle_status_bar',
-              child: Row(
-                children: [
-                  Icon(
-                    statusBarService.showStatusBar
-                        ? Icons.info
-                        : Icons.info_outline,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    statusBarService.showStatusBar
-                        ? 'Hide Status Bar'
-                        : 'Show Status Bar',
-                  ),
-                ],
-              ),
-            ),
-            if (statusBarService.showStatusBar)
-              PopupMenuItem<String>(
-                value: 'toggle_icon_controls',
-                child: Row(
-                  children: [
-                    Icon(
-                      statusBarService.showIconControls
-                          ? Icons.zoom_in
-                          : Icons.zoom_out_map,
-                    ),
-                    const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          statusBarService.showIconControls
-                              ? 'Hide Icon Controls'
-                              : 'Show Icon Controls',
-                        ),
-                        Text(
-                          'Shortcuts: Ctrl+=, Ctrl+-',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            const PopupMenuDivider(),
-            const PopupMenuItem<String>(
-              value: 'file',
-              child: Row(
-                children: [
-                  Icon(Icons.insert_drive_file),
-                  SizedBox(width: 8),
-                  Text('New File'),
-                ],
-              ),
-            ),
-            const PopupMenuItem<String>(
-              value: 'folder',
-              child: Row(
-                children: [
-                  Icon(Icons.create_new_folder),
-                  SizedBox(width: 8),
-                  Text('New Folder'),
-                ],
-              ),
-            ),
-            if (_clipboardItems != null && _clipboardItems!.isNotEmpty)
-              PopupMenuItem<String>(
-                value: 'paste',
-                child: Row(
-                  children: [
-                    Icon(Icons.content_paste),
-                    const SizedBox(width: 8),
-                    Text(_isItemCut ? 'Paste (Cut)' : 'Paste (Copy)'),
-                  ],
-                ),
-              ),
-            const PopupMenuDivider(),
-            const PopupMenuItem<String>(
-              value: 'open_terminal',
-              child: Row(
-                children: [
-                  Icon(Icons.terminal),
-                  SizedBox(width: 8),
-                  Text('Open in Terminal'),
-                ],
-              ),
-            ),
-            const PopupMenuItem<String>(
-              value: 'refresh',
-              child: Row(
-                children: [
-                  Icon(Icons.refresh),
-                  SizedBox(width: 8),
-                  Text('Refresh'),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildWindowControls() {
-    return Row(
-      children: [
-        _buildWindowControlButton(
-          icon: Icons.minimize,
-          tooltip: 'Minimize',
-          onPressed: () async {
-            await windowManager.minimize();
-          },
-        ),
-        _buildWindowControlButton(
-          icon: _isMaximized ? Icons.crop_square : Icons.crop_din,
-          tooltip: _isMaximized ? 'Restore' : 'Maximize',
-          onPressed: () async {
-            if (_isMaximized) {
-              await windowManager.unmaximize();
-            } else {
-              await windowManager.maximize();
-            }
-          },
-        ),
-        _buildWindowControlButton(
-          icon: Icons.close,
-          tooltip: 'Close',
-          isCloseButton: true,
-          onPressed: () async {
-            await windowManager.close();
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildWindowControlButton({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onPressed,
-    bool isCloseButton = false,
-  }) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    return Tooltip(
-      message: tooltip,
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20.0),
-          child: InkWell(
-            onTap: onPressed,
-            hoverColor: isCloseButton 
-              ? Colors.red 
-              : (isDarkMode ? Colors.white.withValues(alpha: 26) : Colors.black.withValues(alpha: 26)),
-            child: Container(
-              width: 36,
-              height: 36,
-              color: Colors.transparent,
-              child: Center(
-                child: Icon(
-                  icon,
-                  size: 16,
-                  color: isCloseButton && !isDarkMode
-                    ? Colors.red.shade700
-                    : null,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFileView(ViewModeService viewModeService) {
-    // Handle loading state
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+  // Handle key events for the file explorer
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    // If we're searching, don't interfere with normal text input
+    if (_isSearchActive && _searchFocusNode.hasFocus) {
+      return KeyEventResult.ignored;
     }
 
-    // Handle error state
-    if (_hasError) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, color: Colors.red, size: 48),
-            SizedBox(height: 16),
-            Text(_errorMessage),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => _loadDirectory(_currentPath, addToHistory: false),
-              child: Text('Retry'),
-            ),
-          ],
+    // Handle quick look with space bar
+    if (event is KeyDownEvent && 
+        event.logicalKey == LogicalKeyboardKey.space && 
+        _selectedItemsPaths.isNotEmpty) {
+      // Get the first selected item for quick look
+      final selectedPath = _selectedItemsPaths.first;
+      final selectedItem = _items.firstWhere(
+        (item) => item.path == selectedPath,
+        orElse: () => FileItem(
+          path: '',
+          name: '',
+          type: FileItemType.unknown,
         ),
       );
+      
+      if (selectedItem.type != FileItemType.unknown) {
+        _showQuickLook(selectedItem);
+        return KeyEventResult.handled;
+      }
     }
 
-    // Get the items to display (either all items or search results)
-    final displayItems = _isSearchActive && _isSearching 
-        ? _searchResults 
-        : _items;
-
-    // Handle empty directory or no search results
-    if (displayItems.isEmpty) {
-      return GestureDetector(
-        onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
-        behavior: HitTestBehavior.opaque,  // Ensure taps are registered on transparent areas
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                _isSearchActive ? Icons.search_off : Icons.folder_off, 
-                color: Colors.grey, 
-                size: 48
-              ),
-              SizedBox(height: 16),
-              Text(
-                _isSearchActive 
-                    ? 'No results found for "${_searchController.text}"' 
-                    : 'This folder is empty'
-              ),
-              if (_isSearchActive) ...[
-                SizedBox(height: 8),
-                TextButton(
-                  onPressed: () {
-                    _searchController.clear();
-                    _performSearch('');
-                  },
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: Text('Clear Search', style: TextStyle(fontSize: 12)),
-                ),
-              ],
-            ],
-          ),
-        ),
-      );
+    // Navigation with arrow keys
+    if (event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.backspace || 
+          (event.logicalKey == LogicalKeyboardKey.arrowUp && HardwareKeyboard.instance.isAltPressed)) {
+        // Navigate up one directory
+        final currentDir = Directory(_currentPath);
+        final parentDir = currentDir.parent.path;
+        if (parentDir != _currentPath) {
+          _navigateToDirectory(parentDir);
+          return KeyEventResult.handled;
+        }
+      } else if (event.logicalKey == LogicalKeyboardKey.delete) {
+        // Delete selected items
+        if (_selectedItemsPaths.isNotEmpty) {
+          _deleteSelectedItems();
+          return KeyEventResult.handled;
+        }
+      } else if (event.logicalKey == LogicalKeyboardKey.f5) {
+        // Refresh directory
+        _loadDirectory(_currentPath);
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.keyC && HardwareKeyboard.instance.isControlPressed) {
+        // Copy selected items
+        _copySelectedItems();
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.keyX && HardwareKeyboard.instance.isControlPressed) {
+        // Cut selected items
+        _cutSelectedItems();
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.keyV && HardwareKeyboard.instance.isControlPressed) {
+        // Paste items
+        _pasteItemsToCurrentDirectory();
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.keyA && HardwareKeyboard.instance.isControlPressed) {
+        // Select all items
+        setState(() {
+          _selectedItemsPaths = _items.map((item) => item.path).toSet();
+        });
+        return KeyEventResult.handled;
+      }
     }
-    
-    // Display content based on view mode with drag selection overlay
-    switch (viewModeService.viewMode) {
-      case ViewMode.grid:
-        return Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                children: [
-                  // Show search results indicator
-                  if (_isSearchActive && _isSearching) 
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.blue.withValues(alpha: 0.1)
-                            : Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.info_outline, size: 16, color: Colors.blue),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Found ${_searchResults.length} results for "${_searchController.text}"',
-                              style: TextStyle(color: Colors.blue),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              _searchController.clear();
-                              _performSearch('');
-                            },
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            child: Text('Clear', style: TextStyle(fontSize: 12)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  
-                  // Grid view with items
-                  Expanded(
-                    child: GestureDetector(
-                      key: _gridViewKey,
-                      onTap: () {
-                        // Check if we recently completed a selection
-                        if (_isSelectionCompleted) {
-                          setState(() {
-                            _isSelectionCompleted = false;
-                          });
-                          return;
-                        }
-                        
-                        // Clear selection only if not completing a drag operation
-                        if (!_isDragging) {
-                          setState(() {
-                            _selectedItemsPaths = {};
-                            _dragStartPosition = null;
-                            _dragEndPosition = null;
-                            _isSelectionCompleted = false;  // Reset completed flag
-                            
-                            // Clear the preview panel
-                            Provider.of<PreviewPanelService>(context, listen: false)
-                                .setSelectedItem(null);
-                          });
-                        }
-                      },
-                      onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
-                      // Add drag selection functionality
-                      onPanDown: (details) {
-                        // Reset any existing drag state
-                        _mightStartDragging = false;
-                        
-                        // Store the initial pan position but don't immediately start dragging
-                        // This allows for distinguishing between clicks and drags
-                        _initialPanPosition = details.globalPosition;
-                        
-                        // Only start tracking for possible dragging if not clicking on an item
-                        final hitPosition = details.globalPosition;
-                        bool hitOnItem = false;
-                        
-                        // See if we hit any item directly
-                        for (final item in displayItems) {
-                          final rect = _itemPositions[item.path];
-                          if (rect != null && rect.contains(hitPosition)) {
-                            hitOnItem = true;
-                            break;
-                          }
-                        }
-                        
-                        // Mark that we might start dragging, but don't actually start yet
-                        // We'll decide in onPanUpdate if this is a drag or just a click
-                        _mightStartDragging = !hitOnItem && !HardwareKeyboard.instance.isControlPressed;
-                      },
-                      onPanUpdate: (details) {
-                        // If we're already dragging, update the selection rectangle
-                        if (_isDragging) {
-                          setState(() {
-                            _dragEndPosition = details.globalPosition;
-                            
-                            // Update selected items based on selection rectangle
-                            final selectionRect = _getSelectionRect();
-                            _selectedItemsPaths = _getItemsInSelectionArea(selectionRect);
-                            
-                            // Update preview panel if exactly one item is selected
-                            if (_selectedItemsPaths.length == 1) {
-                              final selectedPath = _selectedItemsPaths.first;
-                              final selectedItem = displayItems.firstWhere(
-                                (item) => item.path == selectedPath,
-                                orElse: () => FileItem(
-                                  path: '',
-                                  name: '',
-                                  type: FileItemType.unknown,
-                                ),
-                              );
-                              
-                              if (selectedItem.type != FileItemType.unknown) {
-                                Provider.of<PreviewPanelService>(context, listen: false)
-                                    .setSelectedItem(selectedItem);
-                              }
-                            }
-                          });
-                        } 
-                        // If we might start dragging and have moved enough, start actual dragging
-                        else if (_mightStartDragging && _initialPanPosition != null) {
-                          // Calculate distance moved
-                          final distance = (_initialPanPosition! - details.globalPosition).distance;
-                          // Only start dragging if moved more than a small threshold (prevents accidental drags)
-                          if (distance > 5.0) {
-                            setState(() {
-                              _isDragging = true;
-                              _dragStartPosition = _initialPanPosition;
-                              _dragEndPosition = details.globalPosition;
-                              
-                              // Clear selection when starting new drag
-                              _selectedItemsPaths = {};
-                              
-                              // Clear the preview panel
-                              Provider.of<PreviewPanelService>(context, listen: false)
-                                  .setSelectedItem(null);
-                            });
-                          }
-                        }
-                      },
-                      onPanEnd: (details) {
-                        _cleanupDragSelection();
-                      },
-                      child: GridView.builder(
-                        controller: _scrollController,
-                        padding: EdgeInsets.only(bottom: 100.0 * Provider.of<IconSizeService>(context).gridUIScale),
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: Provider.of<IconSizeService>(context).gridItemExtent,
-                          childAspectRatio: 1.0 / (Provider.of<IconSizeService>(context).gridUIScale > 1.2 ? 1.1 : 1.0),
-                          crossAxisSpacing: 5.0,
-                          mainAxisSpacing: 5.0,
-                        ),
-                        itemCount: displayItems.length,
-                        itemBuilder: (context, index) {
-                          final item = displayItems[index];
-                          return LayoutBuilder(
-                            builder: (context, constraints) {
-                              return ItemPositionTracker(
-                                key: ValueKey(item.path),
-                                path: item.path,
-                                onPositionChanged: _registerItemPosition,
-                                child: GridItemWidget(
-                                  key: ValueKey(item.path),
-                                  item: item,
-                                  onTap: _selectItem,
-                                  onDoubleTap: () => _handleItemDoubleTap(item),
-                                  onLongPress: _showOptionsDialog,
-                                  onRightClick: _showContextMenu,
-                                  isSelected: _selectedItemsPaths.contains(item.path),
-                                ),
-                              );
-                            }
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Draw selection rectangle if dragging
-            if (_isDragging && _dragStartPosition != null && _dragEndPosition != null)
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: SelectionRectanglePainter(
-                    startPoint: _dragStartPosition!,
-                    endPoint: _dragEndPosition!,
-                    isDarkMode: Theme.of(context).brightness == Brightness.dark,
-                  ),
-                ),
-              ),
-          ],
-        );
 
-      case ViewMode.list:
-        return Stack(
-          children: [
-            Column(
-              children: [
-                // Show search results indicator
-                if (_isSearchActive && _isSearching) 
-                  Container(
-                    width: double.infinity,
-                    margin: EdgeInsets.fromLTRB(8, 8, 8, 0),
-                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.blue.withValues(alpha: 0.1)
-                          : Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, size: 16, color: Colors.blue),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Found ${_searchResults.length} results for "${_searchController.text}"',
-                            style: TextStyle(color: Colors.blue),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            _searchController.clear();
-                            _performSearch('');
-                          },
-                          style: TextButton.styleFrom(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: Text('Clear', style: TextStyle(fontSize: 12)),
-                        ),
-                      ],
-                    ),
-                  ),
-                
-                // List view with items
-                Expanded(
-                  child: GestureDetector(
-                    key: _gridViewKey,
-                    onTap: () {
-                      // Check if we recently completed a selection
-                      if (_isSelectionCompleted) {
-                        setState(() {
-                          _isSelectionCompleted = false;
-                        });
-                        return;
-                      }
-                      
-                      // Clear selection only if not completing a drag operation
-                      if (!_isDragging) {
-                        setState(() {
-                          _selectedItemsPaths = {};
-                          _dragStartPosition = null;
-                          _dragEndPosition = null;
-                          _isSelectionCompleted = false;  // Reset completed flag
-                          
-                          // Clear the preview panel
-                          Provider.of<PreviewPanelService>(context, listen: false)
-                              .setSelectedItem(null);
-                        });
-                      }
-                    },
-                    onSecondaryTapUp: (details) => _showEmptySpaceContextMenu(details.globalPosition),
-                    // Add drag selection functionality
-                    onPanDown: (details) {
-                      // Reset any existing drag state
-                      _mightStartDragging = false;
-                      
-                      // Store the initial pan position but don't immediately start dragging
-                      // This allows for distinguishing between clicks and drags
-                      _initialPanPosition = details.globalPosition;
-                      
-                      // Only start tracking for possible dragging if not clicking on an item
-                      final hitPosition = details.globalPosition;
-                      bool hitOnItem = false;
-                      
-                      // See if we hit any item directly
-                      for (final item in displayItems) {
-                        final rect = _itemPositions[item.path];
-                        if (rect != null && rect.contains(hitPosition)) {
-                          hitOnItem = true;
-                          break;
-                        }
-                      }
-                      
-                      // Mark that we might start dragging, but don't actually start yet
-                      // We'll decide in onPanUpdate if this is a drag or just a click
-                      _mightStartDragging = !hitOnItem && !HardwareKeyboard.instance.isControlPressed;
-                    },
-                    onPanUpdate: (details) {
-                      // If we're already dragging, update the selection rectangle
-                      if (_isDragging) {
-                        setState(() {
-                          _dragEndPosition = details.globalPosition;
-                          
-                          // Update selected items based on selection rectangle
-                          final selectionRect = _getSelectionRect();
-                          _selectedItemsPaths = _getItemsInSelectionArea(selectionRect);
-                          
-                          // Update preview panel if exactly one item is selected
-                          if (_selectedItemsPaths.length == 1) {
-                            final selectedPath = _selectedItemsPaths.first;
-                            final selectedItem = displayItems.firstWhere(
-                              (item) => item.path == selectedPath,
-                              orElse: () => FileItem(
-                                path: '',
-                                name: '',
-                                type: FileItemType.unknown,
-                              ),
-                            );
-                            
-                            if (selectedItem.type != FileItemType.unknown) {
-                              Provider.of<PreviewPanelService>(context, listen: false)
-                                  .setSelectedItem(selectedItem);
-                            }
-                          }
-                        });
-                      } 
-                      // If we might start dragging and have moved enough, start actual dragging
-                      else if (_mightStartDragging && _initialPanPosition != null) {
-                        // Calculate distance moved
-                        final distance = (_initialPanPosition! - details.globalPosition).distance;
-                        // Only start dragging if moved more than a small threshold (prevents accidental drags)
-                        if (distance > 5.0) {
-                          setState(() {
-                            _isDragging = true;
-                            _dragStartPosition = _initialPanPosition;
-                            _dragEndPosition = details.globalPosition;
-                            
-                            // Clear selection when starting new drag
-                            _selectedItemsPaths = {};
-                            
-                            // Clear the preview panel
-                            Provider.of<PreviewPanelService>(context, listen: false)
-                                .setSelectedItem(null);
-                          });
-                        }
-                      }
-                    },
-                    onPanEnd: (details) {
-                      _cleanupDragSelection();
-                    },
-                    child: ListView.builder(
-                      controller: _scrollController,
-                      padding: EdgeInsets.only(bottom: 100.0 * Provider.of<IconSizeService>(context).listUIScale),
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount: displayItems.length,
-                      itemBuilder: (context, index) {
-                        final item = displayItems[index];
-                        return ItemPositionTracker(
-                          key: ValueKey(item.path),
-                          path: item.path,
-                          onPositionChanged: _registerItemPosition,
-                          child: FileItemWidget(
-                            key: ValueKey(item.path),
-                            item: item,
-                            onTap: _selectItem,
-                            onDoubleTap: () => _handleItemDoubleTap(item),
-                            onLongPress: _showOptionsDialog,
-                            onRightClick: _showContextMenu,
-                            isSelected: _selectedItemsPaths.contains(item.path),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            // Draw selection rectangle if dragging
-            if (_isDragging && _dragStartPosition != null && _dragEndPosition != null)
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: SelectionRectanglePainter(
-                    startPoint: _dragStartPosition!,
-                    endPoint: _dragEndPosition!,
-                    isDarkMode: Theme.of(context).brightness == Brightness.dark,
-                  ),
-                ),
-              ),
-          ],
-        );
-
-      case ViewMode.split:
-        return SplitFolderView(
-          items: displayItems,
-          onItemTap: _selectItem,
-          onItemDoubleTap: _handleItemDoubleTap,
-          onItemLongPress: _showOptionsDialog,
-          onItemRightClick: _showContextMenu,
-          selectedItemsPaths: _selectedItemsPaths,
-          onEmptyAreaTap: () {
-            setState(() {
-              _selectedItemsPaths = {};
-            });
-          },
-          onEmptyAreaRightClick: _showEmptySpaceContextMenu,
-        );
-      case ViewMode.column:
-        return ColumnViewWidget(
-          currentPath: _currentPath,
-          items: displayItems,
-          onNavigate: _navigateToDirectory,
-          onItemTap: _selectItem,
-          onItemDoubleTap: _handleItemDoubleTap,
-          onItemLongPress: _showOptionsDialog,
-          onItemRightClick: _showContextMenu,
-          selectedItemsPaths: _selectedItemsPaths,
-          onEmptyAreaTap: () {
-            setState(() {
-              _selectedItemsPaths = {};
-            });
-          },
-          onEmptyAreaRightClick: _showEmptySpaceContextMenu,
-        );
-    }
+    return KeyEventResult.ignored;
   }
 
-  /// Check if a directory is a mount point
+  // Check if a directory is a mount point
   Future<bool> _isDirectoryMountPoint(String path) async {
     try {
-      // Run the findmnt command to check if this is a mount point
-      final ProcessResult result = await Process.run('findmnt', ['-n', path]);
+      // Use mount command to list mounted file systems
+      final result = await Process.run('mount', []);
+      if (result.exitCode != 0) return false;
       
-      // If the command returns successfully with output, it's a mount point
-      return result.exitCode == 0 && result.stdout.toString().trim().isNotEmpty;
+      // Parse the mount output
+      final List<String> mountOutput = result.stdout.toString().split('\n');
+      
+      // Check if the path is in the mount list
+      for (final line in mountOutput) {
+        if (line.contains(' on $path ')) {
+          return true;
+        }
+      }
+      
+      // Also check with UsbDriveService
+      final drives = await _usbDriveService.getMountedUsbDrives();
+      return drives.any((drive) => drive.mountPoint == path);
     } catch (e) {
+      // If there's an error, assume it's not a mount point
       return false;
     }
   }
-  
-  /// Show confirmation dialog for unmounting a drive
-  Future<void> _showUnmountConfirmation(FileItem item) async {
+
+  // Build breadcrumb navigation widget
+  Widget _buildBreadcrumbNavigator() {
+    // Split the path into segments
+    final List<String> pathSegments = [];
+    
+    // Always start with root
+    String currentBuiltPath = '';
+    
+    // Handle root directory
+    if (_currentPath == '/') {
+      pathSegments.add('/');
+    } else {
+      // Split the path and build segments with full paths
+      final parts = _currentPath.split('/').where((p) => p.isNotEmpty).toList();
+      
+      // Add root
+      pathSegments.add('/');
+      currentBuiltPath = '/';
+      
+      // Add each subsequent directory
+      for (int i = 0; i < parts.length; i++) {
+        currentBuiltPath = '$currentBuiltPath${parts[i]}/';
+        pathSegments.add(currentBuiltPath);
+      }
+    }
+    
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (int i = 0; i < pathSegments.length; i++)
+            Row(
+              children: [
+                // No separator before root
+                if (i > 0)
+                  const Text(' / ', style: TextStyle(color: Colors.grey)),
+                
+                InkWell(
+                  onTap: () => _navigateToDirectory(pathSegments[i]),
+                  child: Text(
+                    i == 0 
+                        ? 'Root'  // Root directory
+                        : p.basename(pathSegments[i].substring(0, pathSegments[i].length - 1)),  // Remove trailing slash
+                    style: TextStyle(
+                      color: i == pathSegments.length - 1
+                          ? Theme.of(context).primaryColor  // Current directory
+                          : null,
+                      fontWeight: i == pathSegments.length - 1
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  // Perform search on the current directory
+  void _performSearch(String query) {
+    if (query.isEmpty) {
+      setState(() {
+        _isSearching = false;
+        _searchResults.clear();
+      });
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+      _searchResults = _items.where((item) {
+        return item.name.toLowerCase().contains(query.toLowerCase());
+      }).toList();
+    });
+  }
+
+  // Show app options menu
+  void _showOptionsMenu(BuildContext context) {
+    final viewModeService = Provider.of<ViewModeService>(context, listen: false);
+    final previewPanelService = Provider.of<PreviewPanelService>(context, listen: false);
+    final themeService = Provider.of<ThemeService>(context, listen: false);
+    final iconSizeService = Provider.of<IconSizeService>(context, listen: false);
+    final statusBarService = Provider.of<StatusBarService>(context, listen: false);
+    final appService = Provider.of<AppService>(context, listen: false);
+    
+    showMenu<String>(
+      context: context,
+      position: const RelativeRect.fromLTRB(100, 80, 0, 0),
+      items: <PopupMenuEntry<String>>[
+        // View mode submenu
+        PopupMenuItem<String>(
+          value: 'view_mode',
+          child: Row(
+            children: [
+              Icon(Icons.view_list),
+              SizedBox(width: 8),
+              Text('View Mode'),
+            ],
+          ),
+          onTap: () {
+            // Pop this menu and show view mode submenu
+            Future.delayed(const Duration(milliseconds: 10), () {
+              showMenu<String>(
+                context: context,
+                position: const RelativeRect.fromLTRB(120, 100, 0, 0),
+                items: <PopupMenuEntry<String>>[
+                  PopupMenuItem<String>(
+                    value: 'list',
+                    child: Row(
+                      children: [
+                        Icon(Icons.view_list),
+                        SizedBox(width: 8),
+                        Text('List View'),
+                      ],
+                    ),
+                    onTap: () => viewModeService.setViewMode(ViewMode.list),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'grid',
+                    child: Row(
+                      children: [
+                        Icon(Icons.grid_view),
+                        SizedBox(width: 8),
+                        Text('Grid View'),
+                      ],
+                    ),
+                    onTap: () => viewModeService.setViewMode(ViewMode.grid),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'details',
+                    child: Row(
+                      children: [
+                        Icon(Icons.table_rows),
+                        SizedBox(width: 8),
+                        Text('Details View'),
+                      ],
+                    ),
+                    onTap: () => viewModeService.setViewMode(ViewMode.split),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'column',
+                    child: Row(
+                      children: [
+                        Icon(Icons.view_column),
+                        SizedBox(width: 8),
+                        Text('Column View'),
+                      ],
+                    ),
+                    onTap: () => viewModeService.setViewMode(ViewMode.column),
+                  ),
+                ],
+              );
+            });
+          },
+        ),
+        
+        // Theme switcher
+        PopupMenuItem<String>(
+          value: 'theme',
+          child: Row(
+            children: [
+              Icon(themeService.isDarkMode ? Icons.dark_mode : Icons.light_mode),
+              SizedBox(width: 8),
+              Text(themeService.isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'),
+            ],
+          ),
+          onTap: () => themeService.toggleTheme(),
+        ),
+        
+        // Icon size submenu
+        PopupMenuItem<String>(
+          value: 'icon_size',
+          child: Row(
+            children: [
+              Icon(Icons.photo_size_select_large),
+              SizedBox(width: 8),
+              Text('Icon Size'),
+            ],
+          ),
+          onTap: () {
+            // Pop this menu and show icon size submenu
+            Future.delayed(const Duration(milliseconds: 10), () {
+              showMenu<String>(
+                context: context,
+                position: const RelativeRect.fromLTRB(120, 150, 0, 0),
+                items: <PopupMenuEntry<String>>[
+                  PopupMenuItem<String>(
+                    value: 'small',
+                    child: Text('Small'),
+                    onTap: () {
+                      iconSizeService.decreaseListIconSize();
+                      iconSizeService.decreaseGridIconSize();
+                    },
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'medium',
+                    child: Text('Medium'),
+                    onTap: () => iconSizeService.resetToDefaults(),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'large',
+                    child: Text('Large'),
+                    onTap: () {
+                      iconSizeService.increaseListIconSize();
+                      iconSizeService.increaseGridIconSize();
+                    },
+                  ),
+                ],
+              );
+            });
+          },
+        ),
+        
+        // Toggle status bar
+        PopupMenuItem<String>(
+          value: 'status_bar',
+          child: Row(
+            children: [
+              Icon(statusBarService.showStatusBar ? Icons.visibility_off : Icons.visibility),
+              SizedBox(width: 8),
+              Text(statusBarService.showStatusBar ? 'Hide Status Bar' : 'Show Status Bar'),
+            ],
+          ),
+          onTap: () => statusBarService.toggleStatusBar(),
+        ),
+        
+        // Toggle preview panel
+        PopupMenuItem<String>(
+          value: 'preview_panel',
+          child: Row(
+            children: [
+              Icon(previewPanelService.showPreviewPanel ? Icons.info : Icons.info_outline),
+              SizedBox(width: 8),
+              Text(previewPanelService.showPreviewPanel ? 'Hide Preview Panel' : 'Show Preview Panel'),
+            ],
+          ),
+          onTap: () => previewPanelService.togglePreviewPanel(),
+        ),
+        
+        const PopupMenuDivider(),
+        
+        // File associations
+        PopupMenuItem<String>(
+          value: 'file_associations',
+          child: Row(
+            children: [
+              Icon(Icons.link),
+              SizedBox(width: 8),
+              Text('File Associations'),
+            ],
+          ),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const FileAssociationsScreen()),
+            );
+          },
+        ),
+        
+        // Refresh application list
+        PopupMenuItem<String>(
+          value: 'refresh_apps',
+          child: Row(
+            children: [
+              Icon(Icons.refresh),
+              SizedBox(width: 8),
+              Text('Refresh App List'),
+            ],
+          ),
+          onTap: () => appService.refreshApps(),
+        ),
+      ],
+    );
+  }
+
+  // Function to delete selected items
+  void _deleteSelectedItems() async {
+    if (_selectedItemsPaths.isEmpty) return;
+    
+    List<FileItem> itemsToDelete = _items.where(
+      (item) => _selectedItemsPaths.contains(item.path)
+    ).toList();
+    
     // Show confirmation dialog
-    final bool confirm = await showDialog(
+    final bool confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Unmount Drive'),
-        content: Text('Are you sure you want to unmount ${item.name}?\n\nAll file operations on this drive will be unavailable until reconnected.'),
+        title: Text('Delete ${itemsToDelete.length} ${itemsToDelete.length == 1 ? 'Item' : 'Items'}'),
+        content: Text('Are you sure you want to delete the selected items? This action cannot be undone.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel'),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Unmount'),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text('Delete'),
           ),
         ],
       ),
     ) ?? false;
     
-    if (!confirm) return;
-    
-    // Show loading indicator
-    if (!mounted) return;
-    
-    NotificationService.showNotification(
-      context,
-      message: 'Unmounting ${item.name}...',
-          type: NotificationType.info,
-      duration: const Duration(milliseconds: 750),
-    );
-    
-    try {
-      final success = await _usbDriveService.unmountDrive(item.path);
-      
-      if (success) {
-        // If current directory is the unmounted one or a subdirectory, navigate to parent
-        if (_currentPath == item.path || _currentPath.startsWith('${item.path}/')) {
-          final parentPath = p.dirname(_currentPath);
-          _navigateToDirectory(parentPath);
-        } else {
-          // Just refresh current directory
-          _loadDirectory(_currentPath);
-        }
-        
-        // Show success notification
-        if (mounted) {
-          NotificationService.showNotification(
-            context,
-            message: '${item.name} unmounted successfully',
-            type: NotificationType.success,
+    if (confirmed) {
+      try {
+        // Show progress for multiple items
+        if (itemsToDelete.length > 1) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: Text('Deleting Files'),
+                content: Row(
+                  children: [
+                    SizedBox(
+                      width: 30,
+                      height: 30,
+                      child: CircularProgressIndicator(),
+                    ),
+                    SizedBox(width: 16),
+                    Text('Deleting ${itemsToDelete.length} items...'),
+                  ],
+                ),
+              );
+            },
           );
         }
-      } else {
-        // Show error notification
+        
+        int successCount = 0;
+        List<String> errors = [];
+        
+        // Delete each item
+        for (final item in itemsToDelete) {
+          try {
+            await _fileService.deleteFileOrDirectory(item.path);
+            successCount++;
+          } catch (e) {
+            errors.add('${item.name}: $e');
+          }
+        }
+        
+        // Dismiss progress dialog if it was shown
+        if (itemsToDelete.length > 1 && mounted) {
+          Navigator.pop(context);
+        }
+        
+        // Refresh directory contents
+        _loadDirectory(_currentPath);
+        
+        // Show result notification
+        if (mounted) {
+          if (errors.isEmpty) {
+            NotificationService.showNotification(
+              context,
+              message: 'Deleted $successCount ${successCount == 1 ? 'item' : 'items'}',
+              type: NotificationType.success,
+            );
+          } else {
+            NotificationService.showNotification(
+              context,
+              message: 'Completed with ${errors.length} errors',
+              type: NotificationType.warning,
+            );
+            
+            // Show detailed error dialog for multiple errors
+            if (errors.length > 1) {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text('Delete Errors'),
+                  content: SizedBox(
+                    width: double.maxFinite,
+                    height: 200,
+                    child: ListView.builder(
+                      itemCount: errors.length,
+                      itemBuilder: (context, index) {
+                        return ListTile(
+                          leading: Icon(Icons.error, color: Colors.red),
+                          title: Text(errors[index], 
+                              style: TextStyle(fontSize: 14)),
+                        );
+                      },
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('Close'),
+                    ),
+                  ],
+                ),
+              );
+            }
+          }
+        }
+      } catch (e) {
         if (mounted) {
           NotificationService.showNotification(
             context,
-            message: 'Failed to unmount drive. Make sure it\'s not in use.',
+            message: 'Error: $e',
             type: NotificationType.error,
           );
         }
       }
+    }
+  }
+
+  // Copy selected items to clipboard
+  void _copySelectedItems() {
+    if (_selectedItemsPaths.isEmpty) return;
+    
+    final List<FileItem> selectedItems = _items
+        .where((item) => _selectedItemsPaths.contains(item.path))
+        .toList();
+    
+    setState(() {
+      _clipboardItems = selectedItems;
+      _isItemCut = false;
+    });
+    
+    NotificationService.showNotification(
+      context,
+      message: 'Copied ${selectedItems.length} ${selectedItems.length == 1 ? 'item' : 'items'} to clipboard',
+      type: NotificationType.info,
+    );
+  }
+  
+  // Cut selected items to clipboard
+  void _cutSelectedItems() {
+    if (_selectedItemsPaths.isEmpty) return;
+    
+    final List<FileItem> selectedItems = _items
+        .where((item) => _selectedItemsPaths.contains(item.path))
+        .toList();
+    
+    setState(() {
+      _clipboardItems = selectedItems;
+      _isItemCut = true;
+    });
+    
+    NotificationService.showNotification(
+      context,
+      message: 'Cut ${selectedItems.length} ${selectedItems.length == 1 ? 'item' : 'items'} to clipboard',
+      type: NotificationType.info,
+    );
+  }
+
+  // Check if a file or directory exists at the given path
+  Future<bool> _fileExists(String path) async {
+    try {
+      return await File(path).exists() || await Directory(path).exists();
     } catch (e) {
-      // Show error notification
+      return false;
+    }
+  }
+
+  // Show dialog to choose an application to open a file
+  Future<void> _showOpenWithDialog(FileItem item) async {
+    try {
+      // Extract filename from the path
+      final fileName = p.basename(item.path);
+      
+      // Show app selection dialog
+      showDialog(
+        context: context,
+        builder: (context) => AppSelectionDialog(
+          filePath: item.path,
+          fileName: fileName,
+        ),
+      );
+    } catch (e) {
       if (mounted) {
         NotificationService.showNotification(
           context,
-          message: 'Error: ${e.toString()}',
+          message: 'Failed to show open with dialog: $e',
           type: NotificationType.error,
         );
       }
     }
   }
 
-  // Re-implement the _showEmptySpaceContextMenu method that was deleted
-  void _showEmptySpaceContextMenu(Offset position) async {
-    // Deselect any selected items when right-clicking on empty space
+  // Open a terminal in the specified directory
+  void _openInTerminal(FileItem item) {
+    if (item.type != FileItemType.directory) return;
+    
+    try {
+      // Try to determine the default terminal
+      // Common terminal emulators to check
+      final List<String> terminals = [
+        'gnome-terminal', 
+        'konsole',
+        'xfce4-terminal',
+        'terminator',
+        'tilix',
+        'kitty',
+        'alacritty',
+        'xterm',
+      ];
+      
+      // Find first available terminal
+      Process.run('which', terminals).then((result) {
+        final String output = result.stdout.toString().trim();
+        if (output.isNotEmpty) {
+          final String terminal = output.split('\n').first;
+          final List<String> command = [];
+          
+          // Customize command based on terminal
+          if (terminal.contains('gnome-terminal')) {
+            command.addAll([terminal, '--working-directory=${item.path}']);
+          } else if (terminal.contains('konsole')) {
+            command.addAll([terminal, '--workdir', item.path]);
+          } else if (terminal.contains('xfce4-terminal')) {
+            command.addAll([terminal, '--working-directory=${item.path}']);
+          } else if (terminal.contains('terminator')) {
+            command.addAll([terminal, '--working-directory=${item.path}']);
+          } else if (terminal.contains('tilix')) {
+            command.addAll([terminal, '--working-directory=${item.path}']);
+          } else {
+            // For other terminals, fallback to cd command
+            command.addAll([terminal, '-e', 'cd ${item.path} && bash']);
+          }
+          
+          Process.start(command[0], command.sublist(1));
+        } else {
+          // Fallback to xterm if no other terminal found
+          Process.start('xterm', ['-e', 'cd ${item.path} && bash']);
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Failed to open terminal: $e',
+          type: NotificationType.error,
+        );
+      }
+    }
+  }
+
+  // Show confirmation dialog to unmount a drive
+  Future<void> _showUnmountConfirmation(FileItem item) async {
+    if (item.type != FileItemType.directory) return;
+    
+    try {
+      // Check if this is actually a mount point
+      final isMountPoint = await _isDirectoryMountPoint(item.path);
+      if (!isMountPoint) return;
+      
+      // Show confirmation dialog
+      final bool confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Unmount Drive'),
+          content: Text('Are you sure you want to unmount the drive at "${item.path}"?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: TextButton.styleFrom(foregroundColor: Colors.orange),
+              child: Text('Unmount'),
+            ),
+          ],
+        ),
+      ) ?? false;
+      
+      if (confirmed) {
+        // Show progress indicator
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              content: Row(
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 16),
+                  Text('Unmounting drive...'),
+                ],
+              ),
+            ),
+          );
+        }
+        
+        // Get the USB drive from service
+        final drives = await _usbDriveService.getMountedUsbDrives();
+        final drive = drives.firstWhere(
+          (drive) => drive.mountPoint == item.path,
+          orElse: () => UsbDrive(
+            mountPoint: item.path,
+            deviceName: '',
+            totalBytes: 0,
+            driveType: 'unknown',
+          ),
+        );
+        
+        // Perform unmount operation
+        final success = await _usbDriveService.unmountDrive(item.path);
+        
+        // Dismiss progress dialog
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+        
+        // Show result notification
+        if (mounted) {
+          if (success) {
+            NotificationService.showNotification(
+              context,
+              message: 'Drive unmounted successfully',
+              type: NotificationType.success,
+            );
+            
+            // Navigate up to parent directory
+            if (_currentPath == item.path) {
+              final directory = Directory(item.path);
+              _navigateToDirectory(directory.parent.path);
+            } else {
+              // Refresh the current directory
+              _loadDirectory(_currentPath);
+            }
+          } else {
+            NotificationService.showNotification(
+              context,
+              message: 'Failed to unmount drive. Make sure no files are in use.',
+              type: NotificationType.error,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Error unmounting drive: $e',
+          type: NotificationType.error,
+        );
+      }
+    }
+  }
+
+  // Show context menu for empty area
+  void _showEmptyAreaContextMenu(Offset position) async {
+    // Clear selection
     setState(() {
       _selectedItemsPaths = {};
     });
@@ -2624,6 +2081,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     // Add mounted check
     if (!mounted) return;
     
+    // Check if clipboard has items (we'll create a simpler implementation)
+    final bool hasClipboardItems = false; // In a real implementation, this would check clipboard state
+    
+    // Create menu items
     final menuItems = <PopupMenuEntry<String>>[
       PopupMenuItem<String>(
         value: 'new_folder',
@@ -2645,71 +2106,53 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           ],
         ),
       ),
+      const PopupMenuDivider(),
+      PopupMenuItem<String>(
+        value: 'paste',
+        enabled: hasClipboardItems,
+        child: Row(
+          children: [
+            Icon(Icons.paste, color: hasClipboardItems ? null : Colors.grey),
+            SizedBox(width: 8),
+            Text('Paste', style: TextStyle(color: hasClipboardItems ? null : Colors.grey)),
+          ],
+        ),
+      ),
+      const PopupMenuDivider(),
+      PopupMenuItem<String>(
+        value: 'select_all',
+        child: Row(
+          children: [
+            Icon(Icons.select_all),
+            SizedBox(width: 8),
+            Text('Select All'),
+          ],
+        ),
+      ),
+      const PopupMenuDivider(),
+      PopupMenuItem<String>(
+        value: 'sort_by',
+        child: Row(
+          children: [
+            Icon(Icons.sort),
+            SizedBox(width: 8),
+            Text('Sort By'),
+          ],
+        ),
+      ),
+      PopupMenuItem<String>(
+        value: 'view_options',
+        child: Row(
+          children: [
+            Icon(Icons.view_list),
+            SizedBox(width: 8),
+            Text('View Options'),
+          ],
+        ),
+      ),
     ];
     
-    // Add paste option if clipboard has items
-    if (_clipboardItems != null && _clipboardItems!.isNotEmpty) {
-      menuItems.add(
-        PopupMenuItem<String>(
-          value: 'paste',
-          child: Row(
-            children: [
-              Icon(Icons.content_paste),
-              SizedBox(width: 8),
-              Text(_isItemCut ? 'Paste (Cut)' : 'Paste (Copy)'),
-            ],
-          ),
-        ),
-      );
-    }
-    
-    // Add divider before additional options
-    menuItems.add(const PopupMenuDivider());
-    
-    // Additional common options
-    menuItems.addAll([
-      PopupMenuItem<String>(
-        value: 'open_in_terminal',
-        child: Row(
-          children: [
-            Icon(Icons.terminal),
-            SizedBox(width: 8),
-            Text('Open in Terminal'),
-          ],
-        ),
-      ),
-      const PopupMenuItem<String>(
-        value: 'refresh',
-        child: Row(
-          children: [
-            Icon(Icons.refresh),
-            SizedBox(width: 8),
-            Text('Refresh'),
-          ],
-        ),
-      ),
-      const PopupMenuItem<String>(
-        value: 'file_associations',
-        child: Row(
-          children: [
-            Icon(Icons.settings_applications),
-            SizedBox(width: 8),
-            Text('File Associations'),
-          ],
-        ),
-      ),
-      PopupMenuItem<String>(
-        value: 'properties',
-        child: Row(
-          children: [
-            Icon(Icons.info_outline),
-            SizedBox(width: 8),
-            Text('Folder Properties'),
-          ],
-        ),
-      ),
-    ]);
-    
+    // Show context menu
     final result = await showMenu<String>(
       context: context,
       position: menuPosition,
@@ -2719,500 +2162,484 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     // Process the selected menu option
     if (result == null || !mounted) return;
     
+    // Handle menu selection
     switch (result) {
       case 'new_folder':
-        _showCreateDialog(true);
+        _handleCreateNewFolder();
         break;
       case 'new_file':
-        _showCreateDialog(false);
+        _handleCreateNewFile();
         break;
       case 'paste':
-        _pasteItems();
+        // Paste would be handled here in a real implementation
         break;
-      case 'open_in_terminal':
-        _openCurrentDirectoryInTerminal();
+      case 'select_all':
+        _selectAllItems();
         break;
-      case 'refresh':
-        _loadDirectory(_currentPath);
+      case 'sort_by':
+        _handleSortByOptions(position);
         break;
-      case 'file_associations':
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => const FileAssociationsScreen(),
-          ),
-        );
-        break;
-      case 'properties':
-        // Create a FileItem for the current directory and show its properties
-        final currentDirItem = FileItem(
-          path: _currentPath,
-          name: p.basename(_currentPath),
-          type: FileItemType.directory,
-        );
-        _showPropertiesDialog(currentDirItem);
+      case 'view_options':
+        _handleViewOptions();
         break;
     }
-  }
-
-  // Re-implement the _openCurrentDirectoryInTerminal method that was deleted
-  void _openCurrentDirectoryInTerminal() async {
-    try {
-      // Try using ptyxis with --working-directory, then fall back to other terminals if needed
-      final String command = 'ptyxis --new-window --working-directory "$_currentPath" || '
-                           'gnome-terminal --working-directory="$_currentPath" || '
-                           'xfce4-terminal --working-directory="$_currentPath" || '
-                           'konsole --workdir="$_currentPath" || '
-                           'xterm -e "cd \'$_currentPath\' && bash"';
-      
-      // Use underscore to ignore the result
-      await Process.run('sh', ['-c', command]);
-      
-      // Don't check exit code as we're using fallbacks with ||
-      // Instead, just show success message if we get here
-      if (mounted) {
-        NotificationService.showNotification(
-          context,
-          message: 'Opened current directory in terminal',
-          type: NotificationType.success,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        NotificationService.showNotification(
-          context,
-          message: 'Failed to open terminal: $e',
-          type: NotificationType.error,
-        );
-      }
-    }
-  }
-
-  // Re-implement the _openInTerminal method that was deleted
-  void _openInTerminal(FileItem item) async {
-    try {
-      final String command;
-      
-      if (item.type == FileItemType.directory) {
-        // For directories, use ptyxis with --working-directory
-        command = 'ptyxis --new-window --working-directory "${item.path}" || '
-                'gnome-terminal --working-directory="${item.path}" || '
-                'xfce4-terminal --working-directory="${item.path}" || '
-                'konsole --workdir="${item.path}" || '
-                'xterm -e "cd \'${item.path}\' && bash"';
-      } else {
-        // For files, determine appropriate action based on file type
-        final String dirname = p.dirname(item.path);
-        
-        if (item.fileExtension == '.sh') {
-          // For shell scripts
-          command = 'ptyxis --new-window --working-directory "$dirname" --command "bash \'${item.path}\'" || '
-                  'gnome-terminal -- bash -c "bash \'${item.path}\'; exec bash" || '
-                  'xfce4-terminal -- bash -c "bash \'${item.path}\'; exec bash" || '
-                  'konsole -e bash -c "bash \'${item.path}\'; exec bash" || '
-                  'xterm -e "bash \'${item.path}\'; exec bash"';
-        } else if (item.fileExtension == '.py') {
-          // For Python scripts
-          command = 'ptyxis --new-window --working-directory "$dirname" --command "python3 \'${item.path}\'" || '
-                  'gnome-terminal -- bash -c "python3 \'${item.path}\'; exec bash" || '
-                  'xfce4-terminal -- bash -c "python3 \'${item.path}\'; exec bash" || '
-                  'konsole -e bash -c "python3 \'${item.path}\'; exec bash" || '
-                  'xterm -e "python3 \'${item.path}\'; exec bash"';
-        } else {
-          // Default to viewing the file with less
-          command = 'ptyxis --new-window --working-directory "$dirname" --command "less \'${item.path}\'" || '
-                  'gnome-terminal -- bash -c "less \'${item.path}\'; exec bash" || '
-                  'xfce4-terminal -- bash -c "less \'${item.path}\'; exec bash" || '
-                  'konsole -e bash -c "less \'${item.path}\'; exec bash" || '
-                  'xterm -e "less \'${item.path}\'; exec bash"';
-        }
-      }
-      
-      // Execute the command using a shell 
-      await Process.run('sh', ['-c', command]);
-      
-      // Don't check exit code as we're using fallbacks with ||
-      // Show a snackbar to confirm
-      if (mounted) {
-        NotificationService.showNotification(
-          context,
-          message: 'Opened in terminal: ${item.name}',
-          type: NotificationType.success,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        NotificationService.showNotification(
-          context,
-          message: 'Failed to open in terminal: $e',
-          type: NotificationType.error,
-        );
-      }
-    }
-  }
-
-  // Add a helper method to check if a file or directory exists
-  Future<bool> _fileExists(String path) async {
-    try {
-      return await File(path).exists() || await Directory(path).exists();
-    } catch (e) {
-      return false;
-    }
-  }
-
-  // Optimize the _getItemsInSelectionArea method
-  Set<String> _getItemsInSelectionArea(Rect selectionRect) {
-    final Set<String> itemsInRect = {};
-    
-    if (selectionRect == Rect.zero) {
-      return itemsInRect;
-    }
-    
-    // Ensure we have updated item positions
-    for (final item in _items) {
-      final rect = _itemPositions[item.path];
-      if (rect != null && rect != Rect.zero && rect.overlaps(selectionRect)) {
-        itemsInRect.add(item.path);
-      }
-    }
-    
-    return itemsInRect;
   }
   
-  // Ensure selection rectangle is properly calculated
-  Rect _getSelectionRect() {
-    if (_dragStartPosition == null || _dragEndPosition == null) {
-      return Rect.zero;
-    }
-    
-    final double left = min(_dragStartPosition!.dx, _dragEndPosition!.dx);
-    final double top = min(_dragStartPosition!.dy, _dragEndPosition!.dy);
-    final double right = max(_dragStartPosition!.dx, _dragEndPosition!.dx);
-    final double bottom = max(_dragStartPosition!.dy, _dragEndPosition!.dy);
-    
-    // Ensure the rectangle has non-zero width and height
-    final width = max(right - left, 1.0);
-    final height = max(bottom - top, 1.0);
-    
-    return Rect.fromLTWH(left, top, width, height);
+  // Handle creating a new folder
+  void _handleCreateNewFolder() {
+    // In a real implementation, this would show a dialog to create a new folder
+    print('Create new folder in: $_currentPath');
   }
   
-  // Method to register item positions for hit testing during drag selection
-  void _registerItemPosition(String path, Rect position) {
-    _itemPositions[path] = position;
+  // Handle creating a new file
+  void _handleCreateNewFile() {
+    // In a real implementation, this would show a dialog to create a new file
+    print('Create new file in: $_currentPath');
   }
   
-  // Clean up after drag selection
-  void _cleanupDragSelection() {
-    if (!mounted) return;  // Add mounted check to prevent setState on unmounted widget
-    
-    setState(() {
-      _isDragging = false;
-      _isSelectionCompleted = true;
-      _mightStartDragging = false;
-      _initialPanPosition = null;
-      
-      // Reset the drag positions
-      _dragStartPosition = null;
-      _dragEndPosition = null;
-    });
-    
-    // Schedule a cleanup of the selection completed flag after the current frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;  // Add mounted check to prevent operations on unmounted widget
-      
-      // Only continue if we're not in the middle of another drag operation
-      if (!_isDragging) {
-        // Do NOT clear item positions as we need them for future drag selections
-        // _itemPositions.clear(); - Remove this line
-        
-        setState(() {
-          _isSelectionCompleted = false;
-        });
-      }
-    });
+  // Select all items in the current directory
+  void _selectAllItems() {
+    // In a real implementation, this would select all items in the current directory
+    print('Select all items in directory: $_currentPath');
+  }
+  
+  // Handle showing sort options
+  void _handleSortByOptions(Offset position) {
+    // In a full implementation, this would show a submenu with sort options
+    print('Show sort options');
+  }
+  
+  // Handle showing view options
+  void _handleViewOptions() {
+    // In a full implementation, this would show view options dialog or menu
+    print('Show view options');
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Force position update on each layout pass
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        // Rebuild item positions map if grid view is available
-        if (_gridViewKey.currentContext?.findRenderObject() != null) {
-          _updateItemPositions();
-        }
-      }
-    });
-  }
-
-  // Helper method to update all item positions
-  void _updateItemPositions() {
-    // This is called to ensure positions are up to date
-    // The actual updating happens in the ItemPositionTracker widgets
-  }
-
-  void _toggleSearch() {
-    setState(() {
-      _isSearchActive = !_isSearchActive;
-      if (!_isSearchActive) {
-        // When closing search, clear search results and text
-        _searchController.clear();
-        _searchResults = [];
-        _isSearching = false;
-      } else {
-        // When activating search, focus the search field after the frame is built
-        _searchController.text = '';
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          // We need to schedule this focus request after the UI is built
-          FocusScope.of(context).requestFocus(FocusNode());
-        });
-      }
-    });
-  }
-
-  Widget _buildSearchBar() {
-    return Container(
-      height: 36,
-      margin: EdgeInsets.symmetric(vertical: 8),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Search in current folder...',
-          prefixIcon: Icon(Icons.search, size: 20),
-          suffixIcon: _searchController.text.isNotEmpty
-            ? IconButton(
-                icon: Icon(Icons.clear, size: 20),
-                onPressed: () {
-                  _searchController.clear();
-                  _performSearch('');
-                },
-                padding: EdgeInsets.zero,
-                constraints: BoxConstraints(),
-              )
-            : null,
-          contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(20),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: Theme.of(context).brightness == Brightness.dark
-            ? Colors.grey.shade800
-            : Colors.grey.shade200,
+  Widget build(BuildContext context) {
+    final bookmarkService = Provider.of<BookmarkService>(context);
+    final viewModeService = Provider.of<ViewModeService>(context);
+    final statusBarService = Provider.of<StatusBarService>(context);
+    final previewPanelService = Provider.of<PreviewPanelService>(context);
+    final themeService = Provider.of<ThemeService>(context);
+    final iconSizeService = Provider.of<IconSizeService>(context);
+    
+    // Listen for animation changes
+    if (previewPanelService.showPreviewPanel && _previewPanelAnimation.isDismissed) {
+      _previewPanelAnimation.forward();
+    } else if (!previewPanelService.showPreviewPanel && _previewPanelAnimation.isCompleted) {
+      _previewPanelAnimation.reverse();
+    }
+    
+    // Listen for bookmark sidebar changes
+    if (_showBookmarkSidebar && _bookmarkSidebarAnimation.isDismissed) {
+      _bookmarkSidebarAnimation.forward();
+    } else if (!_showBookmarkSidebar && _bookmarkSidebarAnimation.isCompleted) {
+      _bookmarkSidebarAnimation.reverse();
+    }
+    
+    // Get selected items for the status bar
+    final List<FileItem> selectedItems = _selectedItemsPaths.isNotEmpty 
+      ? _items.where((item) => _selectedItemsPaths.contains(item.path)).toList() 
+      : [];
+    
+    return Scaffold(
+      body: Focus(
+        focusNode: _focusNode,
+        autofocus: true,
+        onKeyEvent: _handleKeyEvent,
+        child: Column(
+          children: [
+            _buildAppBar(context),
+            Expanded(
+              child: Row(
+                children: [
+                  // Bookmark sidebar with animation
+                  AnimatedBuilder(
+                    animation: _bookmarkSidebarAnimation,
+                    builder: (context, child) {
+                      return SizedBox(
+                        width: _bookmarkSidebarAnimation.value * 200,
+                        child: _showBookmarkSidebar ? BookmarkSidebar(
+                          onNavigate: _navigateToDirectory,
+                          currentPath: _currentPath,
+                        ) : null,
+                      );
+                    },
+                  ),
+                  // Main content area
+                  Expanded(
+                    child: _buildMainContentArea(
+                      viewModeService, 
+                      iconSizeService, 
+                      previewPanelService,
+                    ),
+                  ),
+                  // Preview panel with animation
+                  AnimatedBuilder(
+                    animation: _previewPanelAnimation,
+                    builder: (context, child) {
+                      return SizedBox(
+                        width: _previewPanelAnimation.value * 300,
+                        child: previewPanelService.showPreviewPanel ? PreviewPanel(
+                          onNavigate: _navigateToDirectory,
+                        ) : null,
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            // Status bar at the bottom
+            if (statusBarService.showStatusBar)
+              StatusBar(
+                items: selectedItems.isEmpty ? _items : selectedItems,
+              ),
+          ],
         ),
-        onChanged: _performSearch,
-        textInputAction: TextInputAction.search,
-        onSubmitted: _performSearch,
       ),
     );
   }
 
-  void _performSearch(String query) {
-    setState(() {
-      if (query.isEmpty) {
-        _searchResults = [];
-        _isSearching = false;
-        return;
-      }
-      
-      _isSearching = true;
-      
-      // Convert to lowercase for case-insensitive search
-      final String lowercaseQuery = query.toLowerCase();
-      
-      // Filter the items based on the search query
-      _searchResults = _items.where((item) {
-        final String lowercaseName = item.name.toLowerCase();
-        final String lowercaseExtension = item.fileExtension.toLowerCase();
-        
-        // Match by name, extension, or type for more flexibility
-        return lowercaseName.contains(lowercaseQuery) ||
-               (item.type == FileItemType.file && lowercaseExtension.contains(lowercaseQuery)) ||
-               (lowercaseQuery == 'folder' && item.type == FileItemType.directory) ||
-               (lowercaseQuery == 'file' && item.type == FileItemType.file);
-      }).toList();
-    });
-  }
-
-  // Method to show the open with dialog
-  void _showOpenWithDialog(FileItem item) {
-    // Initialize the app service if needed
-    final appService = Provider.of<AppService>(context, listen: false);
-    if (appService.apps.isEmpty) {
-      appService.init();
-    }
-    
-    // Show the app selection dialog
-    AppSelectionDialog.show(context, item.path);
-  }
-
-  // Add a method to toggle the bookmark sidebar with animation
-  void _toggleBookmarkSidebar() {
-    setState(() {
-      _showBookmarkSidebar = !_showBookmarkSidebar;
-      if (_showBookmarkSidebar) {
-        _bookmarkSidebarAnimation.forward();
-      } else {
-        _bookmarkSidebarAnimation.reverse();
-      }
-    });
-  }
-}
-
-// Custom painter for drawing the selection rectangle
-class SelectionRectanglePainter extends CustomPainter {
-  final Offset startPoint;
-  final Offset endPoint;
-  final bool isDarkMode;
-  
-  SelectionRectanglePainter({
-    required this.startPoint,
-    required this.endPoint,
-    required this.isDarkMode,
-  });
-  
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Create a selection rectangle with exact start and end points
-    final rect = Rect.fromPoints(startPoint, endPoint);
-    
-    // Fill with semi-transparent color
-    final fillPaint = Paint()
-      ..color = isDarkMode
-          ? Colors.blue.withValues(alpha: 51, red: 33, green: 150, blue: 243)  // 0.2 * 255 = 51
-          : Colors.blue.withValues(alpha: 38, red: 33, green: 150, blue: 243)  // 0.15 * 255 = 38
-      ..style = PaintingStyle.fill;
-    
-    // Create a border with a slightly more opaque color
-    final borderPaint = Paint()
-      ..color = isDarkMode
-          ? Colors.blue.withValues(alpha: 153, red: 33, green: 150, blue: 243)  // 0.6 * 255 = 153
-          : Colors.blue.withValues(alpha: 127, red: 33, green: 150, blue: 243)  // 0.5 * 255 = 127
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-    
-    // Draw the filled rectangle first
-    canvas.drawRect(rect, fillPaint);
-    
-    // Then draw the border on top
-    canvas.drawRect(rect, borderPaint);
-  }
-  
-  @override
-  bool shouldRepaint(SelectionRectanglePainter oldDelegate) {
-    return oldDelegate.startPoint != startPoint || 
-           oldDelegate.endPoint != endPoint ||
-           oldDelegate.isDarkMode != isDarkMode;
-  }
-}
-
-// Widget to track the position of an item and report it to parent
-class ItemPositionTracker extends StatefulWidget {
-  final String path;
-  final Widget child;
-  final Function(String, Rect) onPositionChanged;
-  
-  const ItemPositionTracker({
-    super.key,
-    required this.path,
-    required this.child,
-    required this.onPositionChanged,
-  });
-  
-  @override
-  State<ItemPositionTracker> createState() => _ItemPositionTrackerState();
-}
-
-class _ItemPositionTrackerState extends State<ItemPositionTracker> {
-  final GlobalKey _key = GlobalKey();
-  
-  @override
-  void initState() {
-    super.initState();
-    // Schedule a post-frame callback to get the position
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _updatePosition();
-    });
-  }
-  
-  @override
-  void didUpdateWidget(ItemPositionTracker oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Always update position to ensure consistency
-    _updatePosition();
-  }
-  
-  @override
-  void dispose() {
-    // Remove this item's position when the widget is disposed
-    widget.onPositionChanged(widget.path, Rect.zero);
-    super.dispose();
-  }
-  
-  void _updatePosition() {
-    if (!mounted) return;
-    
-    final RenderBox? renderBox = _key.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox != null && renderBox.attached) {
-      final Offset position = renderBox.localToGlobal(Offset.zero);
-      final Size size = renderBox.size;
-      final Rect rect = Rect.fromLTWH(
-        position.dx,
-        position.dy,
-        size.width,
-        size.height,
-      );
-      
-      // Always update the position to ensure selection works
-      widget.onPositionChanged(widget.path, rect);
-    }
-  }
-  
-  @override
-  Widget build(BuildContext context) {
-    // Schedule a position update when the layout happens, but don't call
-    // setState as this would cause an infinite rebuild loop
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _updatePosition();
-      }
-    });
+  Widget _buildAppBar(BuildContext context) {
+    final appService = Provider.of<AppService>(context);
+    final previewPanelService = Provider.of<PreviewPanelService>(context);
     
     return Container(
-      key: _key,
-      child: widget.child,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).dividerColor,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Application title
+          Padding(
+            padding: const EdgeInsets.only(left: 12.0, right: 8.0),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.folder,
+                  size: 18,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.blue.shade300 
+                    : Colors.blue.shade700,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Linux File Explorer',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Divider between title and navigation buttons
+          Container(
+            height: 24,
+            width: 1,
+            margin: const EdgeInsets.symmetric(horizontal: 8.0),
+            color: Theme.of(context).dividerColor,
+          ),
+          IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: _navigationHistory.isEmpty ? null : _navigateBack,
+            tooltip: 'Back',
+            iconSize: 20,
+          ),
+          IconButton(
+            icon: Icon(Icons.arrow_forward),
+            onPressed: _forwardHistory.isEmpty ? null : _navigateForward,
+            tooltip: 'Forward',
+            iconSize: 20,
+          ),
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: () => _loadDirectory(_currentPath),
+            tooltip: 'Refresh',
+            iconSize: 20,
+          ),
+          // Home button
+          IconButton(
+            icon: Icon(Icons.home),
+            onPressed: _initHomeDirectory,
+            tooltip: 'Home Directory',
+            iconSize: 20,
+          ),
+          // Breadcrumb navigation bar
+          Expanded(
+            child: Container(
+              key: _breadcrumbKey,
+              padding: EdgeInsets.symmetric(horizontal: 8.0),
+              child: _buildBreadcrumbNavigator(),
+            ),
+          ),
+          // Search button and field
+          IconButton(
+            icon: Icon(_isSearchActive ? Icons.close : Icons.search),
+            onPressed: () {
+              setState(() {
+                _isSearchActive = !_isSearchActive;
+                if (!_isSearchActive) {
+                  _searchController.clear();
+                  _isSearching = false;
+                  _searchResults.clear();
+                } else {
+                  _searchFocusNode.requestFocus();
+                }
+              });
+            },
+            tooltip: _isSearchActive ? 'Close Search' : 'Search',
+            iconSize: 20,
+          ),
+          if (_isSearchActive)
+            Container(
+              width: 200,
+              height: 30,
+              margin: EdgeInsets.only(right: 8.0),
+              child: TextField(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                decoration: InputDecoration(
+                  contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                  hintText: 'Search...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Theme.of(context).colorScheme.surfaceVariant,
+                ),
+                onChanged: (value) {
+                  if (value.isNotEmpty) {
+                    _performSearch(value);
+                  } else {
+                    setState(() {
+                      _isSearching = false;
+                      _searchResults.clear();
+                    });
+                  }
+                },
+              ),
+            ),
+          // Bookmark toggle
+          IconButton(
+            icon: Icon(_showBookmarkSidebar ? Icons.bookmark : Icons.bookmark_border),
+            onPressed: () {
+              setState(() {
+                _showBookmarkSidebar = !_showBookmarkSidebar;
+              });
+            },
+            tooltip: _showBookmarkSidebar ? 'Hide Bookmarks' : 'Show Bookmarks',
+            iconSize: 20,
+          ),
+          // Preview panel toggle
+          IconButton(
+            icon: Icon(previewPanelService.showPreviewPanel ? Icons.info : Icons.info_outline),
+            onPressed: () => previewPanelService.togglePreviewPanel(),
+            tooltip: previewPanelService.showPreviewPanel ? 'Hide Preview' : 'Show Preview',
+            iconSize: 20,
+          ),
+          // Settings/options menu
+          IconButton(
+            icon: Icon(Icons.more_vert),
+            onPressed: () => _showOptionsMenu(context),
+            tooltip: 'Options',
+            iconSize: 20,
+          ),
+          // Window title action buttons
+          IconButton(
+            icon: Icon(Icons.remove),
+            onPressed: () => windowManager.minimize(),
+            tooltip: 'Minimize',
+            iconSize: 20,
+          ),
+          IconButton(
+            icon: Icon(_isMaximized ? Icons.filter_none : Icons.crop_square),
+            onPressed: () async {
+              if (_isMaximized) {
+                await windowManager.unmaximize();
+              } else {
+                await windowManager.maximize();
+              }
+            },
+            tooltip: _isMaximized ? 'Restore' : 'Maximize',
+            iconSize: 20,
+          ),
+          IconButton(
+            icon: Icon(Icons.close),
+            onPressed: () => windowManager.close(),
+            tooltip: 'Close',
+            iconSize: 20,
+            color: Colors.red,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainContentArea(
+    ViewModeService viewModeService, 
+    IconSizeService iconSizeService,
+    PreviewPanelService previewPanelService,
+  ) {
+    if (_hasError) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Colors.red,
+              size: 48,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Error loading directory',
+              style: TextStyle(fontSize: 18),
+            ),
+            SizedBox(height: 8),
+            Text(_errorMessage),
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => _loadDirectory(_currentPath),
+              child: Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_isLoading) {
+      return Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    // Show search results if searching
+    final items = _isSearching ? _searchResults : _items;
+
+    if (items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              _isSearching ? Icons.search_off : Icons.folder_open,
+              color: Theme.of(context).disabledColor,
+              size: 48,
+            ),
+            SizedBox(height: 16),
+            Text(
+              _isSearching ? 'No search results found' : 'This folder is empty',
+              style: TextStyle(fontSize: 18),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Display files according to the selected view mode
+    switch (viewModeService.viewMode) {
+      case ViewMode.list:
+        return _buildListView(items, iconSizeService);
+      case ViewMode.grid:
+        return _buildGridView(items, iconSizeService);
+      case ViewMode.split:
+        return _buildDetailsView(items, iconSizeService);
+      case ViewMode.column:
+        return ColumnViewWidget(
+          currentPath: _currentPath,
+          items: items,
+          onNavigate: _navigateToDirectory,
+          onItemTap: _selectItem,
+          onItemDoubleTap: _handleItemDoubleTap,
+          onItemLongPress: (item) => _showContextMenu(item, Offset.zero),
+          onItemRightClick: _showContextMenu,
+          selectedItemsPaths: _selectedItemsPaths,
+          onEmptyAreaTap: () => setState(() => _selectedItemsPaths = {}),
+          onEmptyAreaRightClick: _showEmptyAreaContextMenu,
+        );
+      default:
+        return _buildListView(items, iconSizeService);
+    }
+  }
+
+  // Implement the view builders
+  Widget _buildListView(List<FileItem> items, IconSizeService iconSizeService) {
+    return GestureDetector(
+      onSecondaryTapUp: (details) => _showEmptyAreaContextMenu(details.globalPosition),
+      child: ListView.builder(
+        controller: _scrollController,
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final item = items[index];
+          final isSelected = _selectedItemsPaths.contains(item.path);
+          
+          return FileItemWidget(
+            key: ValueKey(item.path),
+            item: item,
+            isSelected: isSelected,
+            onTap: (item, isMultiSelect) => _selectItem(item, isMultiSelect),
+            onDoubleTap: () => _handleItemDoubleTap(item),
+            onLongPress: (item) => _showContextMenu(item, Offset.zero),
+            onRightClick: (item, position) => _showContextMenu(item, position),
+          );
+        },
+      ),
+    );
+  }
+  
+  Widget _buildGridView(List<FileItem> items, IconSizeService iconSizeService) {
+    // Calculate how many items can fit in a row based on current width
+    final int crossAxisCount = (MediaQuery.of(context).size.width / 120).floor().clamp(2, 8);
+    
+    return GestureDetector(
+      onSecondaryTapUp: (details) => _showEmptyAreaContextMenu(details.globalPosition),
+      child: GridView.builder(
+        controller: _scrollController,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: crossAxisCount,
+          childAspectRatio: 0.9,
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+        ),
+        padding: const EdgeInsets.all(16),
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final item = items[index];
+          final isSelected = _selectedItemsPaths.contains(item.path);
+          
+          return GridItemWidget(
+            key: ValueKey(item.path),
+            item: item,
+            isSelected: isSelected,
+            onTap: _selectItem,
+            onDoubleTap: () => _handleItemDoubleTap(item),
+            onLongPress: (item) => _showContextMenu(item, Offset.zero),
+            onRightClick: _showContextMenu,
+          );
+        },
+      ),
+    );
+  }
+  
+  Widget _buildDetailsView(List<FileItem> items, IconSizeService iconSizeService) {
+    return SplitFolderView(
+      items: items,
+      selectedItemsPaths: _selectedItemsPaths,
+      onItemTap: _selectItem,
+      onItemDoubleTap: _handleItemDoubleTap,
+      onItemRightClick: _showContextMenu,
+      onItemLongPress: (item) => _showContextMenu(item, Offset.zero),
+      onEmptyAreaTap: () => setState(() => _selectedItemsPaths = {}),
+      onEmptyAreaRightClick: _showEmptyAreaContextMenu,
     );
   }
 }
-
-// Custom intents for copy/cut and paste operations
-class CopyIntent extends Intent {
-  final bool isCut;
-  
-  const CopyIntent({this.isCut = false});
-  const CopyIntent.cut() : isCut = true;
-  const CopyIntent.copy() : isCut = false;
-}
-
-class PasteIntent extends Intent {
-  const PasteIntent();
-}
-
-// Intent for zoom in/out operations
-class ZoomIntent extends Intent {
-  final bool zoomIn;
-  
-  const ZoomIntent({required this.zoomIn});
-  
-  bool get isZoomIn => zoomIn;
-}
-
-// Add search-related intents
-class SearchIntent extends Intent {
-  const SearchIntent();
-}
-
-class CloseSearchIntent extends Intent {
-  const CloseSearchIntent();
-} 
