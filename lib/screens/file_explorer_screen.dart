@@ -1,6 +1,4 @@
 import 'dart:io';
-import 'dart:math';
-import 'dart:ui'; // Import for ImageFilter
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,7 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:clipboard/clipboard.dart';
 import 'package:window_manager/window_manager.dart';
 import '../models/file_item.dart';
-import '../models/app_item.dart'; // Add import for AppItem
 import '../services/file_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/notification_service.dart';

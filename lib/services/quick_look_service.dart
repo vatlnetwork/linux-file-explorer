@@ -30,10 +30,10 @@ class QuickLookDialog extends StatefulWidget {
   final PreviewPanelService previewPanelService;
 
   const QuickLookDialog({
-    Key? key,
+    super.key,
     required this.item,
     required this.previewPanelService,
-  }) : super(key: key);
+  });
 
   @override
   State<QuickLookDialog> createState() => _QuickLookDialogState();

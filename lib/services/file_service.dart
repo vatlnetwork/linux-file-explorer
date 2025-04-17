@@ -1,149 +1,126 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
+import 'package:logging/logging.dart';
 import '../models/file_item.dart';
 
+/// Service for handling file system operations
 class FileService {
+  final _logger = Logger('FileService');
+  
+  /// Get the home directory path
   Future<String> getHomeDirectory() async {
-    return '/home/${Platform.environment['USER'] ?? Platform.environment['LOGNAME']}';
+    return Platform.environment['HOME'] ?? '/';
   }
-
+  
+  /// List files and directories in a given path
   Future<List<FileItem>> listDirectory(String path) async {
-    final Directory directory = Directory(path);
-    if (!directory.existsSync()) {
-      throw Exception('Directory does not exist');
-    }
-
-    final List<FileSystemEntity> entities = directory.listSync();
-    final List<FileItem> items = [];
-
-    for (final entity in entities) {
-      final FileItemType type = FileItem.getType(entity);
-      
-      if (type == FileItemType.file) {
-        items.add(FileItem.fromFile(entity));
-      } else if (type == FileItemType.directory) {
-        items.add(FileItem.fromDirectory(entity));
-      }
-    }
-
-    // Sort directories first, then files alphabetically
-    items.sort((a, b) {
-      if (a.type != b.type) {
-        return a.type == FileItemType.directory ? -1 : 1;
-      }
-      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-    });
-
-    return items;
-  }
-
-  Future<void> createDirectory(String parentPath, String name) async {
-    final Directory newDir = Directory(p.join(parentPath, name));
-    if (newDir.existsSync()) {
-      throw Exception('Directory already exists');
-    }
-
-    await newDir.create();
-  }
-
-  Future<void> createFile(String parentPath, String name) async {
-    final File newFile = File(p.join(parentPath, name));
-    if (newFile.existsSync()) {
-      throw Exception('File already exists');
-    }
-
-    await newFile.create();
-  }
-
-  Future<void> deleteFileOrDirectory(String path) async {
-    final FileSystemEntity entity = FileSystemEntity.typeSync(path) == FileSystemEntityType.directory
-        ? Directory(path)
-        : File(path);
-
-    if (!entity.existsSync()) {
-      throw Exception('File or directory does not exist');
-    }
-
-    await entity.delete(recursive: true);
-  }
-
-  Future<void> rename(String path, String newName) async {
-    final FileSystemEntity entity = FileSystemEntity.typeSync(path) == FileSystemEntityType.directory
-        ? Directory(path)
-        : File(path);
-
-    if (!entity.existsSync()) {
-      throw Exception('File or directory does not exist');
-    }
-
-    final String parentPath = p.dirname(path);
-    final String newPath = p.join(parentPath, newName);
-
-    await entity.rename(newPath);
-  }
-
-  Future<void> moveFileOrDirectory(String sourcePath, String destinationDir) async {
-    final bool isDirectory = FileSystemEntity.typeSync(sourcePath) == FileSystemEntityType.directory;
-    final String fileName = p.basename(sourcePath);
-    final String destinationPath = p.join(destinationDir, fileName);
-    
-    // Check if source exists
-    if (!(isDirectory ? Directory(sourcePath).existsSync() : File(sourcePath).existsSync())) {
-      throw Exception('Source file or directory does not exist');
-    }
-    
-    // Check if destination directory exists
-    if (!Directory(destinationDir).existsSync()) {
-      throw Exception('Destination directory does not exist');
-    }
-    
-    // Use rename to move (works on same filesystem)
     try {
-      final FileSystemEntity entity = isDirectory ? Directory(sourcePath) : File(sourcePath);
-      await entity.rename(destinationPath);
+      final directory = Directory(path);
+      final entities = await directory.list().toList();
+      final items = <FileItem>[];
+      
+      for (final entity in entities) {
+        // Skip hidden files if needed
+        final fileName = p.basename(entity.path);
+        if (fileName.startsWith('.')) continue;
+        
+        try {
+          final item = await FileItem.fromEntity(entity);
+          items.add(item);
+        } catch (e) {
+          // Skip unreadable files
+          _logger.warning('Error processing file ${entity.path}: $e');
+        }
+      }
+      
+      // Sort: directories first, then files
+      items.sort((a, b) {
+        if (a.type == FileItemType.directory && b.type != FileItemType.directory) {
+          return -1;
+        }
+        if (a.type != FileItemType.directory && b.type == FileItemType.directory) {
+          return 1;
+        }
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+      
+      return items;
     } catch (e) {
-      // If rename fails (e.g., different filesystem), copy then delete
-      await copyFileOrDirectory(sourcePath, destinationDir);
-      await deleteFileOrDirectory(sourcePath);
+      throw Exception('Error listing directory: $e');
     }
   }
   
-  Future<void> copyFileOrDirectory(String sourcePath, String destinationDir) async {
-    final bool isDirectory = FileSystemEntity.typeSync(sourcePath) == FileSystemEntityType.directory;
-    final String fileName = p.basename(sourcePath);
-    final String destinationPath = p.join(destinationDir, fileName);
+  /// Create a new directory
+  Future<void> createDirectory(String parentPath, String name) async {
+    final path = p.join(parentPath, name);
+    await Directory(path).create();
+  }
+  
+  /// Create a new file
+  Future<void> createFile(String parentPath, String name) async {
+    final path = p.join(parentPath, name);
+    await File(path).create();
+  }
+  
+  /// Rename a file or directory
+  Future<void> rename(String path, String newName) async {
+    final parentPath = p.dirname(path);
+    final newPath = p.join(parentPath, newName);
     
-    // Check if source exists
-    if (!(isDirectory ? Directory(sourcePath).existsSync() : File(sourcePath).existsSync())) {
-      throw Exception('Source file or directory does not exist');
+    final entity = FileSystemEntity.typeSync(path) == FileSystemEntityType.directory
+        ? Directory(path)
+        : File(path);
+    
+    await entity.rename(newPath);
+  }
+  
+  /// Delete a file or directory
+  Future<void> deleteFileOrDirectory(String path) async {
+    final entityType = FileSystemEntity.typeSync(path);
+    
+    if (entityType == FileSystemEntityType.directory) {
+      await Directory(path).delete(recursive: true);
+    } else {
+      await File(path).delete();
     }
+  }
+  
+  /// Copy a file or directory
+  Future<void> copyFileOrDirectory(String sourcePath, String targetDir) async {
+    final sourceName = p.basename(sourcePath);
+    final targetPath = p.join(targetDir, sourceName);
     
-    // Check if destination directory exists
-    if (!Directory(destinationDir).existsSync()) {
-      throw Exception('Destination directory does not exist');
-    }
+    final entityType = FileSystemEntity.typeSync(sourcePath);
     
-    if (isDirectory) {
-      // Create destination directory
-      final Directory destinationDirectory = Directory(destinationPath);
-      await destinationDirectory.create();
+    if (entityType == FileSystemEntityType.directory) {
+      // Create target directory
+      final targetDir = Directory(targetPath);
+      await targetDir.create();
       
-      // Copy all contents recursively
-      final Directory sourceDirectory = Directory(sourcePath);
-      await for (final FileSystemEntity entity in sourceDirectory.list(recursive: false)) {
-        final String relativePath = p.relative(entity.path, from: sourcePath);
-        final String targetPath = p.join(destinationPath, relativePath);
-        
-        if (entity is Directory) {
-          await Directory(targetPath).create(recursive: true);
-          await copyFileOrDirectory(entity.path, p.dirname(targetPath));
-        } else if (entity is File) {
-          await File(entity.path).copy(targetPath);
-        }
+      // Copy all contents
+      final sourceDir = Directory(sourcePath);
+      final contents = await sourceDir.list(recursive: false).toList();
+      
+      for (final entity in contents) {
+        await copyFileOrDirectory(entity.path, targetPath);
       }
     } else {
-      // For files, simply copy
-      await File(sourcePath).copy(destinationPath);
+      // Copy file
+      final sourceFile = File(sourcePath);
+      final targetFile = File(targetPath);
+      await sourceFile.copy(targetFile.path);
     }
+  }
+  
+  /// Move a file or directory
+  Future<void> moveFileOrDirectory(String sourcePath, String targetDir) async {
+    final sourceName = p.basename(sourcePath);
+    final targetPath = p.join(targetDir, sourceName);
+    
+    final entity = FileSystemEntity.typeSync(sourcePath) == FileSystemEntityType.directory
+        ? Directory(sourcePath)
+        : File(sourcePath);
+    
+    await entity.rename(targetPath);
   }
 } 

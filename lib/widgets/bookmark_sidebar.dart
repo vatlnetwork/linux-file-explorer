@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../utils/color_extensions.dart' show ColorExtensions;
 import '../models/bookmark_item.dart';
 import '../services/bookmark_service.dart';
-import '../services/notification_service.dart';
 import 'disk_usage_widget.dart';
 import 'mounted_usb_drives_widget.dart';
 import 'apps_bookmark_button.dart';

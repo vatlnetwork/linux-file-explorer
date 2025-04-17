@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 import 'models/file_item.dart';
-import 'services/preview_panel_service.dart';
 import 'quick_look_manager.dart';
 
 /// Example showing how to integrate Quick Look functionality
@@ -11,13 +8,13 @@ import 'quick_look_manager.dart';
 /// 2. How to add Quick Look to context menus
 /// 3. How to implement spacebar shortcuts
 class QuickLookExample extends StatefulWidget {
-  const QuickLookExample({Key? key}) : super(key: key);
+  const QuickLookExample({super.key});
 
   @override
-  _QuickLookExampleState createState() => _QuickLookExampleState();
+  QuickLookExampleState createState() => QuickLookExampleState();
 }
 
-class _QuickLookExampleState extends State<QuickLookExample> {
+class QuickLookExampleState extends State<QuickLookExample> {
   // Currently selected item
   FileItem? _selectedItem;
   

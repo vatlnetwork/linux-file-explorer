@@ -1,20 +1,57 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
-import 'package:intl/intl.dart';
 
+/// Represents types of file system items
 enum FileItemType {
   file,
   directory,
-  unknown,
+  symlink,
+  unknown
 }
 
+/// Model class representing a file, folder or other file system item
 class FileItem {
+  /// Path to the file or directory
   final String path;
+  
+  /// Display name of the file or directory
   final String name;
+  
+  /// Type of the file system item
   final FileItemType type;
+  
+  /// Last modified time
   final DateTime? modifiedTime;
+  
+  /// File size in bytes (null for directories)
   final int? size;
-
+  
+  /// File extension (empty for directories)
+  String get fileExtension {
+    return type == FileItemType.file 
+        ? path.contains('.') ? path.split('.').last : ''
+        : '';
+  }
+  
+  /// Formatted size string
+  String get formattedSize {
+    if (size == null) return '';
+    
+    final kb = size! / 1024;
+    if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
+    
+    final mb = kb / 1024;
+    if (mb < 1024) return '${mb.toStringAsFixed(1)} MB';
+    
+    final gb = mb / 1024;
+    return '${gb.toStringAsFixed(1)} GB';
+  }
+  
+  /// Formatted modified time
+  String get formattedModifiedTime {
+    return modifiedTime?.toString() ?? 'Unknown';
+  }
+  
   FileItem({
     required this.path,
     required this.name,
@@ -22,6 +59,31 @@ class FileItem {
     this.modifiedTime,
     this.size,
   });
+  
+  /// Create a FileItem from a FileSystemEntity
+  static Future<FileItem> fromEntity(FileSystemEntity entity) async {
+    final stat = await entity.stat();
+    final name = entity.path.split('/').last;
+    
+    FileItemType type;
+    if (entity is File) {
+      type = FileItemType.file;
+    } else if (entity is Directory) {
+      type = FileItemType.directory;
+    } else if (entity is Link) {
+      type = FileItemType.symlink;
+    } else {
+      type = FileItemType.unknown;
+    }
+    
+    return FileItem(
+      path: entity.path,
+      name: name,
+      type: type,
+      modifiedTime: stat.modified,
+      size: entity is File ? stat.size : null,
+    );
+  }
 
   factory FileItem.fromFile(FileSystemEntity entity) {
     final File file = entity as File;
@@ -49,25 +111,6 @@ class FileItem {
       type: FileItemType.directory,
       modifiedTime: modifiedTime,
     );
-  }
-
-  String get formattedModifiedTime {
-    if (modifiedTime == null) return 'Unknown';
-    return DateFormat('MMM dd, yyyy HH:mm').format(modifiedTime!);
-  }
-
-  String get formattedSize {
-    if (size == null || type == FileItemType.directory) return '';
-    
-    if (size! < 1024) return '$size B';
-    if (size! < 1024 * 1024) return '${(size! / 1024).toStringAsFixed(1)} KB';
-    if (size! < 1024 * 1024 * 1024) return '${(size! / (1024 * 1024)).toStringAsFixed(1)} MB';
-    return '${(size! / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
-  }
-
-  String get fileExtension {
-    if (type != FileItemType.file) return '';
-    return p.extension(name).toLowerCase();
   }
 
   static FileItemType getType(FileSystemEntity entity) {
