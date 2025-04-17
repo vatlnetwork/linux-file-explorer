@@ -101,7 +101,7 @@ class QuickLookExampleState extends State<QuickLookExample> {
         break;
       case 'quick_look':
         // Handle quick look using QuickLookManager
-        if (_selectedItem != null) {
+        if (_selectedItem != null && mounted) {
           QuickLookManager.showQuickLook(context, _selectedItem!);
         }
         break;

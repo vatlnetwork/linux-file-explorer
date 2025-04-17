@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:clipboard/clipboard.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:logging/logging.dart';
 import '../models/file_item.dart';
 import '../services/file_service.dart';
 import '../services/bookmark_service.dart';
@@ -51,6 +52,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   final FocusNode _focusNode = FocusNode(); // Add focus node for keyboard events
   late TextEditingController _searchController;
   late FocusNode _searchFocusNode;
+  final _logger = Logger('FileExplorerScreen');
   bool _isSearchActive = false;
   // Setup animation controller for bookmarks sidebar
   late AnimationController _bookmarkSidebarAnimation;
@@ -85,14 +87,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   final GlobalKey _breadcrumbKey = GlobalKey();
 
   // Added state variables for drag selection
-  bool _isDragging = false;
+  // State variables for drag selection
   Offset? _dragStartPosition;
   Offset? _dragEndPosition;
   final Map<String, Rect> _itemPositions = {}; // Store positions of items for hit testing
   final GlobalKey _gridViewKey = GlobalKey(); // Key for the grid container
   bool _isSelectionCompleted = false; // Track if selection was completed properly
-
-  // Added state variables for drag selection
   Offset? _initialPanPosition;
   bool _mightStartDragging = false;
 
@@ -174,7 +174,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       
       // Clear item positions when changing directory since items will be different
       _itemPositions.clear();
-      _isDragging = false;
       _dragStartPosition = null;
       _dragEndPosition = null;
       _mightStartDragging = false;
@@ -1122,7 +1121,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           );
           
           // Show detailed error dialog for multiple errors
-          if (errors.length > 1) {
+          if (errors.length > 1 && mounted) {
             showDialog(
               context: context,
               builder: (context) => AlertDialog(
@@ -1782,7 +1781,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             );
             
             // Show detailed error dialog for multiple errors
-            if (errors.length > 1) {
+            if (errors.length > 1 && mounted) {
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -1966,6 +1965,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       if (!isMountPoint) return;
       
       // Show confirmation dialog
+      if (!mounted) return;
       final bool confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -2185,31 +2185,31 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   // Handle creating a new folder
   void _handleCreateNewFolder() {
     // In a real implementation, this would show a dialog to create a new folder
-    print('Create new folder in: $_currentPath');
+    _logger.info('Create new folder in: $_currentPath');
   }
   
   // Handle creating a new file
   void _handleCreateNewFile() {
     // In a real implementation, this would show a dialog to create a new file
-    print('Create new file in: $_currentPath');
+    _logger.info('Create new file in: $_currentPath');
   }
   
   // Select all items in the current directory
   void _selectAllItems() {
     // In a real implementation, this would select all items in the current directory
-    print('Select all items in directory: $_currentPath');
+    _logger.info('Select all items in directory: $_currentPath');
   }
   
   // Handle showing sort options
   void _handleSortByOptions(Offset position) {
     // In a full implementation, this would show a submenu with sort options
-    print('Show sort options');
+    _logger.info('Show sort options');
   }
   
   // Handle showing view options
   void _handleViewOptions() {
     // In a full implementation, this would show view options dialog or menu
-    print('Show view options');
+    _logger.info('Show view options');
   }
 
   @override
@@ -2411,7 +2411,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: Theme.of(context).colorScheme.surfaceVariant,
+                  fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                 ),
                 onChanged: (value) {
                   if (value.isNotEmpty) {
@@ -2563,8 +2563,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           onEmptyAreaTap: () => setState(() => _selectedItemsPaths = {}),
           onEmptyAreaRightClick: _showEmptyAreaContextMenu,
         );
-      default:
-        return _buildListView(items, iconSizeService);
     }
   }
 
