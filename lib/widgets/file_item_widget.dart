@@ -88,11 +88,11 @@ class FileItemWidget extends StatelessWidget {
                           children: [
                             // Icon with fixed width but scaled size
                             Container(
-                              width: iconSize * 1.5,
+                              width: iconSize * 2.0,
                               alignment: Alignment.center,
                               child: _buildItemIcon(iconSize),
                             ),
-                            SizedBox(width: 12.0 * uiScale.clamp(0.7, 1.0)),
+                            SizedBox(width: 16.0 * uiScale.clamp(0.7, 1.0)),
                             
                             // Text content
                             Expanded(
@@ -144,8 +144,11 @@ class FileItemWidget extends StatelessWidget {
   }
 
   Widget _buildItemIcon(double size) {
+    // Cap the maximum icon size to prevent layout issues
+    double safeSize = size.clamp(0, 42.0); // Slightly smaller limit than grid view
+    
     if (item.type == FileItemType.directory) {
-      return Icon(Icons.folder, color: Colors.blue, size: size);
+      return Icon(Icons.folder, color: Colors.blue, size: safeSize);
     }
 
     // Determine icon based on file extension
@@ -209,7 +212,7 @@ class FileItemWidget extends StatelessWidget {
         iconColor = Colors.blueGrey;
     }
     
-    return Icon(iconData, color: iconColor, size: size);
+    return Icon(iconData, color: iconColor, size: safeSize);
   }
 }
 

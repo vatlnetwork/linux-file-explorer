@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/rendering.dart';
 
 class IconSizeService extends ChangeNotifier {
   static const String _iconSizeKey = 'icon_size';
@@ -13,35 +14,35 @@ class IconSizeService extends ChangeNotifier {
   static const double _defaultListUIScale = 1.0;
   static const double _defaultGridUIScale = 1.0;
   
-  // Size constraints
-  static const double _minListIconSize = 16.0;
-  static const double _maxListIconSize = 48.0;
-  static const double _minGridIconSize = 24.0;
-  static const double _maxGridIconSize = 96.0;
+  // Size constraints - making these public for external use
+  static const double minListIconSize = 16.0;
+  static const double maxListIconSize = 48.0;
+  static const double minGridIconSize = 24.0;
+  static const double maxGridIconSize = 96.0;
   
-  // UI scale constraints
-  static const double _minListUIScale = 0.7;
-  static const double _maxListUIScale = 1.5;
-  static const double _minGridUIScale = 0.7;
-  static const double _maxGridUIScale = 1.4;
+  // UI scale constraints - making these public for external use
+  static const double minListUIScale = 0.7;
+  static const double maxListUIScale = 1.5;
+  static const double minGridUIScale = 0.7;
+  static const double maxGridUIScale = 1.4;
   
   // Step sizes for resizing
   static const double _listResizeStep = 4.0;
   static const double _gridResizeStep = 8.0;
   
-  // Step sizes for UI scaling
-  static const double _listUIScaleStep = 0.1;
-  static const double _gridUIScaleStep = 0.1;
+  // Step sizes for UI scaling - making these public for external use
+  static const double listUIScaleStep = 0.1;
+  static const double gridUIScaleStep = 0.1;
   
   double _listIconSize = _defaultListIconSize;
   double _gridIconSize = _defaultGridIconSize;
   double _listUIScale = _defaultListUIScale;
   double _gridUIScale = _defaultGridUIScale;
   
-  double get listIconSize => _listIconSize.clamp(_minListIconSize, _maxListIconSize);
-  double get gridIconSize => _gridIconSize.clamp(_minGridIconSize, _maxGridIconSize);
-  double get listUIScale => _listUIScale.clamp(_minListUIScale, _maxListUIScale);
-  double get gridUIScale => _gridUIScale.clamp(_minGridUIScale, _maxGridUIScale);
+  double get listIconSize => _listIconSize.clamp(minListIconSize, maxListIconSize);
+  double get gridIconSize => _gridIconSize.clamp(minGridIconSize, maxGridIconSize);
+  double get listUIScale => _listUIScale.clamp(minListUIScale, maxListUIScale);
+  double get gridUIScale => _gridUIScale.clamp(minGridUIScale, maxGridUIScale);
   
   // List text sizes based on UI scale
   double get listTitleSize => 14.0 * _listUIScale;
@@ -57,6 +58,59 @@ class IconSizeService extends ChangeNotifier {
   // Get grid item size (will affect the SliverGridDelegate)
   double get gridItemExtent => 120.0 * _gridUIScale;
   
+  // Get the maximum number of items that can fit in a given width with consistent sizing
+  int getMaxItemsInWidth(double availableWidth) {
+    // Calculate how many items can fit at current scale
+    return (availableWidth / gridItemExtent).floor().clamp(1, 12);
+  }
+  
+  // Get width-adaptive grid delegate that maintains consistent item sizes
+  SliverGridDelegateWithFixedCrossAxisCount getConsistentSizeGridDelegate(
+    double availableWidth, {
+    int minimumColumns = 3,
+    double childAspectRatio = 0.9,
+    double spacing = 10.0,
+  }) {
+    // Base item size to maintain consistency
+    final itemWidth = gridItemExtent;
+    
+    // Calculate max columns based on fixed item size
+    int maxColumns = (availableWidth / itemWidth).floor();
+    
+    // Ensure we meet minimum columns requirement
+    int columns = maxColumns.clamp(minimumColumns, 12);
+    
+    // Safety check to prevent negative or zero columns
+    if (columns <= 0) columns = minimumColumns;
+    
+    return SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: columns,
+      childAspectRatio: childAspectRatio,
+      mainAxisSpacing: spacing,
+      crossAxisSpacing: spacing,
+    );
+  }
+  
+  // Get responsive grid item size based on available width
+  double getResponsiveGridItemExtent(double availableWidth, int targetItemCount) {
+    // Default size
+    double baseExtent = gridItemExtent;
+    
+    // Calculate how many items would fit with the default size
+    int itemsFit = (availableWidth / baseExtent).floor();
+    
+    // If we can fit fewer items than target, scale down the size to fit more
+    if (itemsFit < targetItemCount && itemsFit > 0) {
+      // Scale factor to fit more items, but never below minimum
+      double scaleFactor = (availableWidth / (targetItemCount * 120.0))
+          .clamp(minGridUIScale, maxGridUIScale);
+      
+      return 120.0 * scaleFactor;
+    }
+    
+    return baseExtent;
+  }
+  
   IconSizeService() {
     _loadSettings();
   }
@@ -70,10 +124,10 @@ class IconSizeService extends ChangeNotifier {
       _gridUIScale = prefs.getDouble('${_uiScaleKey}_grid') ?? _defaultGridUIScale;
       
       // Apply safety constraints after loading
-      _listIconSize = _listIconSize.clamp(_minListIconSize, _maxListIconSize);
-      _gridIconSize = _gridIconSize.clamp(_minGridIconSize, _maxGridIconSize);
-      _listUIScale = _listUIScale.clamp(_minListUIScale, _maxListUIScale);
-      _gridUIScale = _gridUIScale.clamp(_minGridUIScale, _maxGridUIScale);
+      _listIconSize = _listIconSize.clamp(minListIconSize, maxListIconSize);
+      _gridIconSize = _gridIconSize.clamp(minGridIconSize, maxGridIconSize);
+      _listUIScale = _listUIScale.clamp(minListUIScale, maxListUIScale);
+      _gridUIScale = _gridUIScale.clamp(minGridUIScale, maxGridUIScale);
       
       notifyListeners();
     } catch (e) {
@@ -100,10 +154,10 @@ class IconSizeService extends ChangeNotifier {
   // Increase list icon size and UI scale (with upper limit)
   void increaseListIconSize() {
     final newSize = _listIconSize + _listResizeStep;
-    if (newSize <= _maxListIconSize) {
+    if (newSize <= maxListIconSize) {
       _listIconSize = newSize;
       // Proportionally adjust UI scale
-      _listUIScale = (_listUIScale + _listUIScaleStep).clamp(_minListUIScale, _maxListUIScale);
+      _listUIScale = (_listUIScale + listUIScaleStep).clamp(minListUIScale, maxListUIScale);
       _saveSettings();
       notifyListeners();
     }
@@ -112,10 +166,10 @@ class IconSizeService extends ChangeNotifier {
   // Decrease list icon size (with lower limit)
   void decreaseListIconSize() {
     final newSize = _listIconSize - _listResizeStep;
-    if (newSize >= _minListIconSize) {
+    if (newSize >= minListIconSize) {
       _listIconSize = newSize;
       // Proportionally adjust UI scale
-      _listUIScale = (_listUIScale - _listUIScaleStep).clamp(_minListUIScale, _maxListUIScale);
+      _listUIScale = (_listUIScale - listUIScaleStep).clamp(minListUIScale, maxListUIScale);
       _saveSettings();
       notifyListeners();
     }
@@ -124,10 +178,10 @@ class IconSizeService extends ChangeNotifier {
   // Increase grid icon size (with upper limit)
   void increaseGridIconSize() {
     final newSize = _gridIconSize + _gridResizeStep;
-    if (newSize <= _maxGridIconSize) {
+    if (newSize <= maxGridIconSize) {
       _gridIconSize = newSize;
       // Proportionally adjust UI scale
-      _gridUIScale = (_gridUIScale + _gridUIScaleStep).clamp(_minGridUIScale, _maxGridUIScale);
+      _gridUIScale = (_gridUIScale + gridUIScaleStep).clamp(minGridUIScale, maxGridUIScale);
       _saveSettings();
       notifyListeners();
     }
@@ -136,10 +190,10 @@ class IconSizeService extends ChangeNotifier {
   // Decrease grid icon size (with lower limit)
   void decreaseGridIconSize() {
     final newSize = _gridIconSize - _gridResizeStep;
-    if (newSize >= _minGridIconSize) {
+    if (newSize >= minGridIconSize) {
       _gridIconSize = newSize;
       // Proportionally adjust UI scale
-      _gridUIScale = (_gridUIScale - _gridUIScaleStep).clamp(_minGridUIScale, _maxGridUIScale);
+      _gridUIScale = (_gridUIScale - gridUIScaleStep).clamp(minGridUIScale, maxGridUIScale);
       _saveSettings();
       notifyListeners();
     }

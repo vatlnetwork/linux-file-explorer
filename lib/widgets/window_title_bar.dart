@@ -46,13 +46,16 @@ class _WindowTitleBarState extends State<WindowTitleBar> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: Column(
-        children: [
-          Expanded(child: widget.child),
-          _buildResizeHandles(),
-        ],
+    return GestureDetector(
+      onPanStart: (_) => windowManager.startDragging(),
+      child: Material(
+        color: Colors.transparent,
+        child: Column(
+          children: [
+            Expanded(child: widget.child),
+            _buildResizeHandles(),
+          ],
+        ),
       ),
     );
   }

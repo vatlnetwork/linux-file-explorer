@@ -85,9 +85,11 @@ class GridItemWidget extends StatelessWidget {
                       final hasSpaceForSubtitle = constraints.maxHeight > (heightThreshold + 20.0);
                       
                       // Calculate specific heights based on available space
-                      final iconHeight = hasSpaceForText 
-                          ? constraints.maxHeight * 0.6
-                          : constraints.maxHeight;
+                      final iconHeight = constraints.maxHeight > 0 
+                          ? (hasSpaceForText 
+                              ? constraints.maxHeight * 0.55 // Reduced from 0.6 to reserve more space for text
+                              : constraints.maxHeight)
+                          : minContainerHeight;
                       
                       return ClipRect(
                         child: Align(
@@ -100,7 +102,9 @@ class GridItemWidget extends StatelessWidget {
                             children: [
                               // Icon container that takes most space
                               SizedBox(
-                                height: iconHeight.clamp(minContainerHeight, constraints.maxHeight * 0.6),
+                                height: constraints.maxHeight > 0 
+                                    ? iconHeight.clamp(minContainerHeight, constraints.maxHeight * 0.55) 
+                                    : minContainerHeight,
                                 width: double.infinity,
                                 child: Center(
                                   child: _buildItemIcon(iconSize),
@@ -109,32 +113,46 @@ class GridItemWidget extends StatelessWidget {
                               
                               // Only show text if there's enough space
                               if (hasSpaceForText) ...[
-                                SizedBox(height: (4.0 * uiScale).clamp(0.0, 4.0)),
+                                SizedBox(height: uiScale > 0 ? (8.0 * uiScale).clamp(4.0, 12.0) : 4.0), // Added null safety
                                 Flexible(
-                                  child: Text(
-                                    item.name,
-                                    textAlign: TextAlign.center,
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                    style: TextStyle(
-                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                      fontSize: (titleSize * (1.0 / uiScale).clamp(0.5, 1.0)).clamp(10.0, 14.0),
-                                      color: isDarkMode ? Colors.white : Colors.black87,
+                                  child: Container(
+                                    constraints: BoxConstraints(
+                                      maxWidth: constraints.maxWidth,
+                                    ),
+                                    child: Text(
+                                      item.name,
+                                      textAlign: TextAlign.center,
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                      style: TextStyle(
+                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                        fontSize: uiScale > 0 
+                                            ? (titleSize * (1.0 / uiScale).clamp(0.5, 1.0)).clamp(10.0, 14.0)
+                                            : 12.0, // Default value if calculation fails
+                                        color: isDarkMode ? Colors.white : Colors.black87,
+                                      ),
                                     ),
                                   ),
                                 ),
                                 
                                 // Subtitle - only if we have even more space
                                 if (hasSpaceForSubtitle) ...[
-                                  SizedBox(height: (2.0 * uiScale).clamp(0.0, 2.0)),
+                                  SizedBox(height: uiScale > 0 ? (4.0 * uiScale).clamp(2.0, 6.0) : 2.0), // Added null safety
                                   Flexible(
-                                    child: Text(
-                                      item.type == FileItemType.directory ? 'Folder' : item.formattedSize,
-                                      textAlign: TextAlign.center,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: (subtitleSize * (1.0 / uiScale).clamp(0.5, 1.0)).clamp(8.0, 11.0),
-                                        color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                                    child: Container(
+                                      constraints: BoxConstraints(
+                                        maxWidth: constraints.maxWidth,
+                                      ),
+                                      child: Text(
+                                        item.type == FileItemType.directory ? 'Folder' : item.formattedSize,
+                                        textAlign: TextAlign.center,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: uiScale > 0 
+                                              ? (subtitleSize * (1.0 / uiScale).clamp(0.5, 1.0)).clamp(8.0, 11.0)
+                                              : 9.0, // Default value if calculation fails
+                                          color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -156,8 +174,11 @@ class GridItemWidget extends StatelessWidget {
   }
 
   Widget _buildItemIcon(double size) {
+    // Cap the maximum icon size to prevent layout issues
+    double safeSize = size.clamp(0, 80.0);
+    
     if (item.type == FileItemType.directory) {
-      return Icon(Icons.folder, color: Colors.blue, size: size);
+      return Icon(Icons.folder, color: Colors.blue, size: safeSize);
     }
 
     // Determine icon based on file extension
@@ -221,6 +242,6 @@ class GridItemWidget extends StatelessWidget {
         iconColor = Colors.blueGrey;
     }
     
-    return Icon(iconData, color: iconColor, size: size);
+    return Icon(iconData, color: iconColor, size: safeSize);
   }
 } 

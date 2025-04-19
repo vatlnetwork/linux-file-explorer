@@ -92,8 +92,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   Offset? _dragEndPosition;
   final Map<String, Rect> _itemPositions = {}; // Store positions of items for hit testing
   final GlobalKey _gridViewKey = GlobalKey(); // Key for the grid container
-  bool _isSelectionCompleted = false; // Track if selection was completed properly
-  Offset? _initialPanPosition;
   bool _mightStartDragging = false;
 
   @override
@@ -118,6 +116,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     windowManager.addListener(this);
     _initWindowState();
     _initHomeDirectory();
+    
+    // Add a post-frame callback to subscribe to preview panel changes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final previewPanelService = Provider.of<PreviewPanelService>(context, listen: false);
+      previewPanelService.addListener(_handlePreviewPanelChange);
+    });
   }
 
   Future<void> _initWindowState() async {
@@ -134,6 +138,11 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     windowManager.removeListener(this);
     _scrollController.dispose();
     _focusNode.dispose(); // Dispose the focus node
+    
+    // Remove preview panel listener
+    final previewPanelService = Provider.of<PreviewPanelService>(context, listen: false);
+    previewPanelService.removeListener(_handlePreviewPanelChange);
+    
     super.dispose();
   }
   
@@ -177,7 +186,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       _dragStartPosition = null;
       _dragEndPosition = null;
       _mightStartDragging = false;
-      _initialPanPosition = null;
     });
 
     try {
@@ -1500,196 +1508,323 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     final statusBarService = Provider.of<StatusBarService>(context, listen: false);
     final appService = Provider.of<AppService>(context, listen: false);
     
-    showMenu<String>(
+    // Calculate position relative to the action bar
+    // This positions it just below the options button
+    final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
+    final size = renderBox?.size ?? Size(0, 0);
+    
+    // Position the menu right-aligned with the options button and just below the action bar
+    final RelativeRect position = RelativeRect.fromLTRB(
+      size.width - 250, // Right-align, 250px width for menu (wider to accommodate slider)
+      40, // Just below the action bar (which is about 40px tall)
+      0,  // No right padding
+      0   // No bottom padding
+    );
+    
+    // Create a StatefulBuilder for the slider
+    StatefulBuilder statefulBuilder = StatefulBuilder(
+      builder: (BuildContext context, StateSetter setState) {
+        // Calculate a normalized value for the slider (0.0 to 1.0)
+        double sliderValue = viewModeService.isGrid 
+            ? (iconSizeService.gridUIScale - IconSizeService.minGridUIScale) / 
+              (IconSizeService.maxGridUIScale - IconSizeService.minGridUIScale)
+            : (iconSizeService.listUIScale - IconSizeService.minListUIScale) / 
+              (IconSizeService.maxListUIScale - IconSizeService.minListUIScale);
+        
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(4.0),
+          child: Container(
+            width: 230,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Standard menu items
+                PopupMenuItem<String>(
+                  value: 'view_mode',
+                  child: Row(
+                    children: [
+                      Icon(Icons.view_list),
+                      SizedBox(width: 8),
+                      Text('View Mode'),
+                    ],
+                  ),
+                ),
+                
+                // Theme switcher
+                PopupMenuItem<String>(
+                  value: 'toggle_theme',
+                  child: Row(
+                    children: [
+                      Icon(themeService.isDarkMode ? Icons.dark_mode : Icons.light_mode),
+                      SizedBox(width: 8),
+                      Text(themeService.isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'),
+                    ],
+                  ),
+                ),
+                
+                // Toggle status bar
+                PopupMenuItem<String>(
+                  value: 'status_bar',
+                  child: Row(
+                    children: [
+                      Icon(statusBarService.showStatusBar ? Icons.visibility_off : Icons.visibility),
+                      SizedBox(width: 8),
+                      Text(statusBarService.showStatusBar ? 'Hide Status Bar' : 'Show Status Bar'),
+                    ],
+                  ),
+                ),
+                
+                // Toggle preview panel
+                PopupMenuItem<String>(
+                  value: 'preview_panel',
+                  child: Row(
+                    children: [
+                      Icon(previewPanelService.showPreviewPanel ? Icons.info : Icons.info_outline),
+                      SizedBox(width: 8),
+                      Text(previewPanelService.showPreviewPanel ? 'Hide Preview Panel' : 'Show Preview Panel'),
+                    ],
+                  ),
+                ),
+                
+                // Open in Terminal option
+                PopupMenuItem<String>(
+                  value: 'terminal',
+                  child: Row(
+                    children: [
+                      Icon(Icons.terminal),
+                      SizedBox(width: 8),
+                      Text('Open in Terminal'),
+                    ],
+                  ),
+                ),
+                
+                const PopupMenuDivider(),
+                
+                // File associations
+                PopupMenuItem<String>(
+                  value: 'file_associations',
+                  child: Row(
+                    children: [
+                      Icon(Icons.link),
+                      SizedBox(width: 8),
+                      Text('File Associations'),
+                    ],
+                  ),
+                ),
+                
+                // Refresh application list
+                PopupMenuItem<String>(
+                  value: 'refresh_apps',
+                  child: Row(
+                    children: [
+                      Icon(Icons.refresh),
+                      SizedBox(width: 8),
+                      Text('Refresh App List'),
+                    ],
+                  ),
+                ),
+                
+                // Divider before icon size slider
+                const PopupMenuDivider(),
+                
+                // Icon size slider section
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Row(
+                    children: [
+                      Icon(Icons.photo_size_select_small, size: 18),
+                      Expanded(
+                        child: Slider(
+                          value: sliderValue,
+                          onChanged: (newValue) {
+                            setState(() {
+                              if (viewModeService.isGrid) {
+                                // Map the 0-1 value to the grid UI scale range
+                                double newScale = IconSizeService.minGridUIScale + 
+                                    newValue * (IconSizeService.maxGridUIScale - IconSizeService.minGridUIScale);
+                                // Calculate how many steps to increase/decrease
+                                double steps = (newScale - iconSizeService.gridUIScale) / IconSizeService.gridUIScaleStep;
+                                if (steps > 0) {
+                                  for (int i = 0; i < steps.round(); i++) {
+                                    iconSizeService.increaseGridIconSize();
+                                  }
+                                } else if (steps < 0) {
+                                  for (int i = 0; i < steps.abs().round(); i++) {
+                                    iconSizeService.decreaseGridIconSize();
+                                  }
+                                }
+                              } else {
+                                // Map the 0-1 value to the list UI scale range
+                                double newScale = IconSizeService.minListUIScale + 
+                                    newValue * (IconSizeService.maxListUIScale - IconSizeService.minListUIScale);
+                                // Calculate how many steps to increase/decrease
+                                double steps = (newScale - iconSizeService.listUIScale) / IconSizeService.listUIScaleStep;
+                                if (steps > 0) {
+                                  for (int i = 0; i < steps.round(); i++) {
+                                    iconSizeService.increaseListIconSize();
+                                  }
+                                } else if (steps < 0) {
+                                  for (int i = 0; i < steps.abs().round(); i++) {
+                                    iconSizeService.decreaseListIconSize();
+                                  }
+                                }
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                      Icon(Icons.photo_size_select_large, size: 18),
+                    ],
+                  ),
+                ),
+                // Label for the slider
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Text(
+                    'Icon Size',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).brightness == Brightness.dark 
+                          ? Colors.white70 
+                          : Colors.black54,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    
+    // Show the custom menu
+    showDialog(
       context: context,
-      position: const RelativeRect.fromLTRB(100, 80, 0, 0),
-      items: <PopupMenuEntry<String>>[
-        // View mode submenu
-        PopupMenuItem<String>(
-          value: 'view_mode',
-          child: Row(
-            children: [
-              Icon(Icons.view_list),
-              SizedBox(width: 8),
-              Text('View Mode'),
-            ],
-          ),
-          onTap: () {
-            // Pop this menu and show view mode submenu
-            Future.delayed(const Duration(milliseconds: 10), () {
-              showMenu<String>(
-                context: context,
-                position: const RelativeRect.fromLTRB(120, 100, 0, 0),
-                items: <PopupMenuEntry<String>>[
-                  PopupMenuItem<String>(
-                    value: 'list',
-                    child: Row(
-                      children: [
-                        Icon(Icons.view_list),
-                        SizedBox(width: 8),
-                        Text('List View'),
-                      ],
-                    ),
-                    onTap: () => viewModeService.setViewMode(ViewMode.list),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'grid',
-                    child: Row(
-                      children: [
-                        Icon(Icons.grid_view),
-                        SizedBox(width: 8),
-                        Text('Grid View'),
-                      ],
-                    ),
-                    onTap: () => viewModeService.setViewMode(ViewMode.grid),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'details',
-                    child: Row(
-                      children: [
-                        Icon(Icons.table_rows),
-                        SizedBox(width: 8),
-                        Text('Details View'),
-                      ],
-                    ),
-                    onTap: () => viewModeService.setViewMode(ViewMode.split),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'column',
-                    child: Row(
-                      children: [
-                        Icon(Icons.view_column),
-                        SizedBox(width: 8),
-                        Text('Column View'),
-                      ],
-                    ),
-                    onTap: () => viewModeService.setViewMode(ViewMode.column),
-                  ),
-                ],
-              );
-            });
-          },
-        ),
-        
-        // Theme switcher
-        PopupMenuItem<String>(
-          value: 'theme',
-          child: Row(
-            children: [
-              Icon(themeService.isDarkMode ? Icons.dark_mode : Icons.light_mode),
-              SizedBox(width: 8),
-              Text(themeService.isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'),
-            ],
-          ),
-          onTap: () => themeService.toggleTheme(),
-        ),
-        
-        // Icon size submenu
-        PopupMenuItem<String>(
-          value: 'icon_size',
-          child: Row(
-            children: [
-              Icon(Icons.photo_size_select_large),
-              SizedBox(width: 8),
-              Text('Icon Size'),
-            ],
-          ),
-          onTap: () {
-            // Pop this menu and show icon size submenu
-            Future.delayed(const Duration(milliseconds: 10), () {
-              showMenu<String>(
-                context: context,
-                position: const RelativeRect.fromLTRB(120, 150, 0, 0),
-                items: <PopupMenuEntry<String>>[
-                  PopupMenuItem<String>(
-                    value: 'small',
-                    child: Text('Small'),
-                    onTap: () {
-                      iconSizeService.decreaseListIconSize();
-                      iconSizeService.decreaseGridIconSize();
-                    },
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'medium',
-                    child: Text('Medium'),
-                    onTap: () => iconSizeService.resetToDefaults(),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'large',
-                    child: Text('Large'),
-                    onTap: () {
-                      iconSizeService.increaseListIconSize();
-                      iconSizeService.increaseGridIconSize();
-                    },
-                  ),
-                ],
-              );
-            });
-          },
-        ),
-        
-        // Toggle status bar
-        PopupMenuItem<String>(
-          value: 'status_bar',
-          child: Row(
-            children: [
-              Icon(statusBarService.showStatusBar ? Icons.visibility_off : Icons.visibility),
-              SizedBox(width: 8),
-              Text(statusBarService.showStatusBar ? 'Hide Status Bar' : 'Show Status Bar'),
-            ],
-          ),
-          onTap: () => statusBarService.toggleStatusBar(),
-        ),
-        
-        // Toggle preview panel
-        PopupMenuItem<String>(
-          value: 'preview_panel',
-          child: Row(
-            children: [
-              Icon(previewPanelService.showPreviewPanel ? Icons.info : Icons.info_outline),
-              SizedBox(width: 8),
-              Text(previewPanelService.showPreviewPanel ? 'Hide Preview Panel' : 'Show Preview Panel'),
-            ],
-          ),
-          onTap: () => previewPanelService.togglePreviewPanel(),
-        ),
-        
-        const PopupMenuDivider(),
-        
-        // File associations
-        PopupMenuItem<String>(
-          value: 'file_associations',
-          child: Row(
-            children: [
-              Icon(Icons.link),
-              SizedBox(width: 8),
-              Text('File Associations'),
-            ],
-          ),
-          onTap: () {
+      barrierColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return Stack(
+          children: [
+            Positioned(
+              top: position.top,
+              right: 0,
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(4),
+                child: statefulBuilder,
+              ),
+            ),
+          ],
+        );
+      },
+    ).then((value) {
+      // Handle selection outside of slider
+      if (value != null && mounted) {
+        switch (value) {
+          case 'view_mode':
+            _showViewModeSubmenu(context, size);
+            break;
+          case 'toggle_theme':
+            themeService.toggleTheme();
+            break;
+          case 'status_bar':
+            statusBarService.toggleStatusBar();
+            break;
+          case 'preview_panel':
+            previewPanelService.togglePreviewPanel();
+            break;
+          case 'terminal':
+            _openDirectoryInTerminal();
+            break;
+          case 'file_associations':
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const FileAssociationsScreen()),
             );
-          },
-        ),
-        
-        // Refresh application list
-        PopupMenuItem<String>(
-          value: 'refresh_apps',
-          child: Row(
-            children: [
-              Icon(Icons.refresh),
-              SizedBox(width: 8),
-              Text('Refresh App List'),
-            ],
-          ),
-          onTap: () => appService.refreshApps(),
-        ),
-      ],
-    );
+            break;
+          case 'refresh_apps':
+            appService.refreshApps();
+            break;
+        }
+      }
+    });
   }
-
+  
+  // Show view mode submenu
+  void _showViewModeSubmenu(BuildContext context, Size size) {
+    final viewModeService = Provider.of<ViewModeService>(context, listen: false);
+    
+    Future.delayed(const Duration(milliseconds: 10), () {
+      showMenu<String>(
+        context: context,
+        position: RelativeRect.fromLTRB(
+          size.width - 180, // Right-align, slightly offset from main menu
+          70, // Below the main menu item
+          0,  // No right padding
+          0   // No bottom padding
+        ),
+        items: <PopupMenuEntry<String>>[
+          PopupMenuItem<String>(
+            value: 'list',
+            child: Row(
+              children: [
+                Icon(Icons.view_list),
+                SizedBox(width: 8),
+                Text('List View'),
+              ],
+            ),
+          ),
+          PopupMenuItem<String>(
+            value: 'grid',
+            child: Row(
+              children: [
+                Icon(Icons.grid_view),
+                SizedBox(width: 8),
+                Text('Grid View'),
+              ],
+            ),
+          ),
+          PopupMenuItem<String>(
+            value: 'details',
+            child: Row(
+              children: [
+                Icon(Icons.table_rows),
+                SizedBox(width: 8),
+                Text('Details View'),
+              ],
+            ),
+          ),
+          PopupMenuItem<String>(
+            value: 'column',
+            child: Row(
+              children: [
+                Icon(Icons.view_column),
+                SizedBox(width: 8),
+                Text('Column View'),
+              ],
+            ),
+          ),
+        ],
+      ).then((value) {
+        if (value == null || !mounted) return;
+        
+        switch (value) {
+          case 'list':
+            viewModeService.setViewMode(ViewMode.list);
+            break;
+          case 'grid':
+            viewModeService.setViewMode(ViewMode.grid);
+            break;
+          case 'details':
+            viewModeService.setViewMode(ViewMode.split);
+            break;
+          case 'column':
+            viewModeService.setViewMode(ViewMode.column);
+            break;
+        }
+      });
+    });
+  }
+  
   // Function to delete selected items
   void _deleteSelectedItems() async {
     if (_selectedItemsPaths.isEmpty) return;
@@ -1902,49 +2037,34 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     if (item.type != FileItemType.directory) return;
     
     try {
-      // Try to determine the default terminal
-      // Common terminal emulators to check
-      final List<String> terminals = [
-        'gnome-terminal', 
-        'konsole',
-        'xfce4-terminal',
-        'terminator',
-        'tilix',
-        'kitty',
-        'alacritty',
-        'xterm',
-      ];
+      _logger.info('Attempting to open terminal in directory: ${item.path}');
       
-      // Find first available terminal
-      Process.run('which', terminals).then((result) {
-        final String output = result.stdout.toString().trim();
-        if (output.isNotEmpty) {
-          final String terminal = output.split('\n').first;
-          final List<String> command = [];
+      // First try warp-terminal with a script-based approach
+      Process.run('which', ['warp-terminal']).then((result) {
+        final String warpPath = result.stdout.toString().trim();
+        if (warpPath.isNotEmpty) {
+          _logger.info('Found warp-terminal at: $warpPath');
           
-          // Customize command based on terminal
-          if (terminal.contains('gnome-terminal')) {
-            command.addAll([terminal, '--working-directory=${item.path}']);
-          } else if (terminal.contains('konsole')) {
-            command.addAll([terminal, '--workdir', item.path]);
-          } else if (terminal.contains('xfce4-terminal')) {
-            command.addAll([terminal, '--working-directory=${item.path}']);
-          } else if (terminal.contains('terminator')) {
-            command.addAll([terminal, '--working-directory=${item.path}']);
-          } else if (terminal.contains('tilix')) {
-            command.addAll([terminal, '--working-directory=${item.path}']);
-          } else {
-            // For other terminals, fallback to cd command
-            command.addAll([terminal, '-e', 'cd ${item.path} && bash']);
-          }
-          
-          Process.start(command[0], command.sublist(1));
+          // Try the shell script approach first
+          _tryWarpTerminalWithScript(item, warpPath).catchError((e) {
+            _logger.warning('Script approach failed: $e. Trying with environment variables...');
+            
+            // Fallback to environment variable approach if script fails
+            return _tryWarpTerminalWithEnv(item, warpPath);
+          }).catchError((e) {
+            _logger.severe('All warp-terminal approaches failed: $e');
+            _tryFallbackTerminals(item);
+          });
         } else {
-          // Fallback to xterm if no other terminal found
-          Process.start('xterm', ['-e', 'cd ${item.path} && bash']);
+          // Warp terminal not found, try others
+          _tryFallbackTerminals(item);
         }
+      }).catchError((e) {
+        _logger.severe('Error checking for warp-terminal: $e');
+        _tryFallbackTerminals(item);
       });
     } catch (e) {
+      _logger.severe('Error in _openInTerminal: $e');
       if (mounted) {
         NotificationService.showNotification(
           context,
@@ -1953,6 +2073,166 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         );
       }
     }
+  }
+  
+  // Try launching warp-terminal with a shell script
+  Future<Process> _tryWarpTerminalWithScript(FileItem item, String warpPath) {
+    // Create a temporary script to open warp in the correct directory
+    final tempDir = Directory.systemTemp;
+    final scriptFile = File('${tempDir.path}/open_warp_${DateTime.now().millisecondsSinceEpoch}.sh');
+    
+    // Create script content to change directory and launch warp
+    final scriptContent = '''#!/bin/bash
+cd "${item.path}"
+exec ${warpPath}
+exit
+''';
+    
+    // Write and make executable
+    scriptFile.writeAsStringSync(scriptContent);
+    Process.runSync('chmod', ['+x', scriptFile.path]);
+    
+    _logger.info('Created script at ${scriptFile.path} with content:\n$scriptContent');
+    
+    // Run the script
+    return Process.start('bash', [scriptFile.path]).then((process) {
+      _logger.info('Warp terminal script started with PID: ${process.pid}');
+      
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Terminal opened in ${p.basename(item.path)}',
+          type: NotificationType.success,
+        );
+      }
+      
+      // Clean up the script file after a delay
+      Future.delayed(Duration(seconds: 5), () {
+        try {
+          if (scriptFile.existsSync()) {
+            scriptFile.deleteSync();
+            _logger.info('Deleted temporary script');
+          }
+        } catch (e) {
+          _logger.warning('Failed to delete temporary script: $e');
+        }
+      });
+      
+      return process;
+    });
+  }
+  
+  // Try launching warp-terminal with environment variables
+  Future<Process> _tryWarpTerminalWithEnv(FileItem item, String warpPath) {
+    _logger.info('Trying with environment variables approach');
+    
+    // Set up environment variables including PWD
+    final Map<String, String> environment = Map.from(Platform.environment);
+    environment['PWD'] = item.path; // Setting PWD to target directory
+    
+    // Create a bash command that sets PWD and launches warp
+    final bashCommand = 'cd "${item.path}" && ${warpPath}';
+    
+    // Launch bash with the command
+    return Process.start('bash', ['-c', bashCommand], environment: environment).then((process) {
+      _logger.info('Warp terminal with env vars started with PID: ${process.pid}');
+      
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Terminal opened in ${p.basename(item.path)}',
+          type: NotificationType.success,
+        );
+      }
+      
+      return process;
+    });
+  }
+  
+  // Try other terminal emulators as fallback
+  void _tryFallbackTerminals(FileItem item) {
+    // Common terminal emulators to check (excluding warp which we already tried)
+    final List<String> fallbackTerminals = [
+      'gnome-terminal', 
+      'konsole',
+      'xfce4-terminal',
+      'terminator',
+      'tilix',
+      'kitty',
+      'alacritty',
+      'xterm',
+    ];
+    
+    Process.run('which', fallbackTerminals).then((result) {
+      final String output = result.stdout.toString().trim();
+      
+      if (output.isNotEmpty) {
+        final String terminal = output.split('\n').first;
+        final List<String> command = [];
+        
+        // Customize command based on terminal
+        if (terminal.contains('gnome-terminal')) {
+          command.addAll([terminal, '--working-directory=${item.path}']);
+        } else if (terminal.contains('konsole')) {
+          command.addAll([terminal, '--workdir', item.path]);
+        } else if (terminal.contains('xfce4-terminal')) {
+          command.addAll([terminal, '--working-directory=${item.path}']);
+        } else if (terminal.contains('terminator')) {
+          command.addAll([terminal, '--working-directory=${item.path}']);
+        } else if (terminal.contains('tilix')) {
+          command.addAll([terminal, '--working-directory=${item.path}']);
+        } else {
+          // For other terminals, fallback to cd command
+          command.addAll([terminal, '-e', 'cd ${item.path} && bash']);
+        }
+        
+        _logger.info('Opening fallback terminal with command: $command');
+        Process.start(command[0], command.sublist(1)).then((process) {
+          // Log success
+          _logger.info('Fallback terminal process started with PID: ${process.pid}');
+          
+          if (mounted) {
+            NotificationService.showNotification(
+              context,
+              message: 'Terminal opened in ${p.basename(item.path)}',
+              type: NotificationType.success,
+            );
+          }
+        }).catchError((e) {
+          // Log detailed error
+          _logger.severe('Error starting fallback terminal process: $e');
+          if (mounted) {
+            NotificationService.showNotification(
+              context,
+              message: 'Failed to start terminal: $e',
+              type: NotificationType.error,
+            );
+          }
+        });
+      } else {
+        _logger.warning('No terminal found. Output: $output');
+        // Since no terminal was found in the list, let the user know
+        if (mounted) {
+          NotificationService.showNotification(
+            context,
+            message: 'No terminal emulator found.',
+            type: NotificationType.error,
+          );
+        }
+      }
+    });
+  }
+  
+  // Open current directory in terminal
+  void _openDirectoryInTerminal() {
+    final currentDirItem = FileItem(
+      name: p.basename(_currentPath),
+      path: _currentPath,
+      type: FileItemType.directory,
+      size: 0,
+      modifiedTime: DateTime.now(),
+    );
+    _openInTerminal(currentDirItem);
   }
 
   // Show confirmation dialog to unmount a drive
@@ -2078,8 +2358,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     // Add mounted check
     if (!mounted) return;
     
-    // Check if clipboard has items (we'll create a simpler implementation)
-    final bool hasClipboardItems = false; // In a real implementation, this would check clipboard state
+    // Check if clipboard has items 
+    final bool hasClipboardItems = _clipboardItems != null && _clipboardItems!.isNotEmpty;
+    // Check if there are items that can be selected
+    final bool hasItemsToSelect = _items.isNotEmpty;
     
     // Create menu items
     final menuItems = <PopupMenuEntry<String>>[
@@ -2116,34 +2398,35 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         ),
       ),
       const PopupMenuDivider(),
-      PopupMenuItem<String>(
-        value: 'select_all',
-        child: Row(
-          children: [
-            Icon(Icons.select_all),
-            SizedBox(width: 8),
-            Text('Select All'),
-          ],
+      if (hasItemsToSelect) ...[
+        PopupMenuItem<String>(
+          value: 'select_all',
+          child: Row(
+            children: [
+              Icon(Icons.select_all),
+              SizedBox(width: 8),
+              Text('Select All'),
+            ],
+          ),
         ),
-      ),
-      const PopupMenuDivider(),
-      PopupMenuItem<String>(
-        value: 'sort_by',
-        child: Row(
-          children: [
-            Icon(Icons.sort),
-            SizedBox(width: 8),
-            Text('Sort By'),
-          ],
+        PopupMenuItem<String>(
+          value: 'sort_by',
+          child: Row(
+            children: [
+              Icon(Icons.sort),
+              SizedBox(width: 8),
+              Text('Sort By'),
+            ],
+          ),
         ),
-      ),
+      ],
       PopupMenuItem<String>(
-        value: 'view_options',
+        value: 'terminal',
         child: Row(
           children: [
-            Icon(Icons.view_list),
+            Icon(Icons.terminal),
             SizedBox(width: 8),
-            Text('View Options'),
+            Text('Open in Terminal'),
           ],
         ),
       ),
@@ -2168,48 +2451,195 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         _handleCreateNewFile();
         break;
       case 'paste':
-        // Paste would be handled here in a real implementation
+        if (hasClipboardItems) {
+          _pasteItemsToCurrentDirectory();
+        }
         break;
       case 'select_all':
-        _selectAllItems();
+        if (hasItemsToSelect) {
+          _selectAllItems();
+        }
         break;
       case 'sort_by':
-        _handleSortByOptions(position);
+        if (hasItemsToSelect) {
+          _handleSortByOptions(position);
+        }
         break;
-      case 'view_options':
-        _handleViewOptions();
+      case 'terminal':
+        _openDirectoryInTerminal();
         break;
     }
   }
   
   // Handle creating a new folder
   void _handleCreateNewFolder() {
-    // In a real implementation, this would show a dialog to create a new folder
-    _logger.info('Create new folder in: $_currentPath');
+    _showCreateDialog(true);
   }
   
   // Handle creating a new file
   void _handleCreateNewFile() {
-    // In a real implementation, this would show a dialog to create a new file
-    _logger.info('Create new file in: $_currentPath');
+    _showCreateDialog(false);
   }
   
   // Select all items in the current directory
   void _selectAllItems() {
-    // In a real implementation, this would select all items in the current directory
-    _logger.info('Select all items in directory: $_currentPath');
+    setState(() {
+      // Get paths of all visible items
+      _selectedItemsPaths = _items.map((item) => item.path).toSet();
+    });
+    
+    // Show notification
+    if (mounted) {
+      NotificationService.showNotification(
+        context,
+        message: 'Selected ${_selectedItemsPaths.length} items',
+        type: NotificationType.info,
+      );
+    }
   }
   
   // Handle showing sort options
   void _handleSortByOptions(Offset position) {
-    // In a full implementation, this would show a submenu with sort options
-    _logger.info('Show sort options');
+    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    
+    // Create a relative rectangle for positioning the menu
+    final RelativeRect menuPosition = RelativeRect.fromRect(
+      Rect.fromPoints(position.translate(100, 0), position.translate(100, 0)),
+      Rect.fromLTWH(0, 0, overlay.size.width, overlay.size.height),
+    );
+    
+    showMenu<String>(
+      context: context,
+      position: menuPosition,
+      items: <PopupMenuEntry<String>>[
+        PopupMenuItem<String>(
+          value: 'name_asc',
+          child: Row(
+            children: [
+              Icon(Icons.sort_by_alpha),
+              SizedBox(width: 8),
+              Text('Name (A to Z)'),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'name_desc',
+          child: Row(
+            children: [
+              Icon(Icons.sort_by_alpha, textDirection: TextDirection.rtl),
+              SizedBox(width: 8),
+              Text('Name (Z to A)'),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'date_newest',
+          child: Row(
+            children: [
+              Icon(Icons.access_time),
+              SizedBox(width: 8),
+              Text('Date Modified (Newest First)'),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'date_oldest',
+          child: Row(
+            children: [
+              Icon(Icons.access_time),
+              SizedBox(width: 8),
+              Text('Date Modified (Oldest First)'),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'size_largest',
+          child: Row(
+            children: [
+              Icon(Icons.format_size),
+              SizedBox(width: 8),
+              Text('Size (Largest First)'),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'size_smallest',
+          child: Row(
+            children: [
+              Icon(Icons.format_size),
+              SizedBox(width: 8),
+              Text('Size (Smallest First)'),
+            ],
+          ),
+        ),
+      ],
+    ).then((result) {
+      if (result == null || !mounted) return;
+      
+      // Sort items based on selection
+      setState(() {
+        switch (result) {
+          case 'name_asc':
+            _sortItems((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+            break;
+          case 'name_desc':
+            _sortItems((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
+            break;
+          case 'date_newest':
+            _sortItems((a, b) => (b.modifiedTime ?? DateTime(1970))
+                .compareTo(a.modifiedTime ?? DateTime(1970)));
+            break;
+          case 'date_oldest':
+            _sortItems((a, b) => (a.modifiedTime ?? DateTime(1970))
+                .compareTo(b.modifiedTime ?? DateTime(1970)));
+            break;
+          case 'size_largest':
+            _sortItems((a, b) => (b.size ?? 0).compareTo(a.size ?? 0));
+            break;
+          case 'size_smallest':
+            _sortItems((a, b) => (a.size ?? 0).compareTo(b.size ?? 0));
+            break;
+        }
+      });
+      
+      // Show notification
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Sorted files by ${_getSortByName(result)}',
+          type: NotificationType.info,
+        );
+      }
+    });
   }
   
-  // Handle showing view options
-  void _handleViewOptions() {
-    // In a full implementation, this would show view options dialog or menu
-    _logger.info('Show view options');
+  // Sort items with directories always first
+  void _sortItems(int Function(FileItem a, FileItem b) compareFunc) {
+    _items.sort((a, b) {
+      // Always keep directories first
+      if (a.type == FileItemType.directory && b.type != FileItemType.directory) {
+        return -1;
+      }
+      if (a.type != FileItemType.directory && b.type == FileItemType.directory) {
+        return 1;
+      }
+      
+      // Then apply the specific sort function
+      return compareFunc(a, b);
+    });
+  }
+  
+  // Get human-readable name for sort option
+  String _getSortByName(String sortOption) {
+    switch (sortOption) {
+      case 'name_asc': return 'name (A to Z)';
+      case 'name_desc': return 'name (Z to A)';
+      case 'date_newest': return 'date (newest first)';
+      case 'date_oldest': return 'date (oldest first)';
+      case 'size_largest': return 'size (largest first)';
+      case 'size_smallest': return 'size (smallest first)';
+      default: return sortOption;
+    }
   }
 
   @override
@@ -2290,7 +2720,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             // Status bar at the bottom
             if (statusBarService.showStatusBar)
               StatusBar(
-                items: selectedItems.isEmpty ? _items : selectedItems,
+                items: _items,
+                selectedItemsPaths: _selectedItemsPaths,
+                currentPath: _currentPath,
               ),
           ],
         ),
@@ -2302,181 +2734,184 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     final appService = Provider.of<AppService>(context);
     final previewPanelService = Provider.of<PreviewPanelService>(context);
     
-    return Container(
-      height: 40,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).dividerColor,
+    return GestureDetector(
+      onPanStart: (_) => windowManager.startDragging(),
+      child: Container(
+        height: 40,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border(
+            bottom: BorderSide(
+              color: Theme.of(context).dividerColor,
+            ),
           ),
         ),
-      ),
-      child: Row(
-        children: [
-          // Application title
-          Padding(
-            padding: const EdgeInsets.only(left: 12.0, right: 8.0),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.folder,
-                  size: 18,
-                  color: Theme.of(context).brightness == Brightness.dark 
-                    ? Colors.blue.shade300 
-                    : Colors.blue.shade700,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Linux File Explorer',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+        child: Row(
+          children: [
+            // Application title
+            Padding(
+              padding: const EdgeInsets.only(left: 12.0, right: 8.0),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.folder,
+                    size: 18,
+                    color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.blue.shade300 
+                      : Colors.blue.shade700,
                   ),
-                ),
-              ],
-            ),
-          ),
-          // Divider between title and navigation buttons
-          Container(
-            height: 24,
-            width: 1,
-            margin: const EdgeInsets.symmetric(horizontal: 8.0),
-            color: Theme.of(context).dividerColor,
-          ),
-          IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: _navigationHistory.isEmpty ? null : _navigateBack,
-            tooltip: 'Back',
-            iconSize: 20,
-          ),
-          IconButton(
-            icon: Icon(Icons.arrow_forward),
-            onPressed: _forwardHistory.isEmpty ? null : _navigateForward,
-            tooltip: 'Forward',
-            iconSize: 20,
-          ),
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: () => _loadDirectory(_currentPath),
-            tooltip: 'Refresh',
-            iconSize: 20,
-          ),
-          // Home button
-          IconButton(
-            icon: Icon(Icons.home),
-            onPressed: _initHomeDirectory,
-            tooltip: 'Home Directory',
-            iconSize: 20,
-          ),
-          // Breadcrumb navigation bar
-          Expanded(
-            child: Container(
-              key: _breadcrumbKey,
-              padding: EdgeInsets.symmetric(horizontal: 8.0),
-              child: _buildBreadcrumbNavigator(),
-            ),
-          ),
-          // Search button and field
-          IconButton(
-            icon: Icon(_isSearchActive ? Icons.close : Icons.search),
-            onPressed: () {
-              setState(() {
-                _isSearchActive = !_isSearchActive;
-                if (!_isSearchActive) {
-                  _searchController.clear();
-                  _isSearching = false;
-                  _searchResults.clear();
-                } else {
-                  _searchFocusNode.requestFocus();
-                }
-              });
-            },
-            tooltip: _isSearchActive ? 'Close Search' : 'Search',
-            iconSize: 20,
-          ),
-          if (_isSearchActive)
-            Container(
-              width: 200,
-              height: 30,
-              margin: EdgeInsets.only(right: 8.0),
-              child: TextField(
-                controller: _searchController,
-                focusNode: _searchFocusNode,
-                decoration: InputDecoration(
-                  contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-                  hintText: 'Search...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: BorderSide.none,
+                  const SizedBox(width: 8),
+                  Text(
+                    'Linux File Explorer',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
-                  filled: true,
-                  fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                ),
-                onChanged: (value) {
-                  if (value.isNotEmpty) {
-                    _performSearch(value);
-                  } else {
-                    setState(() {
-                      _isSearching = false;
-                      _searchResults.clear();
-                    });
-                  }
-                },
+                ],
               ),
             ),
-          // Bookmark toggle
-          IconButton(
-            icon: Icon(_showBookmarkSidebar ? Icons.bookmark : Icons.bookmark_border),
-            onPressed: () {
-              setState(() {
-                _showBookmarkSidebar = !_showBookmarkSidebar;
-              });
-            },
-            tooltip: _showBookmarkSidebar ? 'Hide Bookmarks' : 'Show Bookmarks',
-            iconSize: 20,
-          ),
-          // Preview panel toggle
-          IconButton(
-            icon: Icon(previewPanelService.showPreviewPanel ? Icons.info : Icons.info_outline),
-            onPressed: () => previewPanelService.togglePreviewPanel(),
-            tooltip: previewPanelService.showPreviewPanel ? 'Hide Preview' : 'Show Preview',
-            iconSize: 20,
-          ),
-          // Settings/options menu
-          IconButton(
-            icon: Icon(Icons.more_vert),
-            onPressed: () => _showOptionsMenu(context),
-            tooltip: 'Options',
-            iconSize: 20,
-          ),
-          // Window title action buttons
-          IconButton(
-            icon: Icon(Icons.remove),
-            onPressed: () => windowManager.minimize(),
-            tooltip: 'Minimize',
-            iconSize: 20,
-          ),
-          IconButton(
-            icon: Icon(_isMaximized ? Icons.filter_none : Icons.crop_square),
-            onPressed: () async {
-              if (_isMaximized) {
-                await windowManager.unmaximize();
-              } else {
-                await windowManager.maximize();
-              }
-            },
-            tooltip: _isMaximized ? 'Restore' : 'Maximize',
-            iconSize: 20,
-          ),
-          IconButton(
-            icon: Icon(Icons.close),
-            onPressed: () => windowManager.close(),
-            tooltip: 'Close',
-            iconSize: 20,
-            color: Colors.red,
-          ),
-        ],
+            // Divider between title and navigation buttons
+            Container(
+              height: 24,
+              width: 1,
+              margin: const EdgeInsets.symmetric(horizontal: 8.0),
+              color: Theme.of(context).dividerColor,
+            ),
+            IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: _navigationHistory.isEmpty ? null : _navigateBack,
+              tooltip: 'Back',
+              iconSize: 20,
+            ),
+            IconButton(
+              icon: Icon(Icons.arrow_forward),
+              onPressed: _forwardHistory.isEmpty ? null : _navigateForward,
+              tooltip: 'Forward',
+              iconSize: 20,
+            ),
+            IconButton(
+              icon: Icon(Icons.refresh),
+              onPressed: () => _loadDirectory(_currentPath),
+              tooltip: 'Refresh',
+              iconSize: 20,
+            ),
+            // Home button
+            IconButton(
+              icon: Icon(Icons.home),
+              onPressed: _initHomeDirectory,
+              tooltip: 'Home Directory',
+              iconSize: 20,
+            ),
+            // Breadcrumb navigation bar
+            Expanded(
+              child: Container(
+                key: _breadcrumbKey,
+                padding: EdgeInsets.symmetric(horizontal: 8.0),
+                child: _buildBreadcrumbNavigator(),
+              ),
+            ),
+            // Search button and field
+            IconButton(
+              icon: Icon(_isSearchActive ? Icons.close : Icons.search),
+              onPressed: () {
+                setState(() {
+                  _isSearchActive = !_isSearchActive;
+                  if (!_isSearchActive) {
+                    _searchController.clear();
+                    _isSearching = false;
+                    _searchResults.clear();
+                  } else {
+                    _searchFocusNode.requestFocus();
+                  }
+                });
+              },
+              tooltip: _isSearchActive ? 'Close Search' : 'Search',
+              iconSize: 20,
+            ),
+            if (_isSearchActive)
+              Container(
+                width: 200,
+                height: 30,
+                margin: EdgeInsets.only(right: 8.0),
+                child: TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  decoration: InputDecoration(
+                    contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                    hintText: 'Search...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  ),
+                  onChanged: (value) {
+                    if (value.isNotEmpty) {
+                      _performSearch(value);
+                    } else {
+                      setState(() {
+                        _isSearching = false;
+                        _searchResults.clear();
+                      });
+                    }
+                  },
+                ),
+              ),
+            // Bookmark toggle
+            IconButton(
+              icon: Icon(_showBookmarkSidebar ? Icons.bookmark : Icons.bookmark_border),
+              onPressed: () {
+                setState(() {
+                  _showBookmarkSidebar = !_showBookmarkSidebar;
+                });
+              },
+              tooltip: _showBookmarkSidebar ? 'Hide Bookmarks' : 'Show Bookmarks',
+              iconSize: 20,
+            ),
+            // Preview panel toggle
+            IconButton(
+              icon: Icon(previewPanelService.showPreviewPanel ? Icons.info : Icons.info_outline),
+              onPressed: () => previewPanelService.togglePreviewPanel(),
+              tooltip: previewPanelService.showPreviewPanel ? 'Hide Preview' : 'Show Preview',
+              iconSize: 20,
+            ),
+            // Settings/options menu
+            IconButton(
+              icon: Icon(Icons.more_vert),
+              onPressed: () => _showOptionsMenu(context),
+              tooltip: 'Options',
+              iconSize: 20,
+            ),
+            // Window title action buttons
+            IconButton(
+              icon: Icon(Icons.remove),
+              onPressed: () => windowManager.minimize(),
+              tooltip: 'Minimize',
+              iconSize: 20,
+            ),
+            IconButton(
+              icon: Icon(_isMaximized ? Icons.filter_none : Icons.crop_square),
+              onPressed: () async {
+                if (_isMaximized) {
+                  await windowManager.unmaximize();
+                } else {
+                  await windowManager.maximize();
+                }
+              },
+              tooltip: _isMaximized ? 'Restore' : 'Maximize',
+              iconSize: 20,
+            ),
+            IconButton(
+              icon: Icon(Icons.close),
+              onPressed: () => windowManager.close(),
+              tooltip: 'Close',
+              iconSize: 20,
+              color: Colors.red,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2523,21 +2958,26 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     final items = _isSearching ? _searchResults : _items;
 
     if (items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              _isSearching ? Icons.search_off : Icons.folder_open,
-              color: Theme.of(context).disabledColor,
-              size: 48,
-            ),
-            SizedBox(height: 16),
-            Text(
-              _isSearching ? 'No search results found' : 'This folder is empty',
-              style: TextStyle(fontSize: 18),
-            ),
-          ],
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque, // Important to detect gestures on the empty area
+        onSecondaryTapUp: (details) => _showEmptyAreaContextMenu(details.globalPosition),
+        onTap: () => setState(() => _selectedItemsPaths = {}), // Clear selection on tap
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                _isSearching ? Icons.search_off : Icons.folder_open,
+                color: Theme.of(context).disabledColor,
+                size: 48,
+              ),
+              SizedBox(height: 16),
+              Text(
+                _isSearching ? 'No search results found' : 'This folder is empty',
+                style: TextStyle(fontSize: 18),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -2570,6 +3010,30 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   Widget _buildListView(List<FileItem> items, IconSizeService iconSizeService) {
     return GestureDetector(
       onSecondaryTapUp: (details) => _showEmptyAreaContextMenu(details.globalPosition),
+      onPanStart: (details) {
+        setState(() {
+          _dragStartPosition = details.localPosition;
+          _dragEndPosition = details.localPosition;
+          _mightStartDragging = true;
+          _itemPositions.clear();
+        });
+      },
+      onPanUpdate: (details) {
+        if (_mightStartDragging) {
+          // Update the drag end position
+          setState(() {
+            _dragEndPosition = details.localPosition;
+          });
+          
+          // Perform hit testing and update selection
+          _updateSelectionRectangle();
+        }
+      },
+      onPanEnd: (details) {
+        setState(() {
+          _mightStartDragging = false;
+        });
+      },
       child: ListView.builder(
         controller: _scrollController,
         itemCount: items.length,
@@ -2577,14 +3041,33 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           final item = items[index];
           final isSelected = _selectedItemsPaths.contains(item.path);
           
-          return FileItemWidget(
-            key: ValueKey(item.path),
-            item: item,
-            isSelected: isSelected,
-            onTap: (item, isMultiSelect) => _selectItem(item, isMultiSelect),
-            onDoubleTap: () => _handleItemDoubleTap(item),
-            onLongPress: (item) => _showContextMenu(item, Offset.zero),
-            onRightClick: (item, position) => _showContextMenu(item, position),
+          // Build item widget and capture its position
+          return Builder(
+            builder: (context) {
+              // After build, store the item position for hit testing
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  final RenderBox? box = context.findRenderObject() as RenderBox?;
+                  if (box != null) {
+                    final Offset position = box.localToGlobal(Offset.zero);
+                    final Size size = box.size;
+                    _itemPositions[item.path] = Rect.fromLTWH(
+                      position.dx, position.dy, size.width, size.height
+                    );
+                  }
+                }
+              });
+              
+              return FileItemWidget(
+                key: ValueKey(item.path),
+                item: item,
+                isSelected: isSelected,
+                onTap: (item, isMultiSelect) => _selectItem(item, isMultiSelect),
+                onDoubleTap: () => _handleItemDoubleTap(item),
+                onLongPress: (item) => _showContextMenu(item, Offset.zero),
+                onRightClick: (item, position) => _showContextMenu(item, position),
+              );
+            },
           );
         },
       ),
@@ -2592,37 +3075,147 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   }
   
   Widget _buildGridView(List<FileItem> items, IconSizeService iconSizeService) {
-    // Calculate how many items can fit in a row based on current width
-    final int crossAxisCount = (MediaQuery.of(context).size.width / 120).floor().clamp(2, 8);
+    // Get preview panel state
+    final previewPanelService = Provider.of<PreviewPanelService>(context);
     
-    return GestureDetector(
-      onSecondaryTapUp: (details) => _showEmptyAreaContextMenu(details.globalPosition),
-      child: GridView.builder(
-        controller: _scrollController,
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: crossAxisCount,
-          childAspectRatio: 0.9,
-          mainAxisSpacing: 10,
-          crossAxisSpacing: 10,
-        ),
-        padding: const EdgeInsets.all(16),
-        itemCount: items.length,
-        itemBuilder: (context, index) {
-          final item = items[index];
-          final isSelected = _selectedItemsPaths.contains(item.path);
-          
-          return GridItemWidget(
-            key: ValueKey(item.path),
-            item: item,
-            isSelected: isSelected,
-            onTap: _selectItem,
-            onDoubleTap: () => _handleItemDoubleTap(item),
-            onLongPress: (item) => _showContextMenu(item, Offset.zero),
-            onRightClick: _showContextMenu,
-          );
-        },
-      ),
+    // Get available width, accounting for preview panel if it's open
+    final screenWidth = MediaQuery.of(context).size.width;
+    final sidebarWidth = _showBookmarkSidebar ? 220.0 : 0.0;
+    final previewWidth = previewPanelService.showPreviewPanel ? 320.0 : 0.0;
+    final availableWidth = screenWidth - sidebarWidth - previewWidth;
+    
+    // Adjust spacing based on available space (not window size)
+    final isCompact = previewPanelService.showPreviewPanel;
+    final spacing = isCompact ? 8.0 : 10.0;
+    final padding = isCompact ? 12.0 : 16.0;
+    
+    // Minimum columns based on current panel state
+    final minimumColumns = isCompact ? 2 : 3;
+    
+    // Get grid delegate with consistent sizing
+    final gridDelegate = iconSizeService.getConsistentSizeGridDelegate(
+      availableWidth,
+      minimumColumns: minimumColumns,
+      spacing: spacing,
+      childAspectRatio: 0.9,
     );
+    
+    return Stack(
+      children: [
+        GestureDetector(
+          key: _gridViewKey,
+          onSecondaryTapUp: (details) => _showEmptyAreaContextMenu(details.globalPosition),
+          onPanStart: (details) {
+            setState(() {
+              _dragStartPosition = details.localPosition;
+              _dragEndPosition = details.localPosition;
+              _mightStartDragging = true;
+              _itemPositions.clear();
+            });
+          },
+          onPanUpdate: (details) {
+            if (_mightStartDragging) {
+              // Update the drag end position
+              setState(() {
+                _dragEndPosition = details.localPosition;
+              });
+              
+              // Perform hit testing and update selection
+              _updateSelectionRectangle();
+            }
+          },
+          onPanEnd: (details) {
+            setState(() {
+              _mightStartDragging = false;
+            });
+          },
+          child: GridView.builder(
+            controller: _scrollController,
+            gridDelegate: gridDelegate,
+            padding: EdgeInsets.all(padding),
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              final item = items[index];
+              final isSelected = _selectedItemsPaths.contains(item.path);
+              
+              // Build item widget and capture its position
+              return Builder(
+                builder: (context) {
+                  // After build, store the item position for hit testing
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      final RenderBox? box = context.findRenderObject() as RenderBox?;
+                      if (box != null) {
+                        final Offset position = box.localToGlobal(Offset.zero);
+                        final Size size = box.size;
+                        _itemPositions[item.path] = Rect.fromLTWH(
+                          position.dx, position.dy, size.width, size.height
+                        );
+                      }
+                    }
+                  });
+                  
+                  return GridItemWidget(
+                    key: ValueKey(item.path),
+                    item: item,
+                    isSelected: isSelected,
+                    onTap: _selectItem,
+                    onDoubleTap: () => _handleItemDoubleTap(item),
+                    onLongPress: (item) => _showContextMenu(item, Offset.zero),
+                    onRightClick: _showContextMenu,
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        
+        // Draw selection rectangle
+        if (_dragStartPosition != null && _dragEndPosition != null && _mightStartDragging)
+          Positioned.fill(
+            child: CustomPaint(
+              painter: SelectionRectanglePainter(
+                start: _dragStartPosition!,
+                end: _dragEndPosition!,
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                strokeColor: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+  
+  // Function to update selection based on rectangle bounds
+  void _updateSelectionRectangle() {
+    if (_dragStartPosition == null || _dragEndPosition == null) return;
+    
+    // Create the selection rectangle from drag points
+    final Rect selectionRect = Rect.fromPoints(_dragStartPosition!, _dragEndPosition!);
+    
+    // Check each item's position against the selection rectangle
+    bool isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
+    Set<String> newSelection = isCtrlPressed ? Set.from(_selectedItemsPaths) : {};
+    
+    for (final entry in _itemPositions.entries) {
+      final String path = entry.key;
+      final Rect itemRect = entry.value;
+      
+      // Check if the item intersects with the selection rectangle
+      if (itemRect.overlaps(selectionRect)) {
+        newSelection.add(path);
+      } else if (!isCtrlPressed) {
+        // If not holding Ctrl, remove items outside the selection
+        newSelection.remove(path);
+      }
+    }
+    
+    // Update the selection if it changed
+    if (newSelection != _selectedItemsPaths) {
+      setState(() {
+        _selectedItemsPaths = newSelection;
+      });
+    }
   }
   
   Widget _buildDetailsView(List<FileItem> items, IconSizeService iconSizeService) {
@@ -2636,5 +3229,54 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       onEmptyAreaTap: () => setState(() => _selectedItemsPaths = {}),
       onEmptyAreaRightClick: _showEmptyAreaContextMenu,
     );
+  }
+
+  // Handle preview panel changes
+  void _handlePreviewPanelChange() {
+    if (mounted) {
+      // This will trigger a rebuild of the grid view
+      setState(() {});
+    }
+  }
+}
+
+/// A custom painter to draw the selection rectangle during drag selection
+class SelectionRectanglePainter extends CustomPainter {
+  final Offset start;
+  final Offset end;
+  final Color color;
+  final Color strokeColor;
+
+  SelectionRectanglePainter({
+    required this.start,
+    required this.end,
+    required this.color,
+    required this.strokeColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromPoints(start, end);
+    
+    // Draw filled rectangle with semi-transparency
+    final fillPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(rect, fillPaint);
+    
+    // Draw rectangle border
+    final strokePaint = Paint()
+      ..color = strokeColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+    canvas.drawRect(rect, strokePaint);
+  }
+
+  @override
+  bool shouldRepaint(SelectionRectanglePainter oldDelegate) {
+    return start != oldDelegate.start ||
+           end != oldDelegate.end ||
+           color != oldDelegate.color ||
+           strokeColor != oldDelegate.strokeColor;
   }
 }

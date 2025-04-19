@@ -68,8 +68,8 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
         return Container(
           width: 220,
           color: isDarkMode
-              ? Colors.black.withValues(alpha: 0.03)  // Very slight tint to enhance the blur
-              : const Color(0xFFE3F2FD).withValues(alpha: 0.7),
+              ? const Color(0xFF303030)  // Lighter gray for dark mode
+              : const Color(0xFFF5F5F5), // Light neutral gray for light mode
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -137,15 +137,15 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
       margin: const EdgeInsets.only(top: 8, left: 4, right: 4, bottom: 4),
       decoration: BoxDecoration(
         color: isDarkMode
-            ? const Color(0xFF1E1E1E).withValues(alpha: 0.4)
-            : const Color(0xFFE3F2FD).withValues(alpha: 0.4),
+            ? const Color(0xFF3A3A3A) // Slightly lighter gray for the bookmarks list
+            : const Color(0xFFEEEEEE), // Light neutral gray for the bookmarks list
         borderRadius: BorderRadius.circular(6),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(
           canvasColor: isDarkMode
-              ? const Color(0xFF303030).withValues(alpha: 0.3)
-              : const Color(0xFFBBDEFB).withValues(alpha: 0.3),
+              ? const Color(0xFF404040) // Gray for drag and drop background
+              : const Color(0xFFE0E0E0), // Light gray for drag and drop background
         ),
         child: NotificationListener<ScrollNotification>(
           // Detect scroll interactions which usually mean user is interacting
@@ -218,21 +218,23 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
                     return Material(
                       elevation: elevation,
                       color: Colors.transparent,
-                      shadowColor: Colors.blue.withValues(alpha: 0.7),
+                      shadowColor: isDarkMode ? Colors.blue.shade700.withValues(alpha: 0.4) : Colors.blue.shade300.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(8),
                       clipBehavior: Clip.antiAlias,
                       child: Container(
                         decoration: BoxDecoration(
                           color: isDarkMode
-                              ? const Color(0xFF333333).withValues(alpha: 0.8)
-                              : Colors.blue.shade50.withValues(alpha: 0.8),
+                              ? const Color(0xFF4A4A4A) // Lighter gray for drag proxy
+                              : const Color(0xFFE8F1FF), // Very light blue-gray for drag proxy
                           borderRadius: BorderRadius.circular(8),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.blue.withValues(alpha: 0.5),
-                              blurRadius: 14,
-                              spreadRadius: 2,
-                              offset: const Offset(0, 3),
+                              color: isDarkMode 
+                                ? Colors.blue.shade900.withValues(alpha: 0.3) 
+                                : Colors.blue.shade200.withValues(alpha: 0.4),
+                              blurRadius: 10,
+                              spreadRadius: 1,
+                              offset: const Offset(0, 2),
                             ),
                           ],
                         ),
@@ -259,7 +261,7 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
       begin: isDarkMode ? Colors.blue.shade800.withValues(alpha: 0.5) : Colors.blue.shade100.withValues(alpha: 0.7),
       end: isSelected 
           ? (isDarkMode ? Colors.blueGrey.shade700.withValues(alpha: 0.6) : Colors.blue.shade100.withValues(alpha: 0.7))
-          : (isDarkMode ? const Color(0xFF2A2A2A).withValues(alpha: 0.4) : Colors.white),
+          : (isDarkMode ? const Color(0xFF454545) : Colors.white),
     ).animate(CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeOut,
@@ -277,8 +279,8 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
             color: isRecentlyReordered 
                 ? highlightAnimation.value
                 : (isSelected 
-                    ? (isDarkMode ? Colors.blue.shade700.withValues(alpha: 0.7) : Colors.blue.shade100)
-                    : (isDarkMode ? const Color(0xFF2A2A2A).withValues(alpha: 0.4) : Colors.white)),
+                    ? (isDarkMode ? const Color(0xFF4169E1).withValues(alpha: 0.3) : Colors.blue.shade100)
+                    : (isDarkMode ? const Color(0xFF454545) : Colors.white)),
             borderRadius: BorderRadius.circular(8),
             border: isFocused ? Border.all(
               color: isDarkMode ? Colors.blue.shade400.withValues(alpha: 0.8) : Colors.blue.shade500.withValues(alpha: 0.8),
@@ -287,13 +289,13 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
             boxShadow: [
               BoxShadow(
                 color: isSelected
-                    ? (isDarkMode ? Colors.blue.shade700.withValues(alpha: 0.5) : Colors.blue.shade400.withValues(alpha: 0.5))
+                    ? (isDarkMode ? Colors.blue.shade700.withValues(alpha: 0.3) : Colors.blue.shade400.withValues(alpha: 0.3))
                     : isRecentlyReordered
-                        ? (isDarkMode ? Colors.blue.shade700.withValues(alpha: 0.4) : Colors.blue.shade300.withValues(alpha: 0.4))
-                        : (isDarkMode ? Colors.black.withValues(alpha: 0.2) : Colors.grey.shade400.withValues(alpha: 0.5)),
+                        ? (isDarkMode ? Colors.blue.shade700.withValues(alpha: 0.3) : Colors.blue.shade300.withValues(alpha: 0.3))
+                        : (isDarkMode ? Colors.black.withValues(alpha: 0.1) : Colors.grey.shade400.withValues(alpha: 0.3)),
                 spreadRadius: isSelected ? 1 : 0,
-                blurRadius: isSelected ? 8 : (isRecentlyReordered ? 7 : 4),
-                offset: Offset(0, isSelected ? 3 : 2),
+                blurRadius: isSelected ? 6 : (isRecentlyReordered ? 5 : 3),
+                offset: Offset(0, isSelected ? 2 : 1),
               ),
             ],
           ),
