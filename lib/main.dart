@@ -145,6 +145,11 @@ class MyApp extends StatelessWidget {
             fontSize: 14,
           ),
         ),
+        dialogTheme: DialogTheme(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
@@ -176,6 +181,11 @@ class MyApp extends StatelessWidget {
           textStyle: TextStyle(
             color: Colors.white,
             fontSize: 14,
+          ),
+        ),
+        dialogTheme: DialogTheme(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
       ),
