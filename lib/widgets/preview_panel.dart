@@ -759,7 +759,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                   _buildInfoRow('Where from', item.whereFrom!),
                 
                 // File type
-                _buildInfoRow('Type', item.fileExtension.toUpperCase().replaceAll('.', '') + ' File'),
+                _buildInfoRow('Type', '${item.fileExtension.toUpperCase().replaceAll('.', '')} File'),
                 
                 // Tags section
                 if (options.showTags) ...[
@@ -826,7 +826,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.2),
+        color: Colors.blue.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -854,13 +854,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
       children: quickActions.map((action) {
         return InkWell(
           onTap: () {
-            // TODO: Implement quick action handling
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('${previewService.getQuickActionName(action)} action coming soon!'),
-                duration: const Duration(seconds: 2),
-              ),
-            );
+            _handleQuickAction(context, action, item);
           },
           borderRadius: BorderRadius.circular(4),
           child: Container(
@@ -890,6 +884,98 @@ class _PreviewPanelState extends State<PreviewPanel> {
           ),
         );
       }).toList(),
+    );
+  }
+  
+  void _handleQuickAction(BuildContext context, QuickAction action, FileItem item) {
+    final previewService = Provider.of<PreviewPanelService>(context, listen: false);
+    
+    switch (action) {
+      case QuickAction.rotate:
+        _rotateImage(context, item);
+        break;
+      case QuickAction.markup:
+        _openMarkupEditor(context, item);
+        break;
+      case QuickAction.createPdf:
+        _createPdfFromFile(context, item);
+        break;
+      case QuickAction.convertImage:
+        _convertImage(context, item);
+        break;
+      case QuickAction.trim:
+        _trimVideo(context, item);
+        break;
+      case QuickAction.searchablePdf:
+        _createSearchablePdf(context, item);
+        break;
+      case QuickAction.share:
+        _shareFile(context, item);
+        break;
+    }
+  }
+  
+  void _rotateImage(BuildContext context, FileItem item) {
+    // For now show a temporary message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Rotate image feature coming soon!'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  void _openMarkupEditor(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Markup editor feature coming soon!'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  void _createPdfFromFile(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Create PDF feature coming soon!'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  void _convertImage(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Convert image feature coming soon!'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  void _trimVideo(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Trim video feature coming soon!'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  void _createSearchablePdf(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Create searchable PDF feature coming soon!'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  void _shareFile(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Share file feature coming soon!'),
+        duration: const Duration(seconds: 2),
+      ),
     );
   }
 } 

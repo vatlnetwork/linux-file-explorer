@@ -125,7 +125,7 @@ class _TagSelectorState extends State<TagSelector> {
   Widget _buildTagChip(BuildContext context, Tag tag, TagsService tagsService) {
     return Chip(
       label: Text(tag.name),
-      backgroundColor: tag.color.withOpacity(0.2),
+      backgroundColor: tag.color.withValues(alpha: tag.color.a * 0.2, red: tag.color.r, green: tag.color.g, blue: tag.color.b),
       labelStyle: TextStyle(color: tag.color),
       deleteIcon: const Icon(Icons.close, size: 16),
       onDeleted: () async {
@@ -147,7 +147,7 @@ class _TagSelectorState extends State<TagSelector> {
       },
       child: Chip(
         label: Text(tag.name),
-        backgroundColor: tag.color.withOpacity(0.1),
+        backgroundColor: tag.color.withValues(alpha: tag.color.a * 0.1, red: tag.color.r, green: tag.color.g, blue: tag.color.b),
         labelStyle: TextStyle(color: tag.color),
       ),
     );
