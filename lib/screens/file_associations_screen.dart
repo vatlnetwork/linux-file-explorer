@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/file_association_service.dart';
+import 'package:window_manager/window_manager.dart';
 import '../services/app_service.dart';
+import '../services/file_association_service.dart';
 import '../services/notification_service.dart';
 import '../models/app_item.dart';
 import '../widgets/system_icon.dart';
-import 'package:window_manager/window_manager.dart';
 
 class FileAssociationsScreen extends StatefulWidget {
   const FileAssociationsScreen({super.key});
