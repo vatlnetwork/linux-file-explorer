@@ -631,6 +631,19 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           ),
         ),
       ],
+      
+      // Tags option
+      PopupMenuItem<String>(
+        value: 'tags',
+        child: Row(
+          children: [
+            Icon(Icons.local_offer),
+            SizedBox(width: 8),
+            Text('Manage Tags'),
+          ],
+        ),
+      ),
+      
       PopupMenuItem<String>(
         value: 'quick_look',
         child: Row(
@@ -641,6 +654,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           ],
         ),
       ),
+      
       PopupMenuItem<String>(
         value: 'paste',
         child: Row(
@@ -731,6 +745,37 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         break;
       case 'paste':
         _pasteFromSystemClipboard();
+        break;
+      case 'tags':
+        Navigator.pushNamed(context, '/tags').then((result) {
+          if (result != null && result is Map<String, dynamic>) {
+            // Handle navigation to a file from the tags view
+            if (result['action'] == 'navigate') {
+              final path = result['path'] as String;
+              final parentDir = p.dirname(path);
+              _navigateToDirectory(parentDir);
+              
+              // Wait for directory to load, then select the file
+              Future.delayed(const Duration(milliseconds: 300), () {
+                setState(() {
+                  _selectedItemsPaths = {path};
+                });
+              });
+            } else if (result['action'] == 'open') {
+              final path = result['path'] as String;
+              // Try to find the file item to open it
+              try {
+                final file = File(path);
+                if (file.existsSync()) {
+                  final item = FileItem.fromFile(file);
+                  _handleItemDoubleTap(item);
+                }
+              } catch (e) {
+                debugPrint('Error opening file from tags: $e');
+              }
+            }
+          }
+        });
         break;
     }
   }
@@ -1527,7 +1572,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         
         return ClipRRect(
           borderRadius: BorderRadius.circular(4.0),
-          child: Container(
+          child: SizedBox(
             width: 230,
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1588,6 +1633,18 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                       Icon(Icons.terminal),
                       SizedBox(width: 8),
                       Text('Open in Terminal'),
+                    ],
+                  ),
+                ),
+                
+                // Tags View option
+                PopupMenuItem<String>(
+                  value: 'tags_view',
+                  child: Row(
+                    children: [
+                      Icon(Icons.local_offer),
+                      SizedBox(width: 8),
+                      Text('Manage Tags'),
                     ],
                   ),
                 ),
@@ -1728,6 +1785,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             break;
           case 'terminal':
             _openDirectoryInTerminal();
+            break;
+          case 'tags_view':
+            Navigator.pushNamed(context, '/tags');
             break;
           case 'file_associations':
             Navigator.push(
@@ -2689,7 +2749,6 @@ exit
   }
 
   Widget _buildAppBar(BuildContext context) {
-    final appService = Provider.of<AppService>(context);
     final previewPanelService = Provider.of<PreviewPanelService>(context);
     
     return GestureDetector(
@@ -2833,6 +2892,41 @@ exit
               icon: Icon(previewPanelService.showPreviewPanel ? Icons.info : Icons.info_outline),
               onPressed: () => previewPanelService.togglePreviewPanel(),
               tooltip: previewPanelService.showPreviewPanel ? 'Hide Preview' : 'Show Preview',
+              iconSize: 20,
+            ),
+            // Tags button
+            IconButton(
+              icon: Icon(Icons.local_offer_outlined),
+              onPressed: () => Navigator.pushNamed(context, '/tags').then((result) {
+                if (result != null && result is Map<String, dynamic>) {
+                  // Handle navigation or file opening from tags view
+                  if (result['action'] == 'navigate') {
+                    final path = result['path'] as String;
+                    final parentDir = p.dirname(path);
+                    _navigateToDirectory(parentDir);
+                    
+                    // Wait for directory to load, then select the file
+                    Future.delayed(const Duration(milliseconds: 300), () {
+                      setState(() {
+                        _selectedItemsPaths = {path};
+                      });
+                    });
+                  } else if (result['action'] == 'open') {
+                    final path = result['path'] as String;
+                    // Try to find the file item to open it
+                    try {
+                      final file = File(path);
+                      if (file.existsSync()) {
+                        final item = FileItem.fromFile(file);
+                        _handleItemDoubleTap(item);
+                      }
+                    } catch (e) {
+                      debugPrint('Error opening file from tags: $e');
+                    }
+                  }
+                }
+              }),
+              tooltip: 'Manage Tags',
               iconSize: 20,
             ),
             // Settings/options menu

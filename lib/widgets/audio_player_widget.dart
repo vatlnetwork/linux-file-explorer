@@ -125,7 +125,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
         boxShadow: [
           if (!widget.darkMode)
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withAlpha(26),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -220,7 +220,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
               activeTrackColor: progressColor,
               inactiveTrackColor: progressBackgroundColor,
               thumbColor: progressColor,
-              overlayColor: progressColor?.withOpacity(0.2),
+              overlayColor: progressColor?.withAlpha(51),
             ),
             child: Slider(
               value: _progress,
@@ -308,7 +308,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
               activeTrackColor: progressColor,
               inactiveTrackColor: progressBackgroundColor,
               thumbColor: progressColor,
-              overlayColor: progressColor?.withOpacity(0.2),
+              overlayColor: progressColor?.withAlpha(51),
             ),
             child: Slider(
               value: _progress,

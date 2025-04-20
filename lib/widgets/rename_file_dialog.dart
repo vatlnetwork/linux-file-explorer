@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import '../models/file_item.dart';
-import '../services/notification_service.dart';
 
 class RenameFileDialog extends StatefulWidget {
   final FileItem fileItem;

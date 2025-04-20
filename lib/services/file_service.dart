@@ -85,31 +85,81 @@ class FileService {
     }
   }
   
+  /// Generate a non-conflicting file name
+  /// Returns a file name that doesn't exist in the target directory
+  Future<String> getNonConflictingName(String targetPath) async {
+    if (!await FileSystemEntity.isFile(targetPath) && 
+        !await FileSystemEntity.isDirectory(targetPath)) {
+      return targetPath; // No conflict
+    }
+    
+    final dirName = p.dirname(targetPath);
+    final baseName = p.basenameWithoutExtension(targetPath);
+    final extension = p.extension(targetPath);
+    
+    // Try appending a counter
+    int counter = 1;
+    String newPath;
+    
+    do {
+      String suffix = counter == 1 ? '_copy' : '_copy$counter';
+      String newName = '$baseName$suffix$extension';
+      newPath = p.join(dirName, newName);
+      counter++;
+    } while (await FileSystemEntity.isFile(newPath) || 
+             await FileSystemEntity.isDirectory(newPath));
+    
+    return newPath;
+  }
+  
   /// Copy a file or directory
-  Future<void> copyFileOrDirectory(String sourcePath, String targetDir) async {
-    final sourceName = p.basename(sourcePath);
-    final targetPath = p.join(targetDir, sourceName);
+  /// If targetPath is null, the file will be copied to targetDir with the same name
+  /// If handleConflicts is true, it will automatically rename files to avoid conflicts
+  Future<String> copyFileOrDirectory(
+    String sourcePath, 
+    String targetDir, 
+    {String? targetPath, bool handleConflicts = false}
+  ) async {
+    String finalTargetPath;
+    
+    if (targetPath != null) {
+      // Use the provided full target path
+      finalTargetPath = targetPath;
+    } else {
+      // Use the original behavior - create target path from source name
+      final sourceName = p.basename(sourcePath);
+      finalTargetPath = p.join(targetDir, sourceName);
+    }
+    
+    // Handle conflicts if requested
+    if (handleConflicts) {
+      finalTargetPath = await getNonConflictingName(finalTargetPath);
+    }
     
     final entityType = FileSystemEntity.typeSync(sourcePath);
     
     if (entityType == FileSystemEntityType.directory) {
       // Create target directory
-      final targetDir = Directory(targetPath);
-      await targetDir.create();
+      final targetDirObj = Directory(finalTargetPath);
+      await targetDirObj.create();
       
       // Copy all contents
       final sourceDir = Directory(sourcePath);
       final contents = await sourceDir.list(recursive: false).toList();
       
       for (final entity in contents) {
-        await copyFileOrDirectory(entity.path, targetPath);
+        // For recursive copying, use the directory name
+        await copyFileOrDirectory(entity.path, finalTargetPath);
       }
     } else {
       // Copy file
       final sourceFile = File(sourcePath);
-      final targetFile = File(targetPath);
+      final targetFile = File(finalTargetPath);
       await sourceFile.copy(targetFile.path);
     }
+    
+    // Return the actual target path used (useful if conflict handling renamed the file)
+    return finalTargetPath;
   }
   
   /// Move a file or directory

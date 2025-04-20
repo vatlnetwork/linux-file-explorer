@@ -1,8 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import '../models/file_item.dart';
 import '../services/notification_service.dart';
+import 'package:logging/logging.dart' as logging;
 
 class AnnotationsEditor extends StatefulWidget {
   final FileItem fileItem;
@@ -17,13 +17,14 @@ class AnnotationsEditor extends StatefulWidget {
 }
 
 class _AnnotationsEditorState extends State<AnnotationsEditor> {
+  final _logger = logging.Logger('AnnotationsEditor');
   bool _isLoading = true;
   bool _isSaving = false;
   final List<PDFAnnotation> _annotations = [];
   int _currentPage = 1;
   int _totalPages = 1;
   AnnotationType _currentAnnotationType = AnnotationType.highlight;
-  Color _currentColor = Colors.yellow.withOpacity(0.5);
+  Color _currentColor = Colors.yellow.withAlpha(128);
   
   @override
   void initState() {
@@ -81,6 +82,11 @@ class _AnnotationsEditorState extends State<AnnotationsEditor> {
       final directory = p.dirname(widget.fileItem.path);
       final newFilename = '$baseName-annotated$extension';
       final savePath = p.join(directory, newFilename);
+      
+      // Use savePath to write the annotated file
+      // In a real implementation, you would use a PDF library to save the document
+      _logger.info('Saving annotated document to: $savePath');
+      // Example: await File(savePath).writeAsBytes(annotatedPdfBytes);
       
       if (mounted) {
         NotificationService.showNotification(
@@ -256,7 +262,7 @@ class _AnnotationsEditorState extends State<AnnotationsEditor> {
                 onTap: () {
                   setState(() {
                     _currentAnnotationType = AnnotationType.highlight;
-                    _currentColor = Colors.yellow.withOpacity(0.5);
+                    _currentColor = Colors.yellow.withAlpha(128);
                   });
                 },
                 tooltip: 'Highlight',
@@ -300,12 +306,12 @@ class _AnnotationsEditorState extends State<AnnotationsEditor> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildColorButton(Colors.yellow.withOpacity(0.5)),
-              _buildColorButton(Colors.green.withOpacity(0.5)),
-              _buildColorButton(Colors.blue.withOpacity(0.5)),
-              _buildColorButton(Colors.pink.withOpacity(0.5)),
-              _buildColorButton(Colors.orange.withOpacity(0.5)),
-              _buildColorButton(Colors.red.withOpacity(0.5)),
+              _buildColorButton(Colors.yellow.withAlpha(128)),
+              _buildColorButton(Colors.green.withAlpha(128)),
+              _buildColorButton(Colors.blue.withAlpha(128)),
+              _buildColorButton(Colors.pink.withAlpha(128)),
+              _buildColorButton(Colors.orange.withAlpha(128)),
+              _buildColorButton(Colors.red.withAlpha(128)),
             ],
           ),
         ],
@@ -327,7 +333,7 @@ class _AnnotationsEditorState extends State<AnnotationsEditor> {
         child: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.blue.withOpacity(0.3) : Colors.transparent,
+            color: isSelected ? Colors.blue.withAlpha(77) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(

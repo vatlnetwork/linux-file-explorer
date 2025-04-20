@@ -1064,7 +1064,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
     );
   }
   
-  void _openMarkupEditor(BuildContext context, FileItem item) {
+  void _openMarkupEditor(BuildContext context, FileItem item) async {
     // Only support markup for image files
     final ext = item.fileExtension.toLowerCase();
     if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].contains(ext)) {
@@ -1074,10 +1074,10 @@ class _PreviewPanelState extends State<PreviewPanel> {
           builder: (context) => MarkupEditor(fileItem: item),
         ),
       ).then((success) {
-        if (success == true && mounted) {
+        if (!mounted) return;
+        if (success == true) {
           // Refresh the directory view if a new file was created
-          final previewService = Provider.of<PreviewPanelService>(context, listen: false);
-          previewService.refreshSelectedItem();
+          Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
         }
       });
     } else {
@@ -1183,10 +1183,10 @@ class _PreviewPanelState extends State<PreviewPanel> {
       context: context,
       builder: (context) => RenameFileDialog(fileItem: item),
     ).then((success) {
-      if (success == true && mounted) {
+      if (!mounted) return;
+      if (success == true) {
         // Refresh the file list if rename was successful
-        final previewService = Provider.of<PreviewPanelService>(context, listen: false);
-        previewService.refreshSelectedItem();
+        Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
         
         NotificationService.showNotification(
           context,
@@ -1217,6 +1217,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
   void _copyFilePath(BuildContext context, FileItem item) {
     // Using the Clipboard class to copy the path to clipboard
     Clipboard.setData(ClipboardData(text: item.path)).then((_) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Path copied to clipboard'),
@@ -1272,10 +1273,10 @@ class _PreviewPanelState extends State<PreviewPanel> {
           builder: (context) => AnnotationsEditor(fileItem: item),
         ),
       ).then((success) {
-        if (success == true && mounted) {
+        if (!mounted) return;
+        if (success == true) {
           // Refresh the directory view if a new file was created
-          final previewService = Provider.of<PreviewPanelService>(context, listen: false);
-          previewService.refreshSelectedItem();
+          Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
         }
       });
     } else {

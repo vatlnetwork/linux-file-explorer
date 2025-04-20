@@ -92,7 +92,7 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
   
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: _showControls ? Colors.black.withOpacity(0.7) : Colors.transparent,
+      backgroundColor: _showControls ? Colors.black.withAlpha(179) : Colors.transparent,
       elevation: 0,
       title: Text(
         widget.item.name,
@@ -151,18 +151,23 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
                   try {
                     // For now, just demonstrate we can read and write the file
                     final file = File(widget.item.path);
-                    String contents = await file.readAsString();
+                    await file.readAsString(); // Just verify we can read it
                     // In a real app, you would launch an editor here
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    if (!mounted) return;
+                    final scaffoldMessenger = ScaffoldMessenger.of(context);
+                    scaffoldMessenger.showSnackBar(
                       const SnackBar(content: Text('Editor would open here')),
                     );
                   } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    if (!mounted) return;
+                    final scaffoldMessenger = ScaffoldMessenger.of(context);
+                    scaffoldMessenger.showSnackBar(
                       SnackBar(content: Text('Error: $e')),
                     );
                   }
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+                  scaffoldMessenger.showSnackBar(
                     const SnackBar(content: Text('Cannot edit this file type')),
                   );
                 }
@@ -178,15 +183,28 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
                   final fileName = widget.item.name;
                   final baseName = p.basenameWithoutExtension(fileName);
                   final extension = p.extension(fileName);
-                  final newName = '${baseName}_copy$extension';
-                  final newPath = p.join(parentDir, newName);
+                  final suggestedNewPath = p.join(parentDir, '${baseName}_copy$extension');
                   
-                  await fileService.copyFileOrDirectory(widget.item.path, parentDir);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  // Copy file with automatic conflict handling
+                  final actualPath = await fileService.copyFileOrDirectory(
+                    widget.item.path, 
+                    parentDir,
+                    targetPath: suggestedNewPath,
+                    handleConflicts: true
+                  );
+                  
+                  // Get the actual file name used (may be different if there was a conflict)
+                  final newName = p.basename(actualPath);
+                  
+                  if (!mounted) return;
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+                  scaffoldMessenger.showSnackBar(
                     SnackBar(content: Text('File duplicated: $newName')),
                   );
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  if (!mounted) return;
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+                  scaffoldMessenger.showSnackBar(
                     SnackBar(content: Text('Error duplicating file: $e')),
                   );
                 }
@@ -219,12 +237,16 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
                 if (confirm == true) {
                   try {
                     await fileService.deleteFileOrDirectory(widget.item.path);
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    if (!mounted) return;
+                    final scaffoldMessenger = ScaffoldMessenger.of(context);
+                    scaffoldMessenger.showSnackBar(
                       const SnackBar(content: Text('File deleted successfully')),
                     );
                     Navigator.pop(context); // Close the preview screen
                   } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    if (!mounted) return;
+                    final scaffoldMessenger = ScaffoldMessenger.of(context);
+                    scaffoldMessenger.showSnackBar(
                       SnackBar(content: Text('Error deleting file: $e')),
                     );
                   }
@@ -271,7 +293,8 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
             onPressed: () {
               Clipboard.setData(ClipboardData(text: widget.item.path));
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              scaffoldMessenger.showSnackBar(
                 const SnackBar(content: Text('Path copied to clipboard')),
               );
             },
@@ -529,7 +552,7 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
             end: Alignment.bottomCenter,
             colors: [
               Colors.transparent,
-              Colors.black.withOpacity(0.7),
+              Colors.black.withAlpha(179),
             ],
           ),
         ),

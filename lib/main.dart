@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:logging/logging.dart';
 import 'screens/file_explorer_screen.dart';
+import 'screens/tags_view_screen.dart';
 import 'services/theme_service.dart';
 import 'services/view_mode_service.dart';
 import 'services/bookmark_service.dart';
@@ -179,6 +180,9 @@ class MyApp extends StatelessWidget {
         ),
       ),
       home: const FileExplorerScreen(),
+      routes: {
+        TagsViewScreen.routeName: (context) => const TagsViewScreen(),
+      },
       scaffoldMessengerKey: NotificationService.messengerKey,
     );
   }
