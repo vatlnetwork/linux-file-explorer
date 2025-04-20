@@ -11,7 +11,24 @@ enum QuickAction {
   convertImage,
   trim,
   searchablePdf,
-  share
+  share,
+  // New macOS Finder-like quick actions
+  openWith,
+  compress,
+  duplicate,
+  rename,
+  preview,
+  quickLook,
+  copyPath,
+  getInfo,
+  createAlias,
+  addToFavorites,
+  extractText,
+  addAnnotations,
+  revealInFolder,
+  runScript,
+  convertAudio,
+  compressVideo
 }
 
 class PreviewPanelService extends ChangeNotifier {
@@ -91,45 +108,86 @@ class PreviewPanelService extends ChangeNotifier {
   /// Get available quick actions for a file type
   List<QuickAction> getQuickActionsFor(FileItem item) {
     if (item.type != FileItemType.file) {
-      return [];
+      return [
+        QuickAction.getInfo,
+        QuickAction.addToFavorites,
+        QuickAction.revealInFolder,
+        QuickAction.rename,
+        QuickAction.duplicate,
+      ];
     }
     
     final ext = item.fileExtension.toLowerCase();
     final actions = <QuickAction>[];
     
+    // Common actions for all files
+    actions.add(QuickAction.openWith);
+    actions.add(QuickAction.rename);
+    actions.add(QuickAction.duplicate);
+    actions.add(QuickAction.share);
+    actions.add(QuickAction.getInfo);
+    actions.add(QuickAction.copyPath);
+    actions.add(QuickAction.compress);
+    
     // Image files
     if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].contains(ext)) {
+      actions.add(QuickAction.quickLook);
       actions.add(QuickAction.rotate);
       actions.add(QuickAction.markup);
       actions.add(QuickAction.createPdf);
       actions.add(QuickAction.convertImage);
-      actions.add(QuickAction.share);
+      actions.add(QuickAction.addAnnotations);
     }
     
     // Video files
     else if (['.mp4', '.avi', '.mov', '.mkv', '.webm'].contains(ext)) {
+      actions.add(QuickAction.quickLook);
+      actions.add(QuickAction.preview);
       actions.add(QuickAction.trim);
-      actions.add(QuickAction.share);
+      actions.add(QuickAction.compressVideo);
     }
     
-    // PDF files - create searchable PDF option
+    // Audio files
+    else if (['.mp3', '.wav', '.aac', '.flac', '.ogg'].contains(ext)) {
+      actions.add(QuickAction.quickLook);
+      actions.add(QuickAction.preview);
+      actions.add(QuickAction.convertAudio);
+    }
+    
+    // PDF files
     else if (['.pdf'].contains(ext)) {
+      actions.add(QuickAction.quickLook);
+      actions.add(QuickAction.preview);
       actions.add(QuickAction.searchablePdf);
       actions.add(QuickAction.markup);
-      actions.add(QuickAction.share);
+      actions.add(QuickAction.addAnnotations);
+      actions.add(QuickAction.extractText);
     }
     
     // Document files
     else if (['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'].contains(ext)) {
+      actions.add(QuickAction.quickLook);
+      actions.add(QuickAction.preview);
       actions.add(QuickAction.createPdf);
-      actions.add(QuickAction.share);
+      actions.add(QuickAction.extractText);
     }
     
     // Text files
     else if (['.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.html', '.css', '.js'].contains(ext)) {
+      actions.add(QuickAction.quickLook);
       actions.add(QuickAction.markup);
       actions.add(QuickAction.createPdf);
-      actions.add(QuickAction.share);
+      actions.add(QuickAction.runScript);
+    }
+    
+    // Compressed files
+    else if (['.zip', '.rar', '.tar', '.gz', '.7z'].contains(ext)) {
+      actions.add(QuickAction.extractText);
+    }
+    
+    // Executable files
+    else if (['.exe', '.sh', '.bat', '.bin', '.app'].contains(ext)) {
+      actions.add(QuickAction.runScript);
     }
     
     return actions;
@@ -151,6 +209,39 @@ class PreviewPanelService extends ChangeNotifier {
         return 'Create Searchable PDF';
       case QuickAction.share:
         return 'Share';
+      // New quick actions
+      case QuickAction.openWith:
+        return 'Open With';
+      case QuickAction.compress:
+        return 'Compress';
+      case QuickAction.duplicate:
+        return 'Duplicate';
+      case QuickAction.rename:
+        return 'Rename';
+      case QuickAction.preview:
+        return 'Preview';
+      case QuickAction.quickLook:
+        return 'Quick Look';
+      case QuickAction.copyPath:
+        return 'Copy Path';
+      case QuickAction.getInfo:
+        return 'Get Info';
+      case QuickAction.createAlias:
+        return 'Create Alias';
+      case QuickAction.addToFavorites:
+        return 'Add to Favorites';
+      case QuickAction.extractText:
+        return 'Extract Text';
+      case QuickAction.addAnnotations:
+        return 'Add Annotations';
+      case QuickAction.revealInFolder:
+        return 'Reveal in Folder';
+      case QuickAction.runScript:
+        return 'Run Script';
+      case QuickAction.convertAudio:
+        return 'Convert Audio';
+      case QuickAction.compressVideo:
+        return 'Compress Video';
     }
   }
   
@@ -170,6 +261,39 @@ class PreviewPanelService extends ChangeNotifier {
         return Icons.search;
       case QuickAction.share:
         return Icons.share;
+      // New quick action icons
+      case QuickAction.openWith:
+        return Icons.open_in_new;
+      case QuickAction.compress:
+        return Icons.archive;
+      case QuickAction.duplicate:
+        return Icons.file_copy;
+      case QuickAction.rename:
+        return Icons.drive_file_rename_outline;
+      case QuickAction.preview:
+        return Icons.preview;
+      case QuickAction.quickLook:
+        return Icons.visibility;
+      case QuickAction.copyPath:
+        return Icons.link;
+      case QuickAction.getInfo:
+        return Icons.info_outline;
+      case QuickAction.createAlias:
+        return Icons.shortcut;
+      case QuickAction.addToFavorites:
+        return Icons.star_border;
+      case QuickAction.extractText:
+        return Icons.text_snippet;
+      case QuickAction.addAnnotations:
+        return Icons.note_add;
+      case QuickAction.revealInFolder:
+        return Icons.folder_open;
+      case QuickAction.runScript:
+        return Icons.terminal;
+      case QuickAction.convertAudio:
+        return Icons.audiotrack;
+      case QuickAction.compressVideo:
+        return Icons.video_library;
     }
   }
   

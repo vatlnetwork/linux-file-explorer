@@ -1,10 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/file_item.dart';
 import '../models/preview_options.dart';
 import '../services/preview_panel_service.dart';
+import 'file_preview_screen.dart';
 import 'preview_options_dialog.dart';
+import 'quick_look_dialog.dart';
 import 'tag_selector.dart';
 
 class PreviewPanel extends StatefulWidget {
@@ -824,51 +827,149 @@ class _PreviewPanelState extends State<PreviewPanel> {
   Widget _buildQuickActions(BuildContext context, FileItem item) {
     final previewService = Provider.of<PreviewPanelService>(context);
     final quickActions = previewService.getQuickActionsFor(item);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
     if (quickActions.isEmpty) {
       return const Text('No quick actions available for this file type',
           style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic));
     }
     
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: quickActions.map((action) {
-        return InkWell(
-          onTap: () {
-            _handleQuickAction(context, action, item);
-          },
-          borderRadius: BorderRadius.circular(4),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  previewService.getQuickActionIcon(action),
-                  size: 16,
-                  color: Colors.blue.shade700,
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    previewService.getQuickActionName(action),
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.blue.shade700,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
+    // Group actions into categories for better organization
+    final commonActions = [
+      QuickAction.openWith,
+      QuickAction.preview,
+      QuickAction.quickLook,
+      QuickAction.share,
+    ];
+    
+    final editingActions = [
+      QuickAction.markup,
+      QuickAction.rename,
+      QuickAction.addAnnotations,
+      QuickAction.extractText,
+    ];
+    
+    final conversionActions = [
+      QuickAction.createPdf,
+      QuickAction.convertImage,
+      QuickAction.convertAudio,
+      QuickAction.searchablePdf,
+    ];
+    
+    final fileManagementActions = [
+      QuickAction.duplicate,
+      QuickAction.compress,
+      QuickAction.compressVideo,
+      QuickAction.createAlias,
+      QuickAction.copyPath,
+      QuickAction.getInfo,
+      QuickAction.addToFavorites,
+      QuickAction.revealInFolder,
+    ];
+    
+    final mediaEditingActions = [
+      QuickAction.rotate,
+      QuickAction.trim,
+      QuickAction.runScript,
+    ];
+    
+    // Filter actions from each category that are available for this file
+    final availableCommonActions = quickActions.where((action) => commonActions.contains(action)).toList();
+    final availableEditingActions = quickActions.where((action) => editingActions.contains(action)).toList();
+    final availableConversionActions = quickActions.where((action) => conversionActions.contains(action)).toList();
+    final availableFileManagementActions = quickActions.where((action) => fileManagementActions.contains(action)).toList();
+    final availableMediaEditingActions = quickActions.where((action) => mediaEditingActions.contains(action)).toList();
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (availableCommonActions.isNotEmpty) ...[
+          _buildActionCategory('Common Actions', availableCommonActions, previewService, item, isDarkMode),
+          const SizedBox(height: 16),
+        ],
+        
+        if (availableEditingActions.isNotEmpty) ...[
+          _buildActionCategory('Editing', availableEditingActions, previewService, item, isDarkMode),
+          const SizedBox(height: 16),
+        ],
+        
+        if (availableConversionActions.isNotEmpty) ...[
+          _buildActionCategory('Convert & Create', availableConversionActions, previewService, item, isDarkMode),
+          const SizedBox(height: 16),
+        ],
+        
+        if (availableFileManagementActions.isNotEmpty) ...[
+          _buildActionCategory('File Management', availableFileManagementActions, previewService, item, isDarkMode),
+          const SizedBox(height: 16),
+        ],
+        
+        if (availableMediaEditingActions.isNotEmpty) ...[
+          _buildActionCategory('Media Actions', availableMediaEditingActions, previewService, item, isDarkMode),
+        ],
+      ],
+    );
+  }
+  
+  Widget _buildActionCategory(String title, List<QuickAction> actions, PreviewPanelService previewService, FileItem item, bool isDarkMode) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Category title
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
           ),
-        );
-      }).toList(),
+        ),
+        const SizedBox(height: 8),
+        
+        // Actions for this category
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: actions.map((action) {
+            return InkWell(
+              onTap: () {
+                _handleQuickAction(context, action, item);
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
+                  border: Border.all(
+                    color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      previewService.getQuickActionIcon(action),
+                      size: 16,
+                      color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        previewService.getQuickActionName(action),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
   
@@ -894,6 +995,55 @@ class _PreviewPanelState extends State<PreviewPanel> {
         break;
       case QuickAction.share:
         _shareFile(context, item);
+        break;
+      // Handle new quick actions
+      case QuickAction.openWith:
+        _openFileWith(context, item);
+        break;
+      case QuickAction.compress:
+        _compressFile(context, item);
+        break;
+      case QuickAction.duplicate:
+        _duplicateFile(context, item);
+        break;
+      case QuickAction.rename:
+        _renameFile(context, item);
+        break;
+      case QuickAction.preview:
+        _previewFile(context, item);
+        break;
+      case QuickAction.quickLook:
+        _quickLookFile(context, item);
+        break;
+      case QuickAction.copyPath:
+        _copyFilePath(context, item);
+        break;
+      case QuickAction.getInfo:
+        _showFileInfo(context, item);
+        break;
+      case QuickAction.createAlias:
+        _createAlias(context, item);
+        break;
+      case QuickAction.addToFavorites:
+        _addToFavorites(context, item);
+        break;
+      case QuickAction.extractText:
+        _extractText(context, item);
+        break;
+      case QuickAction.addAnnotations:
+        _addAnnotations(context, item);
+        break;
+      case QuickAction.revealInFolder:
+        _revealInFolder(context, item);
+        break;
+      case QuickAction.runScript:
+        _runScript(context, item);
+        break;
+      case QuickAction.convertAudio:
+        _convertAudio(context, item);
+        break;
+      case QuickAction.compressVideo:
+        _compressVideo(context, item);
         break;
     }
   }
@@ -958,6 +1108,153 @@ class _PreviewPanelState extends State<PreviewPanel> {
       SnackBar(
         content: Text('Share file feature coming soon!'),
         duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  // New action handlers
+  void _openFileWith(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Open With feature coming soon!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  void _compressFile(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Compress feature coming soon!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  void _duplicateFile(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Duplicate feature coming soon!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  void _renameFile(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Rename feature coming soon!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  void _previewFile(BuildContext context, FileItem item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FilePreviewScreen(item: item),
+      ),
+    );
+  }
+  
+  void _quickLookFile(BuildContext context, FileItem item) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (context) => QuickLookDialog(item: item),
+    );
+  }
+  
+  void _copyFilePath(BuildContext context, FileItem item) {
+    // Using the Clipboard class to copy the path to clipboard
+    Clipboard.setData(ClipboardData(text: item.path)).then((_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Path copied to clipboard'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    });
+  }
+  
+  void _showFileInfo(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Get Info feature coming soon!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  void _createAlias(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Create Alias feature coming soon!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  void _addToFavorites(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Add to Favorites feature coming soon!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  void _extractText(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Extract Text feature coming soon!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  void _addAnnotations(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Add Annotations feature coming soon!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  void _revealInFolder(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Reveal in Folder feature coming soon!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  void _runScript(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Run Script feature coming soon!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  void _convertAudio(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Convert Audio feature coming soon!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  void _compressVideo(BuildContext context, FileItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Compress Video feature coming soon!'),
+        duration: Duration(seconds: 2),
       ),
     );
   }
