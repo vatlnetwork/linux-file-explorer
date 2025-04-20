@@ -22,6 +22,9 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
   @override
   void initState() {
     super.initState();
+    debugPrint('QuickLookDialog: Initializing for file ${widget.item.path}');
+    debugPrint('QuickLookDialog: File extension: ${widget.item.fileExtension}');
+    debugPrint('QuickLookDialog: File type: ${widget.item.type}');
     _loadPreview();
   }
   
@@ -89,7 +92,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -127,33 +130,40 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
     }
     
     final ext = widget.item.fileExtension.toLowerCase();
+    debugPrint('QuickLookDialog: File extension detected: $ext');
     
     // Image preview
     if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].contains(ext)) {
+      debugPrint('QuickLookDialog: Detected as image file');
       return _buildImagePreview();
     }
     
     // Text file preview
     else if (['.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.html', '.css', '.js'].contains(ext)) {
+      debugPrint('QuickLookDialog: Detected as text file');
       return _buildTextPreview();
     }
     
     // Video preview
     else if (['.mp4', '.avi', '.mov', '.mkv', '.webm'].contains(ext)) {
+      debugPrint('QuickLookDialog: Detected as video file');
       return _buildVideoPreview();
     }
     
     // PDF preview
     else if (['.pdf'].contains(ext)) {
+      debugPrint('QuickLookDialog: Detected as PDF file');
       return _buildPdfPreview();
     }
     
     // Audio preview
     else if (['.mp3', '.wav', '.aac', '.flac', '.ogg'].contains(ext)) {
+      debugPrint('QuickLookDialog: Detected as audio file');
       return _buildAudioPreview();
     }
     
     // Default - show file icon and info
+    debugPrint('QuickLookDialog: Using default preview');
     return _buildDefaultPreview();
   }
   
@@ -231,9 +241,11 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
                 if (Platform.isLinux) {
                   final result = await Process.run('xdg-open', [widget.item.path]);
                   if (result.exitCode != 0) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: ${result.stderr}')),
-                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: ${result.stderr}')),
+                      );
+                    }
                   }
                 } 
                 // For Windows
@@ -245,14 +257,18 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
                   await Process.run('open', [widget.item.path]);
                 } 
                 else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Platform not supported')),
-                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Platform not supported')),
+                    );
+                  }
                 }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error opening video: $e')),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error opening video: $e')),
+                  );
+                }
               }
             },
           ),
@@ -289,9 +305,11 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
                 if (Platform.isLinux) {
                   final result = await Process.run('xdg-open', [widget.item.path]);
                   if (result.exitCode != 0) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: ${result.stderr}')),
-                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: ${result.stderr}')),
+                      );
+                    }
                   }
                 } 
                 // For Windows
@@ -303,14 +321,18 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
                   await Process.run('open', [widget.item.path]);
                 } 
                 else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Platform not supported')),
-                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Platform not supported')),
+                    );
+                  }
                 }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error opening PDF: $e')),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error opening PDF: $e')),
+                  );
+                }
               }
             },
           ),
@@ -320,6 +342,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
   }
   
   Widget _buildAudioPreview() {
+    debugPrint('QuickLookDialog: Building audio preview for ${widget.item.path}');
     return Center(
       child: AudioPlayerWidget(
         audioFile: widget.item,

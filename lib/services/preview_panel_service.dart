@@ -66,6 +66,31 @@ class PreviewPanelService extends ChangeNotifier {
     notifyListeners();
   }
   
+  /// Refresh the current selected item to reflect file system changes
+  Future<void> refreshSelectedItem() async {
+    if (_selectedItem == null) return;
+    
+    try {
+      final path = _selectedItem!.path;
+      final entity = FileSystemEntity.isDirectorySync(path) 
+          ? Directory(path) as FileSystemEntity
+          : File(path);
+      
+      if (await entity.exists()) {
+        // Create a new FileItem with updated information
+        final refreshedItem = await FileItem.fromEntity(entity);
+        setSelectedItem(refreshedItem);
+      } else {
+        // If the file no longer exists, clear the selection
+        setSelectedItem(null);
+      }
+    } catch (e) {
+      debugPrint('Error refreshing selected item: $e');
+    }
+    
+    notifyListeners();
+  }
+  
   bool canPreview(FileItem? item) {
     if (item == null) return false;
     

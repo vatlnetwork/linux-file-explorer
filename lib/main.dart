@@ -14,6 +14,7 @@ import 'services/app_service.dart';
 import 'services/file_association_service.dart';
 import 'package:flutter/services.dart';
 import 'services/tags_service.dart';
+import 'utils/audio_init.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +40,10 @@ void main() async {
   // Create a logger for the main app
   final appLogger = Logger('App');
   appLogger.info('Application starting...');
+  
+  // Initialize audio support for Linux
+  await initializeAudioSupport();
+  appLogger.info('Audio support initialized');
   
   // Initialize window_manager for custom window controls
   await windowManager.ensureInitialized();

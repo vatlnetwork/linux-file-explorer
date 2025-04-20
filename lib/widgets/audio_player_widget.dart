@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../models/file_item.dart';
@@ -26,7 +25,6 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   double _progress = 0.0;
   String _currentTime = '0:00';
   String _totalTime = '0:00';
-  Timer? _progressTimer;
   
   @override
   void initState() {
@@ -41,8 +39,11 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   }
   
   Future<void> _initAudioPlayer() async {
+    debugPrint('AudioPlayerWidget: Initializing audio player for ${widget.audioFile.path}');
+    
     // Listen to player state changes
     _audioPlayer.playerStateStream.listen((state) {
+      debugPrint('AudioPlayerWidget: Player state changed: ${state.playing ? "playing" : "paused"}');
       if (mounted) {
         setState(() {
           _isPlaying = state.playing;
@@ -52,6 +53,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
 
     // Listen to duration changes
     _audioPlayer.durationStream.listen((newDuration) {
+      debugPrint('AudioPlayerWidget: Duration updated: ${newDuration?.inSeconds ?? 0} seconds');
       if (newDuration != null && mounted) {
         setState(() {
           _totalTime = _formatDuration(newDuration);
@@ -63,16 +65,19 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
     _audioPlayer.positionStream.listen((newPosition) {
       if (mounted) {
         setState(() {
-          _progress = newPosition.inSeconds.toDouble() / _audioPlayer.duration!.inSeconds.toDouble();
+          _progress = _audioPlayer.duration != null ? 
+            newPosition.inSeconds.toDouble() / _audioPlayer.duration!.inSeconds.toDouble() : 0.0;
           _currentTime = _formatDuration(newPosition);
         });
       }
     });
 
     try {
+      debugPrint('AudioPlayerWidget: Setting file path: ${widget.audioFile.path}');
       await _audioPlayer.setFilePath(widget.audioFile.path);
+      debugPrint('AudioPlayerWidget: File loaded successfully');
     } catch (e) {
-      debugPrint('Error loading audio file: $e');
+      debugPrint('AudioPlayerWidget: Error loading audio file: $e');
     }
   }
   

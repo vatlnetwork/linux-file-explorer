@@ -45,6 +45,8 @@ dependencies:
   clipboard: ^0.1.3
   flutter_svg: ^2.0.10
   just_audio: ^0.9.36
+  just_audio_media_kit: ^2.1.0
+  media_kit_libs_linux: ^1.1.0
 
 dev_dependencies:
   flutter_test:

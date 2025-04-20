@@ -34,9 +34,11 @@ class FileItem {
   
   /// File extension (empty for directories)
   String get fileExtension {
-    return type == FileItemType.file 
-        ? path.contains('.') ? path.split('.').last : ''
-        : '';
+    if (type != FileItemType.file) return '';
+    
+    final fileName = p.basename(path);
+    final extension = p.extension(fileName);
+    return extension;
   }
   
   /// Formatted size string

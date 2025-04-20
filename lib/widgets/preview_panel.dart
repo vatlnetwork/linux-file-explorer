@@ -9,6 +9,12 @@ import 'file_preview_screen.dart';
 import 'preview_options_dialog.dart';
 import 'quick_look_dialog.dart';
 import 'tag_selector.dart';
+import 'package:path/path.dart' as p;
+import '../services/notification_service.dart';
+import 'app_selection_dialog.dart';
+import 'rename_file_dialog.dart';
+import 'markup_editor.dart';
+import 'annotations_editor.dart';
 
 class PreviewPanel extends StatefulWidget {
   final Function(String) onNavigate;
@@ -998,7 +1004,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
         break;
       // Handle new quick actions
       case QuickAction.openWith:
-        _openFileWith(context, item);
+        _openFileWith(item.path);
         break;
       case QuickAction.compress:
         _compressFile(context, item);
@@ -1059,12 +1065,29 @@ class _PreviewPanelState extends State<PreviewPanel> {
   }
   
   void _openMarkupEditor(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Markup editor feature coming soon!'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    // Only support markup for image files
+    final ext = item.fileExtension.toLowerCase();
+    if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].contains(ext)) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MarkupEditor(fileItem: item),
+        ),
+      ).then((success) {
+        if (success == true && mounted) {
+          // Refresh the directory view if a new file was created
+          final previewService = Provider.of<PreviewPanelService>(context, listen: false);
+          previewService.refreshSelectedItem();
+        }
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Markup editor only supports image files'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
   
   void _createPdfFromFile(BuildContext context, FileItem item) {
@@ -1113,13 +1136,28 @@ class _PreviewPanelState extends State<PreviewPanel> {
   }
   
   // New action handlers
-  void _openFileWith(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Open With feature coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  void _openFileWith(String filePath) {
+    try {
+      // Extract filename from the path
+      final fileName = p.basename(filePath);
+      
+      // Show app selection dialog
+      showDialog(
+        context: context,
+        builder: (context) => AppSelectionDialog(
+          filePath: filePath,
+          fileName: fileName,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Failed to show open with dialog: $e',
+          type: NotificationType.error,
+        );
+      }
+    }
   }
   
   void _compressFile(BuildContext context, FileItem item) {
@@ -1141,12 +1179,22 @@ class _PreviewPanelState extends State<PreviewPanel> {
   }
   
   void _renameFile(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Rename feature coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    showDialog(
+      context: context,
+      builder: (context) => RenameFileDialog(fileItem: item),
+    ).then((success) {
+      if (success == true && mounted) {
+        // Refresh the file list if rename was successful
+        final previewService = Provider.of<PreviewPanelService>(context, listen: false);
+        previewService.refreshSelectedItem();
+        
+        NotificationService.showNotification(
+          context,
+          message: 'File renamed successfully',
+          type: NotificationType.success,
+        );
+      }
+    });
   }
   
   void _previewFile(BuildContext context, FileItem item) {
@@ -1215,12 +1263,29 @@ class _PreviewPanelState extends State<PreviewPanel> {
   }
   
   void _addAnnotations(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Add Annotations feature coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    // Only support annotations for PDF files
+    final ext = item.fileExtension.toLowerCase();
+    if (['.pdf'].contains(ext)) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AnnotationsEditor(fileItem: item),
+        ),
+      ).then((success) {
+        if (success == true && mounted) {
+          // Refresh the directory view if a new file was created
+          final previewService = Provider.of<PreviewPanelService>(context, listen: false);
+          previewService.refreshSelectedItem();
+        }
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Annotations editor only supports PDF files'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
   
   void _revealInFolder(BuildContext context, FileItem item) {
