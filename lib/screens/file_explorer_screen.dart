@@ -1,4 +1,5 @@
 import 'dart:io';
+import "dart:async";
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1851,26 +1852,28 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       try {
         // Show progress for multiple items
         if (itemsToDelete.length > 1) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: Text('Deleting Files'),
-                content: Row(
-                  children: [
-                    SizedBox(
-                      width: 30,
-                      height: 30,
-                      child: CircularProgressIndicator(),
-                    ),
-                    SizedBox(width: 16),
-                    Text('Deleting ${itemsToDelete.length} items...'),
-                  ],
-                ),
-              );
-            },
-          );
+          if (mounted) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) {
+                return AlertDialog(
+                  title: Text("Deleting Files"),
+                  content: Row(
+                    children: [
+                      SizedBox(
+                        width: 30,
+                        height: 30,
+                        child: CircularProgressIndicator(),
+                      ),
+                      SizedBox(width: 16),
+                      Text("Deleting ${itemsToDelete.length} items..."),
+                    ],
+                  ),
+                );
+              },
+            );
+          }
         }
         
         int successCount = 0;
@@ -1882,7 +1885,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             await _fileService.deleteFileOrDirectory(item.path);
             successCount++;
           } catch (e) {
-            errors.add('${item.name}: $e');
+            errors.add("${item.name}: $e");
           }
         }
         
@@ -1899,13 +1902,13 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           if (errors.isEmpty) {
             NotificationService.showNotification(
               context,
-              message: 'Deleted $successCount ${successCount == 1 ? 'item' : 'items'}',
+              message: "Deleted $successCount ${successCount == 1 ? "item" : "items"}",
               type: NotificationType.success,
             );
           } else {
             NotificationService.showNotification(
               context,
-              message: 'Completed with ${errors.length} errors',
+              message: "Completed with ${errors.length} errors",
               type: NotificationType.warning,
             );
             
@@ -1914,7 +1917,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title: Text('Delete Errors'),
+                  title: Text("Delete Errors"),
                   content: SizedBox(
                     width: double.maxFinite,
                     height: 200,
@@ -1932,7 +1935,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: Text('Close'),
+                      child: Text("Close"),
                     ),
                   ],
                 ),
@@ -1944,11 +1947,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         if (mounted) {
           NotificationService.showNotification(
             context,
-            message: 'Error: $e',
+            message: "Error: $e",
             type: NotificationType.error,
           );
         }
-      }
+  
+    }
     }
   }
 
@@ -2001,6 +2005,64 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     }
   }
 
+  // Show confirmation dialog for unmounting drives
+  Future<void> _showUnmountConfirmation(FileItem item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Unmount Drive'),
+        content: Text('Are you sure you want to unmount "${item.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Unmount'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await _usbDriveService.unmountDrive(item.path);
+        if (mounted) {
+          NotificationService.showNotification(
+            context,
+            message: 'Unmounted drive: ${item.name}',
+            type: NotificationType.success,
+          );
+        }
+        // Navigate to parent directory after unmounting
+        final currentDir = Directory(_currentPath);
+        final parentDir = currentDir.parent.path;
+        _navigateToDirectory(parentDir);
+      } catch (e) {
+        if (mounted) {
+          NotificationService.showNotification(
+            context,
+            message: 'Error unmounting drive: $e',
+            type: NotificationType.error,
+          );
+        }
+      }
+    }
+  }
+
+  // Open in terminal for current directory
+  void _openDirectoryInTerminal() {
+    // Create a temporary FileItem for the current directory
+    final currentDirItem = FileItem(
+      path: _currentPath,
+      name: p.basename(_currentPath),
+      type: FileItemType.directory,
+    );
+    
+    _openInTerminal(currentDirItem);
+  }
+
   // Show dialog to choose an application to open a file
   Future<void> _showOpenWithDialog(FileItem item) async {
     try {
@@ -2047,7 +2109,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             return _tryWarpTerminalWithEnv(item, warpPath);
           }).catchError((e) {
             _logger.severe('All warp-terminal approaches failed: $e');
-            _tryFallbackTerminals(item);
+            return _tryFallbackTerminals(item).then((process) => process);
           });
         } else {
           // Warp terminal not found, try others
@@ -2078,7 +2140,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     // Create script content to change directory and launch warp
     final scriptContent = '''#!/bin/bash
 cd "${item.path}"
-exec ${warpPath}
+exec $warpPath
 exit
 ''';
     
@@ -2145,19 +2207,24 @@ exit
   }
   
   // Try other terminal emulators as fallback
-  void _tryFallbackTerminals(FileItem item) {
+  Future<Process> _tryFallbackTerminals(FileItem item) {
+    // Create a completer to manage the async process
+    final completer = Completer<Process>();
+    
     // Common terminal emulators to check (excluding warp which we already tried)
     final List<String> fallbackTerminals = [
-      'gnome-terminal', 
+      'gnome-terminal',
       'konsole',
       'xfce4-terminal',
       'terminator',
       'tilix',
-      'kitty',
-      'alacritty',
       'xterm',
+      'urxvt',
+      'alacritty',
+      'kitty',
     ];
     
+    // Find the first available terminal
     Process.run('which', fallbackTerminals).then((result) {
       final String output = result.stdout.toString().trim();
       
@@ -2176,9 +2243,13 @@ exit
           command.addAll([terminal, '--working-directory=${item.path}']);
         } else if (terminal.contains('tilix')) {
           command.addAll([terminal, '--working-directory=${item.path}']);
+        } else if (terminal.contains('alacritty')) {
+          command.addAll([terminal, '--working-directory', item.path]);
+        } else if (terminal.contains('kitty')) {
+          command.addAll([terminal, '--directory', item.path]);
         } else {
           // For other terminals, fallback to cd command
-          command.addAll([terminal, '-e', 'cd ${item.path} && bash']);
+          command.addAll([terminal, '-e', 'cd "${item.path}" && bash']);
         }
         
         _logger.info('Opening fallback terminal with command: $command');
@@ -2193,6 +2264,7 @@ exit
               type: NotificationType.success,
             );
           }
+          completer.complete(process);
         }).catchError((e) {
           // Log detailed error
           _logger.severe('Error starting fallback terminal process: $e');
@@ -2203,136 +2275,35 @@ exit
               type: NotificationType.error,
             );
           }
+          completer.completeError(e);
         });
       } else {
-        _logger.warning('No terminal found. Output: $output');
-        // Since no terminal was found in the list, let the user know
+        // No terminals found
+        final error = 'No available terminal emulators found';
+        _logger.warning(error);
         if (mounted) {
           NotificationService.showNotification(
             context,
-            message: 'No terminal emulator found.',
+            message: error,
             type: NotificationType.error,
           );
         }
+        completer.completeError(Exception(error));
       }
-    });
-  }
-  
-  // Open current directory in terminal
-  void _openDirectoryInTerminal() {
-    final currentDirItem = FileItem(
-      name: p.basename(_currentPath),
-      path: _currentPath,
-      type: FileItemType.directory,
-      size: 0,
-      modifiedTime: DateTime.now(),
-    );
-    _openInTerminal(currentDirItem);
-  }
-
-  // Show confirmation dialog to unmount a drive
-  Future<void> _showUnmountConfirmation(FileItem item) async {
-    if (item.type != FileItemType.directory) return;
-    
-    try {
-      // Check if this is actually a mount point
-      final isMountPoint = await _isDirectoryMountPoint(item.path);
-      if (!isMountPoint) return;
-      
-      // Show confirmation dialog
-      if (!mounted) return;
-      final bool confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Unmount Drive'),
-          content: Text('Are you sure you want to unmount the drive at "${item.path}"?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: TextButton.styleFrom(foregroundColor: Colors.orange),
-              child: Text('Unmount'),
-            ),
-          ],
-        ),
-      ) ?? false;
-      
-      if (confirmed) {
-        // Show progress indicator
-        if (mounted) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => AlertDialog(
-              content: Row(
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(width: 16),
-                  Text('Unmounting drive...'),
-                ],
-              ),
-            ),
-          );
-        }
-        
-        // Get the USB drive from service
-        final drives = await _usbDriveService.getMountedUsbDrives();
-        final drive = drives.firstWhere(
-          (drive) => drive.mountPoint == item.path,
-          orElse: () => UsbDrive(
-            mountPoint: item.path,
-            deviceName: '',
-            totalBytes: 0,
-            driveType: 'unknown',
-          ),
-        );
-        
-        // Perform unmount operation
-        final success = await _usbDriveService.unmountDrive(item.path);
-        
-        // Dismiss progress dialog
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
-        
-        // Show result notification
-        if (mounted) {
-          if (success) {
-            NotificationService.showNotification(
-              context,
-              message: 'Drive unmounted successfully',
-              type: NotificationType.success,
-            );
-            
-            // Navigate up to parent directory
-            if (_currentPath == item.path) {
-              final directory = Directory(item.path);
-              _navigateToDirectory(directory.parent.path);
-            } else {
-              // Refresh the current directory
-              _loadDirectory(_currentPath);
-            }
-          } else {
-            NotificationService.showNotification(
-              context,
-              message: 'Failed to unmount drive. Make sure no files are in use.',
-              type: NotificationType.error,
-            );
-          }
-        }
-      }
-    } catch (e) {
+    }).catchError((e) {
+      // Error checking for terminals
+      _logger.severe('Error checking for terminal emulators: $e');
       if (mounted) {
         NotificationService.showNotification(
           context,
-          message: 'Error unmounting drive: $e',
+          message: 'Failed to find terminal: $e',
           type: NotificationType.error,
         );
       }
-    }
+      completer.completeError(e);
+    });
+    
+    return completer.future;
   }
 
   // Show context menu for empty area
@@ -3174,7 +3145,7 @@ exit
               painter: SelectionRectanglePainter(
                 start: _dragStartPosition!,
                 end: _dragEndPosition!,
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                 strokeColor: Theme.of(context).colorScheme.primary,
               ),
             ),

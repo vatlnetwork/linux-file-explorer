@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/file_item.dart';
 import '../models/preview_options.dart';
-import '../models/tag.dart';
 import '../services/preview_panel_service.dart';
-import '../services/tags_service.dart';
 import 'preview_options_dialog.dart';
 import 'tag_selector.dart';
 
@@ -821,24 +819,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
     );
   }
   
-  Widget _buildTag(String tag) {
-    // This method is no longer needed as we use TagSelector now
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.blue.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        tag,
-        style: TextStyle(
-          fontSize: 12,
-          color: Colors.blue.shade700,
-        ),
-      ),
-    );
-  }
-  
   Widget _buildQuickActions(BuildContext context, FileItem item) {
     final previewService = Provider.of<PreviewPanelService>(context);
     final quickActions = previewService.getQuickActionsFor(item);
@@ -888,8 +868,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
   }
   
   void _handleQuickAction(BuildContext context, QuickAction action, FileItem item) {
-    final previewService = Provider.of<PreviewPanelService>(context, listen: false);
-    
     switch (action) {
       case QuickAction.rotate:
         _rotateImage(context, item);
