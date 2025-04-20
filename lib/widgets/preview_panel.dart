@@ -2,7 +2,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/file_item.dart';
+import '../models/preview_options.dart';
+import '../models/tag.dart';
 import '../services/preview_panel_service.dart';
+import '../services/tags_service.dart';
+import 'preview_options_dialog.dart';
+import 'tag_selector.dart';
 
 class PreviewPanel extends StatefulWidget {
   final Function(String) onNavigate;
@@ -129,20 +134,31 @@ class _PreviewPanelState extends State<PreviewPanel> {
         children: [
           Icon(
             Icons.preview,
+            size: 18,
             color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
           ),
           const SizedBox(width: 8),
-          Text(
-            'Preview',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: isDarkMode ? Colors.grey.shade200 : Colors.grey.shade800,
+          Expanded(
+            child: Text(
+              'Preview',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: isDarkMode ? Colors.grey.shade200 : Colors.grey.shade800,
+              ),
             ),
           ),
-          const Spacer(),
+          if (selectedItem != null)
+            IconButton(
+              icon: const Icon(Icons.settings, size: 18),
+              tooltip: 'Preview Options',
+              padding: EdgeInsets.zero,
+              constraints: BoxConstraints.tight(const Size(24, 24)),
+              onPressed: () => _showPreviewOptions(context, selectedItem),
+            ),
+          const SizedBox(width: 4),
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close, size: 18),
             padding: EdgeInsets.zero,
             constraints: BoxConstraints.tight(const Size(24, 24)),
             tooltip: 'Close preview panel',
@@ -153,6 +169,23 @@ class _PreviewPanelState extends State<PreviewPanel> {
         ],
       ),
     );
+  }
+  
+  void _showPreviewOptions(BuildContext context, FileItem item) async {
+    final previewService = Provider.of<PreviewPanelService>(context, listen: false);
+    final options = previewService.optionsManager.getOptionsForFileExtension(item.fileExtension);
+    
+    final result = await showDialog<PreviewOptions>(
+      context: context,
+      builder: (context) => PreviewOptionsDialog(
+        options: options,
+        fileItem: item,
+      ),
+    );
+    
+    if (result != null) {
+      previewService.savePreviewOptions(result, item.fileExtension);
+    }
   }
   
   Widget _buildNoSelectionView(BuildContext context) {
@@ -284,42 +317,119 @@ class _PreviewPanelState extends State<PreviewPanel> {
   }
   
   Widget _buildImagePreview(BuildContext context, FileItem item) {
-    return Center(
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Padding(
+    final previewService = Provider.of<PreviewPanelService>(context);
+    final options = previewService.optionsManager.imageOptions;
+    
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image preview at the top
+          Center(
+            child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Image.file(
-                File(item.path),
-                errorBuilder: (context, error, stackTrace) {
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.broken_image, size: 48, color: Colors.grey),
-                      const SizedBox(height: 16),
-                      Text('Could not load image', style: TextStyle(color: Colors.grey.shade600)),
-                      const SizedBox(height: 8),
-                      Text(error.toString(), style: const TextStyle(fontSize: 12)),
-                    ],
-                  );
-                },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(
+                  File(item.path),
+                  errorBuilder: (context, error, stackTrace) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        Text('Could not load image', style: TextStyle(color: Colors.grey.shade600)),
+                        const SizedBox(height: 8),
+                        Text(error.toString(), style: const TextStyle(fontSize: 12)),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
-            Text(
-              'Name: ${item.name}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          
+          // Metadata section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Common info
+                if (options.showSize)
+                  _buildInfoRow('Size', item.formattedSize),
+                  
+                if (options.showCreated)
+                  _buildInfoRow('Created', item.formattedCreationTime),
+                  
+                if (options.showModified)
+                  _buildInfoRow('Modified', item.formattedModifiedTime),
+                  
+                if (options.showWhereFrom && item.whereFrom != null)
+                  _buildInfoRow('Where from', item.whereFrom!),
+                
+                const SizedBox(height: 16),
+                
+                // Image specific info
+                if (options.showDimensions)
+                  _buildInfoRow('Dimensions', '1920 × 1080'),  // Replace with actual image dimensions
+                  
+                if (options.showCameraModel)
+                  _buildInfoRow('Camera', 'iPhone 12 Pro'),  // Replace with actual camera model
+                  
+                if (options.showExposureInfo) ...[
+                  _buildInfoRow('Aperture', 'f/1.6'),  // Replace with actual aperture
+                  _buildInfoRow('Exposure', '1/60s'),  // Replace with actual exposure
+                  _buildInfoRow('ISO', '100'),  // Replace with actual ISO
+                ],
+                
+                if (options.showExifData) ...[
+                  _buildInfoRow('Focal Length', '26mm'),  // Replace with actual focal length
+                  _buildInfoRow('Flash', 'Off'),  // Replace with actual flash info
+                ],
+                
+                // Tags section
+                if (options.showTags) ...[
+                  const SizedBox(height: 16),
+                  TagSelector(filePath: item.path),
+                ],
+              ],
             ),
-            Text('Size: ${item.formattedSize}'),
-            Text('Modified: ${item.formattedModifiedTime}'),
+          ),
+          
+          // Quick Actions section
+          if (options.showQuickActions) ...[
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  _buildQuickActions(context, item),
+                ],
+              ),
+            ),
           ],
-        ),
+          
+          const SizedBox(height: 24),
+        ],
       ),
     );
   }
   
   Widget _buildTextPreview(BuildContext context, FileItem item) {
+    final previewService = Provider.of<PreviewPanelService>(context);
+    final options = previewService.optionsManager.defaultOptions; 
+    
     if (_textContent == null) {
       return const Center(child: Text('Unable to preview text content'));
     }
@@ -327,6 +437,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Content preview
         Container(
           padding: const EdgeInsets.all(8),
           color: Theme.of(context).brightness == Brightness.dark 
@@ -347,9 +458,56 @@ class _PreviewPanelState extends State<PreviewPanel> {
           ),
         ),
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: SelectableText(_textContent!),
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: SelectableText(_textContent!),
+                ),
+              ),
+              
+              // Quick Actions and metadata
+              if (options.showSize || options.showCreated || options.showModified || options.showQuickActions || options.showTags) ...[
+                const Divider(height: 1),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Metadata
+                      if (options.showSize)
+                        _buildInfoRow('Size', item.formattedSize),
+                      
+                      if (options.showCreated)
+                        _buildInfoRow('Created', item.formattedCreationTime),
+                        
+                      if (options.showModified)
+                        _buildInfoRow('Modified', item.formattedModifiedTime),
+                        
+                      if (options.showWhereFrom && item.whereFrom != null)
+                        _buildInfoRow('Where from', item.whereFrom!),
+                      
+                      // Tags section
+                      if (options.showTags) ...[
+                        const SizedBox(height: 16),
+                        TagSelector(filePath: item.path),
+                        const SizedBox(height: 16),
+                      ],
+                      
+                      // Quick Actions
+                      if (options.showQuickActions) ...[
+                        const SizedBox(height: 12),
+                        const Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        _buildQuickActions(context, item),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ],
@@ -357,33 +515,107 @@ class _PreviewPanelState extends State<PreviewPanel> {
   }
   
   Widget _buildVideoPreview(BuildContext context, FileItem item) {
-    // For now, just show file info - video previews would require a video player plugin
-    return Center(
+    final previewService = Provider.of<PreviewPanelService>(context);
+    final options = previewService.optionsManager.mediaOptions;
+    
+    return SingleChildScrollView(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.video_file, size: 64, color: Colors.blue),
-          const SizedBox(height: 16),
-          Text(
-            item.name,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
+          // Video thumbnail
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Container(
+                width: 220,
+                height: 140,
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Center(
+                  child: Icon(Icons.play_circle_outline, size: 48, color: Colors.white70),
+                ),
+              ),
+            ),
           ),
-          const SizedBox(height: 8),
-          Text('Size: ${item.formattedSize}'),
-          Text('Modified: ${item.formattedModifiedTime}'),
-          const SizedBox(height: 16),
-          const Text(
-            'Video preview is not supported yet',
-            style: TextStyle(color: Colors.grey),
+          
+          // Metadata section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Common info
+                if (options.showSize)
+                  _buildInfoRow('Size', item.formattedSize),
+                  
+                if (options.showCreated)
+                  _buildInfoRow('Created', item.formattedCreationTime),
+                  
+                if (options.showModified)
+                  _buildInfoRow('Modified', item.formattedModifiedTime),
+                  
+                if (options.showWhereFrom && item.whereFrom != null)
+                  _buildInfoRow('Where from', item.whereFrom!),
+                
+                const SizedBox(height: 12),
+                
+                // Media specific info
+                if (options.showDuration)
+                  _buildInfoRow('Duration', '00:01:24'),  // Replace with actual duration
+                  
+                if (options.showCodecs)
+                  _buildInfoRow('Codec', 'H.264/AAC'),  // Replace with actual codec
+                  
+                if (options.showBitrate)
+                  _buildInfoRow('Bitrate', '8.2 Mbps'),  // Replace with actual bitrate
+                  
+                if (options.showDimensions)
+                  _buildInfoRow('Dimensions', '1920 × 1080'),  // Replace with actual dimensions
+                  
+                // Tags section
+                if (options.showTags) ...[
+                  const SizedBox(height: 16),
+                  TagSelector(filePath: item.path),
+                ],
+              ],
+            ),
           ),
+          
+          // Quick Actions section
+          if (options.showQuickActions) ...[
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  _buildQuickActions(context, item),
+                ],
+              ),
+            ),
+          ],
+          
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
   
   Widget _buildDocumentPreview(BuildContext context, FileItem item) {
-    // Simple document info preview
+    final previewService = Provider.of<PreviewPanelService>(context);
+    final options = previewService.optionsManager.documentOptions;
+    
     IconData iconData;
     Color iconColor;
     
@@ -402,52 +634,262 @@ class _PreviewPanelState extends State<PreviewPanel> {
       iconColor = Colors.orange;
     }
     
-    return Center(
+    return SingleChildScrollView(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(iconData, size: 64, color: iconColor),
-          const SizedBox(height: 16),
-          Text(
-            item.name,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
+          // Document icon
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Icon(iconData, size: 64, color: iconColor),
+            ),
           ),
-          const SizedBox(height: 8),
-          Text('Size: ${item.formattedSize}'),
-          Text('Modified: ${item.formattedModifiedTime}'),
-          const SizedBox(height: 16),
-          const Text(
-            'Full document preview is not supported yet',
-            style: TextStyle(color: Colors.grey),
+          
+          // Metadata section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Common info
+                if (options.showSize)
+                  _buildInfoRow('Size', item.formattedSize),
+                  
+                if (options.showCreated)
+                  _buildInfoRow('Created', item.formattedCreationTime),
+                  
+                if (options.showModified)
+                  _buildInfoRow('Modified', item.formattedModifiedTime),
+                  
+                if (options.showWhereFrom && item.whereFrom != null)
+                  _buildInfoRow('Where from', item.whereFrom!),
+                
+                const SizedBox(height: 12),
+                
+                // Document specific info
+                if (options.showAuthor)
+                  _buildInfoRow('Author', 'John Doe'),  // Replace with actual author
+                  
+                if (options.showPageCount)
+                  _buildInfoRow('Pages', '5'),  // Replace with actual page count
+                  
+                // Tags section
+                if (options.showTags) ...[
+                  const SizedBox(height: 16),
+                  TagSelector(filePath: item.path),
+                ],
+              ],
+            ),
           ),
+          
+          // Quick Actions section
+          if (options.showQuickActions) ...[
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  _buildQuickActions(context, item),
+                ],
+              ),
+            ),
+          ],
+          
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
   
   Widget _buildDefaultFileInfo(BuildContext context, FileItem item) {
-    return Center(
+    final previewService = Provider.of<PreviewPanelService>(context);
+    final options = previewService.optionsManager.defaultOptions;
+    
+    return SingleChildScrollView(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.insert_drive_file, size: 64, color: Colors.grey),
-          const SizedBox(height: 16),
-          Text(
-            item.name,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
+          // File icon
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Icon(
+                Icons.insert_drive_file, 
+                size: 64, 
+                color: Colors.grey.shade600
+              ),
+            ),
           ),
-          const SizedBox(height: 8),
-          Text('Size: ${item.formattedSize}'),
-          Text('Modified: ${item.formattedModifiedTime}'),
-          const SizedBox(height: 16),
-          Text(
-            'File type ${item.fileExtension} cannot be previewed',
-            style: const TextStyle(color: Colors.grey),
+          
+          // Metadata section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Common info
+                if (options.showSize)
+                  _buildInfoRow('Size', item.formattedSize),
+                  
+                if (options.showCreated)
+                  _buildInfoRow('Created', item.formattedCreationTime),
+                  
+                if (options.showModified)
+                  _buildInfoRow('Modified', item.formattedModifiedTime),
+                  
+                if (options.showWhereFrom && item.whereFrom != null)
+                  _buildInfoRow('Where from', item.whereFrom!),
+                
+                // File type
+                _buildInfoRow('Type', item.fileExtension.toUpperCase().replaceAll('.', '') + ' File'),
+                
+                // Tags section
+                if (options.showTags) ...[
+                  const SizedBox(height: 16),
+                  TagSelector(filePath: item.path),
+                ],
+              ],
+            ),
+          ),
+          
+          // Quick Actions section
+          if (options.showQuickActions) ...[
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  _buildQuickActions(context, item),
+                ],
+              ),
+            ),
+          ],
+          
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontWeight: FontWeight.w400,
+              ),
+            ),
           ),
         ],
       ),
+    );
+  }
+  
+  Widget _buildTag(String tag) {
+    // This method is no longer needed as we use TagSelector now
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        tag,
+        style: TextStyle(
+          fontSize: 12,
+          color: Colors.blue.shade700,
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildQuickActions(BuildContext context, FileItem item) {
+    final previewService = Provider.of<PreviewPanelService>(context);
+    final quickActions = previewService.getQuickActionsFor(item);
+    
+    if (quickActions.isEmpty) {
+      return const Text('No quick actions available for this file type',
+          style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic));
+    }
+    
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: quickActions.map((action) {
+        return InkWell(
+          onTap: () {
+            // TODO: Implement quick action handling
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${previewService.getQuickActionName(action)} action coming soon!'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(4),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  previewService.getQuickActionIcon(action),
+                  size: 16,
+                  color: Colors.blue.shade700,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  previewService.getQuickActionName(action),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.blue.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 } 

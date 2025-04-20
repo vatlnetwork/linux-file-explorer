@@ -34,7 +34,7 @@ void main() async {
   WindowOptions windowOptions = const WindowOptions(
     size: Size(1000, 800),
     center: true,
-    backgroundColor: Color(0xFFF5F5F5), // Light mode background
+    backgroundColor: Color(0xFFFFFFFF), // Light mode background
     skipTaskbar: false,
     titleBarStyle: TitleBarStyle.hidden,
     windowButtonVisibility: true,
@@ -100,7 +100,7 @@ class MyApp extends StatelessWidget {
           elevation: 4,
         ),
         // Use solid background color instead of transparent
-        scaffoldBackgroundColor: const Color(0xFFF5F5F5),
+        scaffoldBackgroundColor: const Color(0xFFFFFFFF),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.blue,

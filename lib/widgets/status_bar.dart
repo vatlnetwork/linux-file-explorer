@@ -150,7 +150,7 @@ class _StatusBarState extends State<StatusBar> {
     return Container(
       height: 32,
       decoration: BoxDecoration(
-        color: isDarkMode ? const Color(0xFF2C2C2C) : const Color(0xFFF5F5F5),
+        color: isDarkMode ? const Color(0xFF2C2C2C) : const Color(0xFFFFFFFF),
         border: Border(
           top: BorderSide(
             color: isDarkMode ? Colors.black54 : Colors.black12,

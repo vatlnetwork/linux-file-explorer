@@ -121,7 +121,7 @@ class _MountedUsbDrivesWidgetState extends State<MountedUsbDrivesWidget> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDarkMode ? const Color(0xFF252525) : const Color(0xFFF5F5F5),
+        color: isDarkMode ? const Color(0xFF252525) : const Color(0xFFFFFFFF),
         border: Border(
           bottom: BorderSide(
             color: isDarkMode ? Colors.black54 : Colors.black12,

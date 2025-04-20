@@ -23,6 +23,12 @@ class FileItem {
   /// Last modified time
   final DateTime? modifiedTime;
   
+  /// Creation time
+  final DateTime? creationTime;
+  
+  /// Where the file was downloaded from (for downloaded files)
+  final String? whereFrom;
+  
   /// File size in bytes (null for directories)
   final int? size;
   
@@ -52,11 +58,18 @@ class FileItem {
     return modifiedTime?.toString() ?? 'Unknown';
   }
   
+  /// Formatted creation time
+  String get formattedCreationTime {
+    return creationTime?.toString() ?? 'Unknown';
+  }
+  
   FileItem({
     required this.path,
     required this.name,
     required this.type,
     this.modifiedTime,
+    this.creationTime,
+    this.whereFrom,
     this.size,
   });
   
@@ -81,6 +94,7 @@ class FileItem {
       name: name,
       type: type,
       modifiedTime: stat.modified,
+      creationTime: stat.changed, // Use changed as creation time
       size: entity is File ? stat.size : null,
     );
   }
@@ -89,6 +103,7 @@ class FileItem {
     final File file = entity as File;
     final String name = p.basename(entity.path);
     final DateTime modifiedTime = file.statSync().modified;
+    final DateTime creationTime = file.statSync().changed; // Use changed as creation time
     final int size = file.statSync().size;
 
     return FileItem(
@@ -96,6 +111,7 @@ class FileItem {
       name: name,
       type: FileItemType.file,
       modifiedTime: modifiedTime,
+      creationTime: creationTime,
       size: size,
     );
   }
@@ -104,12 +120,14 @@ class FileItem {
     final String name = p.basename(entity.path);
     final Directory dir = entity as Directory;
     final DateTime modifiedTime = dir.statSync().modified;
+    final DateTime creationTime = dir.statSync().changed; // Use changed as creation time
 
     return FileItem(
       path: entity.path,
       name: name,
       type: FileItemType.directory,
       modifiedTime: modifiedTime,
+      creationTime: creationTime,
     );
   }
 

@@ -283,31 +283,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     }
   }
 
-  Future<void> _showOptionsDialog(FileItem item) async {
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: Text(item.name),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, 'rename'),
-            child: Text('Rename'),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, 'delete'),
-            child: Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (result == 'rename') {
-      _showRenameDialog(item);
-    } else if (result == 'delete') {
-      _showDeleteConfirmation(item);
-    }
-  }
-
   Future<void> _showRenameDialog(FileItem item) async {
     final TextEditingController nameController = TextEditingController(text: item.name);
     
@@ -666,6 +641,16 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           ],
         ),
       ),
+      PopupMenuItem<String>(
+        value: 'paste',
+        child: Row(
+          children: [
+            Icon(Icons.paste),
+            SizedBox(width: 8),
+            Text('Paste'),
+          ],
+        ),
+      ),
     ];
     
     // Add mounted check again
@@ -743,6 +728,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         break;
       case 'properties':
         _showPropertiesDialog(item);
+        break;
+      case 'paste':
+        _pasteFromSystemClipboard();
         break;
     }
   }
@@ -926,6 +914,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   }
 
   Future<void> _pasteFromSystemClipboard() async {
+    // First try to use internal clipboard
+    if (_clipboardItems != null && _clipboardItems!.isNotEmpty) {
+      await _pasteItemsFromInternalClipboard();
+      return;
+    }
+    
     try {
       // Get data from system clipboard
       final String clipboardData = await FlutterClipboard.paste();
@@ -2131,7 +2125,8 @@ exit
     environment['PWD'] = item.path; // Setting PWD to target directory
     
     // Create a bash command that sets PWD and launches warp
-    final bashCommand = 'cd "${item.path}" && ${warpPath}';
+    // ignore: unnecessary_brace_in_string_interps
+    final bashCommand = 'cd "${item.path}" && $warpPath';
     
     // Launch bash with the command
     return Process.start('bash', ['-c', bashCommand], environment: environment).then((process) {
@@ -2452,7 +2447,7 @@ exit
         break;
       case 'paste':
         if (hasClipboardItems) {
-          _pasteItemsToCurrentDirectory();
+          _pasteFromSystemClipboard();
         }
         break;
       case 'select_all':
@@ -3009,6 +3004,7 @@ exit
   // Implement the view builders
   Widget _buildListView(List<FileItem> items, IconSizeService iconSizeService) {
     return GestureDetector(
+      onTap: () => setState(() => _selectedItemsPaths = {}),
       onSecondaryTapUp: (details) => _showEmptyAreaContextMenu(details.globalPosition),
       onPanStart: (details) {
         setState(() {
@@ -3104,6 +3100,7 @@ exit
       children: [
         GestureDetector(
           key: _gridViewKey,
+          onTap: () => setState(() => _selectedItemsPaths = {}),
           onSecondaryTapUp: (details) => _showEmptyAreaContextMenu(details.globalPosition),
           onPanStart: (details) {
             setState(() {

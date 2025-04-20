@@ -67,9 +67,20 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
         // With 10px blur, we need less background tint
         return Container(
           width: 220,
-          color: isDarkMode
-              ? const Color(0xFF303030)  // Lighter gray for dark mode
-              : const Color(0xFFF5F5F5), // Light neutral gray for light mode
+          decoration: BoxDecoration(
+            color: isDarkMode
+                ? const Color(0xFF303030)  // Lighter gray for dark mode
+                : const Color(0xFFFFFFFF), // White for light mode
+            boxShadow: [
+              BoxShadow(
+                color: isDarkMode 
+                    ? Colors.black.withOpacity(0.5)
+                    : Colors.grey.withOpacity(0.3),
+                offset: const Offset(2, 0),
+                blurRadius: 4,
+              ),
+            ],
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
