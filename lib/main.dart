@@ -13,20 +13,36 @@ import 'services/preview_panel_service.dart';
 import 'services/app_service.dart';
 import 'services/file_association_service.dart';
 import 'package:flutter/services.dart';
+import 'services/tags_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize logging
-  Logger.root.level = Level.INFO;
+  // Initialize logging with more detailed configuration
+  Logger.root.level = Level.ALL; // Enable all log levels in debug mode
   Logger.root.onRecord.listen((record) {
-    // In production, you could direct this to a file or service
-    // Use dart:developer log which is safe for production
-    debugPrint('${record.level.name}: ${record.time}: ${record.message}');
+    // Format log message with timestamp, level, and source
+    final message = '${record.time}: ${record.level.name}: ${record.loggerName}: ${record.message}';
+    
+    // In debug mode, print to console
+    if (record.level >= Level.WARNING) {
+      debugPrint('\x1B[31m$message\x1B[0m'); // Red for warnings and higher
+    } else if (record.level >= Level.INFO) {
+      debugPrint('\x1B[34m$message\x1B[0m'); // Blue for info
+    } else {
+      debugPrint(message); // Normal for debug and trace
+    }
+    
+    // For production, you can implement file logging or service reporting here
   });
+  
+  // Create a logger for the main app
+  final appLogger = Logger('App');
+  appLogger.info('Application starting...');
   
   // Initialize window_manager for custom window controls
   await windowManager.ensureInitialized();
+  appLogger.fine('Window manager initialized');
   
   // Use solid background instead of transparent window
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -59,6 +75,9 @@ void main() async {
   final fileAssociationService = FileAssociationService();
   await fileAssociationService.init();
   
+  // Initialize tags service
+  final tagsService = TagsService();
+  
   runApp(
     MultiProvider(
       providers: [
@@ -70,6 +89,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => PreviewPanelService()),
         ChangeNotifierProvider.value(value: appService),
         ChangeNotifierProvider.value(value: fileAssociationService),
+        ChangeNotifierProvider.value(value: tagsService),
       ],
       child: const MyApp(),
     ),

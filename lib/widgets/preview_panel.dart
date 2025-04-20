@@ -806,12 +806,14 @@ class _PreviewPanelState extends State<PreviewPanel> {
               ),
             ),
           ),
-          Expanded(
+          Flexible(
             child: Text(
               value,
               style: const TextStyle(
                 fontWeight: FontWeight.w400,
               ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 3,
             ),
           ),
         ],
@@ -852,11 +854,14 @@ class _PreviewPanelState extends State<PreviewPanel> {
                   color: Colors.blue.shade700,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  previewService.getQuickActionName(action),
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.blue.shade700,
+                Flexible(
+                  child: Text(
+                    previewService.getQuickActionName(action),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.blue.shade700,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
