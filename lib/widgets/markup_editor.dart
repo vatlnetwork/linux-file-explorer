@@ -20,7 +20,7 @@ class MarkupEditor extends StatefulWidget {
 
 class _MarkupEditorState extends State<MarkupEditor> {
   late ui.Image? _image;
-  List<DrawingPoint?> _drawingPoints = [];
+  final List<DrawingPoint?> _drawingPoints = [];
   DrawingMode _drawingMode = DrawingMode.pen;
   Color _selectedColor = Colors.red;
   double _strokeWidth = 5;

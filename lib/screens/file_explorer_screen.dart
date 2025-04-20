@@ -1,5 +1,4 @@
 import 'dart:io';
-import "dart:async";
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -2610,11 +2609,9 @@ exit
 
   @override
   Widget build(BuildContext context) {
-    final bookmarkService = Provider.of<BookmarkService>(context);
     final viewModeService = Provider.of<ViewModeService>(context);
     final statusBarService = Provider.of<StatusBarService>(context);
     final previewPanelService = Provider.of<PreviewPanelService>(context);
-    final themeService = Provider.of<ThemeService>(context);
     final iconSizeService = Provider.of<IconSizeService>(context);
     
     // Listen for animation changes
@@ -2630,11 +2627,6 @@ exit
     } else if (!_showBookmarkSidebar && _bookmarkSidebarAnimation.isCompleted) {
       _bookmarkSidebarAnimation.reverse();
     }
-    
-    // Get selected items for the status bar
-    final List<FileItem> selectedItems = _selectedItemsPaths.isNotEmpty 
-      ? _items.where((item) => _selectedItemsPaths.contains(item.path)).toList() 
-      : [];
     
     return Scaffold(
       body: Focus(
