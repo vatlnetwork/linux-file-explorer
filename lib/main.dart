@@ -16,6 +16,7 @@ import 'services/file_association_service.dart';
 import 'package:flutter/services.dart';
 import 'services/tags_service.dart';
 import 'utils/audio_init.dart';
+import 'services/drag_drop_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -96,6 +97,7 @@ void main() async {
         ChangeNotifierProvider.value(value: appService),
         ChangeNotifierProvider.value(value: fileAssociationService),
         ChangeNotifierProvider.value(value: tagsService),
+        ChangeNotifierProvider(create: (_) => DragDropService()),
       ],
       child: const MyApp(),
     ),

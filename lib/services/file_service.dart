@@ -173,4 +173,79 @@ class FileService {
     
     await entity.rename(targetPath);
   }
+  
+  // Method to copy a file or folder from source to destination
+  Future<void> copyFile(String sourcePath, String destinationPath) async {
+    try {
+      // Get file info to determine if it's a directory
+      final fileInfo = await File(sourcePath).stat();
+      
+      if (fileInfo.type == FileSystemEntityType.directory) {
+        // Create the target directory
+        await Directory(destinationPath).create(recursive: true);
+        
+        // Copy all contents
+        final sourceDir = Directory(sourcePath);
+        await for (final entity in sourceDir.list(recursive: false)) {
+          final filename = p.basename(entity.path);
+          final newDestPath = p.join(destinationPath, filename);
+          
+          await copyFile(entity.path, newDestPath);
+        }
+      } else {
+        // Copy file
+        await File(sourcePath).copy(destinationPath);
+      }
+      
+      _logger.info('Copied $sourcePath to $destinationPath');
+    } catch (e) {
+      _logger.severe('Error copying file: $e');
+      rethrow;
+    }
+  }
+  
+  // Method to move a file or folder from source to destination
+  Future<void> moveFile(String sourcePath, String destinationPath) async {
+    try {
+      // Get file info to determine if it's a directory
+      final fileInfo = await File(sourcePath).stat();
+      
+      if (fileInfo.type == FileSystemEntityType.directory) {
+        // Create the target directory
+        await Directory(destinationPath).create(recursive: true);
+        
+        // Copy all contents
+        final sourceDir = Directory(sourcePath);
+        await for (final entity in sourceDir.list(recursive: false)) {
+          final filename = p.basename(entity.path);
+          final newDestPath = p.join(destinationPath, filename);
+          
+          await copyFile(entity.path, newDestPath);
+        }
+        
+        // Delete the source directory
+        await Directory(sourcePath).delete(recursive: true);
+      } else {
+        // Move file (rename operation in the file system)
+        await File(sourcePath).rename(destinationPath);
+      }
+      
+      _logger.info('Moved $sourcePath to $destinationPath');
+    } catch (e) {
+      _logger.severe('Error moving file: $e');
+      rethrow;
+    }
+  }
+  
+  // Method to create a symbolic link
+  Future<void> createSymlink(String targetPath, String linkPath) async {
+    try {
+      final link = Link(linkPath);
+      await link.create(targetPath);
+      _logger.info('Created symlink at $linkPath pointing to $targetPath');
+    } catch (e) {
+      _logger.severe('Error creating symlink: $e');
+      rethrow;
+    }
+  }
 } 
