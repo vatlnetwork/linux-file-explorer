@@ -539,7 +539,7 @@ class _ColumnItemWidget extends StatelessWidget {
                               ...fileTags.map((tag) => Padding(
                                 padding: const EdgeInsets.only(right: 4.0),
                                 child: _buildTagChip(tag),
-                              )).toList(),
+                              )),
                             ],
                           ),
                         ),
