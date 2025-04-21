@@ -40,25 +40,8 @@ class QuickLookManager {
   
   /// Adds a Quick Look menu item to a context menu
   static List<PopupMenuEntry<String>> addQuickLookMenuOption(List<PopupMenuEntry<String>> menuItems) {
-    // Add Quick Look option after "Open" (usually the first item)
-    final quickLookItem = PopupMenuItem<String>(
-      value: 'quick_look',
-      child: Row(
-        children: [
-          Icon(Icons.preview),
-          SizedBox(width: 8),
-          Text('Quick Look (Space)'),
-        ],
-      ),
-    );
-    
-    // Insert after the first item (usually "Open")
-    if (menuItems.isNotEmpty) {
-      menuItems.insert(1, quickLookItem);
-    } else {
-      menuItems.add(quickLookItem);
-    }
-    
+    // This method has been deprecated - Quick Look is now only available via the spacebar shortcut
+    // Return the original menu items without modification
     return menuItems;
   }
   

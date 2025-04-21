@@ -15,6 +15,7 @@ import 'app_selection_dialog.dart';
 import 'rename_file_dialog.dart';
 import 'markup_editor.dart';
 import 'annotations_editor.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 class PreviewPanel extends StatefulWidget {
   final Function(String) onNavigate;
@@ -486,7 +487,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                       // Metadata
                       if (options.showSize)
                         _buildInfoRow('Size', item.formattedSize),
-                      
+                        
                       if (options.showCreated)
                         _buildInfoRow('Created', item.formattedCreationTime),
                         
@@ -495,7 +496,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                         
                       if (options.showWhereFrom && item.whereFrom != null)
                         _buildInfoRow('Where from', item.whereFrom!),
-                      
+                        
                       // Tags section
                       if (options.showTags) ...[
                         const SizedBox(height: 16),
@@ -622,15 +623,103 @@ class _PreviewPanelState extends State<PreviewPanel> {
   Widget _buildDocumentPreview(BuildContext context, FileItem item) {
     final previewService = Provider.of<PreviewPanelService>(context);
     final options = previewService.optionsManager.documentOptions;
+    final ext = item.fileExtension.toLowerCase();
     
+    // If it's a PDF file, show a simplified preview for now
+    if (['.pdf'].contains(ext)) {
+      return SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // PDF icon
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    Icon(Icons.picture_as_pdf, size: 64, color: Colors.red),
+                    const SizedBox(height: 8),
+                    Text(
+                      'PDF Document',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.open_in_new),
+                      label: const Text('Open with default app'),
+                      onPressed: () {
+                        // Open with default app logic would go here
+                        _openFileWith(item.path);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            // Metadata section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Common info
+                  if (options.showSize)
+                    _buildInfoRow('Size', item.formattedSize),
+                    
+                  if (options.showCreated)
+                    _buildInfoRow('Created', item.formattedCreationTime),
+                    
+                  if (options.showModified)
+                    _buildInfoRow('Modified', item.formattedModifiedTime),
+                    
+                  if (options.showWhereFrom && item.whereFrom != null)
+                    _buildInfoRow('Where from', item.whereFrom!),
+                    
+                  // Tags section
+                  if (options.showTags) ...[
+                    const SizedBox(height: 16),
+                    TagSelector(filePath: item.path),
+                  ],
+                ],
+              ),
+            ),
+            
+            // Quick Actions section
+            if (options.showQuickActions) ...[
+              const Divider(),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 12),
+                    _buildQuickActions(context, item),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+    
+    // For other document types like docx, xlsx, etc.
     IconData iconData;
     Color iconColor;
     
-    final ext = item.fileExtension.toLowerCase();
-    if (['.pdf'].contains(ext)) {
-      iconData = Icons.picture_as_pdf;
-      iconColor = Colors.red;
-    } else if (['.doc', '.docx'].contains(ext)) {
+    if (['.doc', '.docx'].contains(ext)) {
       iconData = Icons.description;
       iconColor = Colors.blue;
     } else if (['.xls', '.xlsx'].contains(ext)) {
@@ -1207,6 +1296,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
   }
   
   void _quickLookFile(BuildContext context, FileItem item) {
+    print('PreviewPanel: Triggering QuickLook for ${item.path}');
     showDialog(
       context: context,
       barrierColor: Colors.black87,

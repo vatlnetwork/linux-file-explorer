@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/file_item.dart';
 import 'preview_panel_service.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 class QuickLookService {
   final BuildContext context;
@@ -14,14 +15,38 @@ class QuickLookService {
 
   /// Show a quick look preview dialog for the given file item
   Future<void> showQuickLook(FileItem item) async {
+    print('QuickLookService: Initiating Quick Look for ${item.path}');
+    
     if (!previewPanelService.canPreview(item)) {
+      print('QuickLookService: Cannot preview this file type');
       return;
     }
 
-    await showDialog(
+    print('QuickLookService: Showing dialog for ${item.name}');
+    await showGeneralDialog(
       context: context,
-      builder: (context) => QuickLookDialog(item: item, previewPanelService: previewPanelService),
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (context, animation, secondaryAnimation) => QuickLookDialog(
+        item: item, 
+        previewPanelService: previewPanelService,
+      ),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return ScaleTransition(
+          scale: CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          ),
+          child: FadeTransition(
+            opacity: animation,
+            child: child,
+          ),
+        );
+      },
     );
+    print('QuickLookService: Dialog closed');
   }
 }
 
@@ -89,14 +114,29 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final borderRadius = BorderRadius.circular(16);
     
     return Dialog(
       backgroundColor: isDarkMode ? const Color(0xFF292929) : Colors.white,
       elevation: 24,
       insetPadding: const EdgeInsets.all(40),
-      child: SizedBox(
+      shape: RoundedRectangleBorder(
+        borderRadius: borderRadius,
+      ),
+      child: Container(
         width: 800,
         height: 600,
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias, // Ensure content respects rounded corners
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -286,16 +326,45 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
   }
 
   Widget _buildDocumentPreview() {
+    final ext = widget.item.fileExtension.toLowerCase();
+    
+    // If it's a PDF file, show a basic preview instead of using SfPdfViewer
+    if (['.pdf'].contains(ext)) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.picture_as_pdf, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(
+              widget.item.name,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text('PDF Document'),
+            Text('Size: ${widget.item.formattedSize}'),
+            Text('Modified: ${widget.item.formattedModifiedTime}'),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('Open with default app'),
+              onPressed: () {
+                // This would typically launch the file with the default app
+                Navigator.of(context).pop(); // Close quick look
+              },
+            ),
+          ],
+        ),
+      );
+    }
+    
+    // For other document types, show file info
     IconData iconData;
     Color iconColor;
     String fileType;
     
-    final ext = widget.item.fileExtension.toLowerCase();
-    if (['.pdf'].contains(ext)) {
-      iconData = Icons.picture_as_pdf;
-      iconColor = Colors.red;
-      fileType = 'PDF Document';
-    } else if (['.doc', '.docx'].contains(ext)) {
+    if (['.doc', '.docx'].contains(ext)) {
       iconData = Icons.description;
       iconColor = Colors.blue;
       fileType = 'Word Document';

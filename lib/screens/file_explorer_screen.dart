@@ -644,17 +644,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       ),
       
       PopupMenuItem<String>(
-        value: 'quick_look',
-        child: Row(
-          children: [
-            Icon(Icons.preview),
-            SizedBox(width: 8),
-            Text('Quick Look (Space)'),
-          ],
-        ),
-      ),
-      
-      PopupMenuItem<String>(
         value: 'paste',
         child: Row(
           children: [
@@ -682,9 +671,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     switch (result) {
       case 'open':
         _handleItemDoubleTap(item);
-        break;
-      case 'quick_look':
-        _showQuickLook(item);
         break;
       case 'open_with':
         _showOpenWithDialog(item);

@@ -181,8 +181,6 @@ class PreviewPanelService extends ChangeNotifier {
     
     // PDF files
     else if (['.pdf'].contains(ext)) {
-      actions.add(QuickAction.quickLook);
-      actions.add(QuickAction.preview);
       actions.add(QuickAction.searchablePdf);
       actions.add(QuickAction.markup);
       actions.add(QuickAction.addAnnotations);
