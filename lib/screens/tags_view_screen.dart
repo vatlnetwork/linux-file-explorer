@@ -366,7 +366,7 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
         ),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 4.0),
+            padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
             itemCount: files.length,
             itemBuilder: (context, index) {
               final path = files[index];
@@ -377,22 +377,26 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
                 return const SizedBox.shrink();
               }
               
-              return FileListTile(
-                file: file,
-                onTap: () {
-                  // Navigate to the file in the explorer
-                  Navigator.pop(context, {
-                    'action': 'navigate',
-                    'path': path,
-                  });
-                },
-                onDoubleTap: () {
-                  // Open the file and return
-                  Navigator.pop(context, {
-                    'action': 'open',
-                    'path': path,
-                  });
-                },
+              return Card(
+                elevation: 0.5,
+                margin: const EdgeInsets.symmetric(vertical: 4.0),
+                child: FileListTile(
+                  file: file,
+                  onTap: () {
+                    // Navigate to the file in the explorer
+                    Navigator.pop(context, {
+                      'action': 'navigate',
+                      'path': path,
+                    });
+                  },
+                  onDoubleTap: () {
+                    // Open the file and return
+                    Navigator.pop(context, {
+                      'action': 'open',
+                      'path': path,
+                    });
+                  },
+                ),
               );
             },
           ),

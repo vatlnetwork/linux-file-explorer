@@ -5,6 +5,8 @@ import 'package:path/path.dart' as p;
 import '../models/file_item.dart';
 import '../services/file_service.dart';
 import '../services/preview_panel_service.dart';
+import '../services/tags_service.dart';
+import '../models/tag.dart';
 
 /// A widget that displays a hierarchical column view of the file system
 /// Similar to the macOS Finder's column view
@@ -504,12 +506,47 @@ class _ColumnItemWidget extends StatelessWidget {
             const SizedBox(width: 8),
             // File name
             Expanded(
-              child: Text(
-                p.basename(item.path),
-                style: TextStyle(
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                ),
-                overflow: TextOverflow.ellipsis,
+              child: Row(
+                children: [
+                  // File name
+                  Flexible(
+                    child: Text(
+                      p.basename(item.path),
+                      style: TextStyle(
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  
+                  // Tags
+                  Builder(
+                    builder: (context) {
+                      if (item.type == FileItemType.directory) return const SizedBox.shrink();
+                      
+                      final tagsService = Provider.of<TagsService>(context);
+                      final fileTags = tagsService.getTagsForFile(item.path);
+                      
+                      if (fileTags.isEmpty) return const SizedBox.shrink();
+                      
+                      return Flexible(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(width: 8),
+                              ...fileTags.map((tag) => Padding(
+                                padding: const EdgeInsets.only(right: 4.0),
+                                child: _buildTagChip(tag),
+                              )).toList(),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
             // Arrow for directories
@@ -603,5 +640,28 @@ class _ColumnItemWidget extends StatelessWidget {
       default:
         return Colors.blueGrey;
     }
+  }
+  
+  // Utility method to build tag chips
+  Widget _buildTagChip(Tag tag) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: tag.color.withAlpha(50),
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(
+          color: tag.color.withAlpha(100),
+          width: 0.5,
+        ),
+      ),
+      child: Text(
+        tag.name,
+        style: TextStyle(
+          fontSize: 10,
+          color: tag.color,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
   }
 } 

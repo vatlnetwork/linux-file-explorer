@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/file_item.dart';
 import '../services/icon_size_service.dart';
+import '../services/tags_service.dart';
+import '../models/tag.dart';
 import 'file_item_widget.dart'; // Import for HoverBuilder
 
 /// A widget to display a file or folder in a grid layout
@@ -138,6 +140,8 @@ class GridItemWidget extends StatelessWidget {
                                 // Subtitle - only if we have even more space
                                 if (hasSpaceForSubtitle) ...[
                                   SizedBox(height: uiScale > 0 ? (4.0 * uiScale).clamp(2.0, 6.0) : 2.0), // Added null safety
+                                  
+                                  // Basic size info
                                   Flexible(
                                     child: Container(
                                       constraints: BoxConstraints(
@@ -155,6 +159,31 @@ class GridItemWidget extends StatelessWidget {
                                         ),
                                       ),
                                     ),
+                                  ),
+                                  
+                                  // Show tags if we have any
+                                  Builder(
+                                    builder: (context) {
+                                      final tagsService = Provider.of<TagsService>(context);
+                                      final fileTags = tagsService.getTagsForFile(item.path);
+                                      
+                                      if (fileTags.isEmpty) return const SizedBox.shrink();
+                                      
+                                      return Padding(
+                                        padding: const EdgeInsets.only(top: 4.0),
+                                        child: Wrap(
+                                          alignment: WrapAlignment.center,
+                                          spacing: 4,
+                                          runSpacing: 4,
+                                          children: fileTags.map((tag) => _buildTagChip(
+                                            tag, 
+                                            uiScale > 0 
+                                                ? (subtitleSize * (1.0 / uiScale).clamp(0.5, 1.0) * 0.85).clamp(6.0, 10.0)
+                                                : 8.0,
+                                          )).toList(),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ],
                               ],
@@ -243,5 +272,28 @@ class GridItemWidget extends StatelessWidget {
     }
     
     return Icon(iconData, color: iconColor, size: safeSize);
+  }
+
+  // Add tag chip creation method
+  Widget _buildTagChip(Tag tag, double fontSize) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: tag.color.withAlpha(50),
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(
+          color: tag.color.withAlpha(100),
+          width: 0.5,
+        ),
+      ),
+      child: Text(
+        tag.name,
+        style: TextStyle(
+          fontSize: fontSize, // Already calculated the proper size
+          color: tag.color,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
   }
 } 

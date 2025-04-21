@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
+import '../services/tags_service.dart';
+import '../models/tag.dart';
 
 class FileListTile extends StatelessWidget {
   final File file;
@@ -23,6 +26,10 @@ class FileListTile extends StatelessWidget {
     final fileModified = DateTime.fromMillisecondsSinceEpoch(
       fileStats.modified.millisecondsSinceEpoch
     );
+    
+    // Get tags for this file
+    final tagsService = Provider.of<TagsService>(context);
+    final fileTags = tagsService.getTagsForFile(file.path);
 
     return GestureDetector(
       onDoubleTap: onDoubleTap,
@@ -35,14 +42,53 @@ class FileListTile extends StatelessWidget {
           fileName,
           overflow: TextOverflow.ellipsis,
         ),
-        subtitle: Text(
-          '$fileSize · Modified: ${_formatDate(fileModified)}',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey.shade600,
-          ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // File info
+            Text(
+              '$fileSize · Modified: ${_formatDate(fileModified)}',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            
+            // Tags (if any)
+            if (fileTags.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4.0),
+                child: Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: fileTags.map((tag) => _buildTagChip(tag)).toList(),
+                ),
+              ),
+          ],
         ),
         onTap: onTap,
+      ),
+    );
+  }
+  
+  Widget _buildTagChip(Tag tag) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: tag.color.withAlpha(50),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: tag.color.withAlpha(100),
+          width: 0.5,
+        ),
+      ),
+      child: Text(
+        tag.name,
+        style: TextStyle(
+          fontSize: 10,
+          color: tag.color,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }

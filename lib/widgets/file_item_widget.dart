@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/file_item.dart';
 import '../services/icon_size_service.dart';
+import '../services/tags_service.dart';
+import '../models/tag.dart';
 
 /// A widget to display a file or folder in a list
 class FileItemWidget extends StatelessWidget {
@@ -112,15 +114,48 @@ class FileItemWidget extends StatelessWidget {
                                   ),
                                   if (hasSpaceForSubtitle) ...[
                                     SizedBox(height: 2.0 * uiScale.clamp(0.7, 1.0)),
-                                    Text(
-                                      item.type == FileItemType.directory
-                                          ? 'Folder'
-                                          : item.formattedSize,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: subtitleSize,
-                                        color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
-                                      ),
+                                    Row(
+                                      children: [
+                                        // Size information
+                                        Text(
+                                          item.type == FileItemType.directory
+                                              ? 'Folder'
+                                              : item.formattedSize,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: subtitleSize,
+                                            color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                                          ),
+                                        ),
+                                        
+                                        // Get tags for this file
+                                        Builder(
+                                          builder: (context) {
+                                            final tagsService = Provider.of<TagsService>(context);
+                                            final fileTags = tagsService.getTagsForFile(item.path);
+                                            
+                                            if (fileTags.isEmpty) return const SizedBox.shrink();
+                                            
+                                            return Expanded(
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(left: 6.0),
+                                                child: SingleChildScrollView(
+                                                  scrollDirection: Axis.horizontal,
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: fileTags.map((tag) => 
+                                                      Padding(
+                                                        padding: const EdgeInsets.only(right: 4.0),
+                                                        child: _buildTagChip(tag, subtitleSize),
+                                                      )
+                                                    ).toList(),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ],
@@ -213,6 +248,29 @@ class FileItemWidget extends StatelessWidget {
     }
     
     return Icon(iconData, color: iconColor, size: safeSize);
+  }
+
+  // Add a utility method to build tag chips
+  Widget _buildTagChip(Tag tag, double fontSize) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: tag.color.withAlpha(50),
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(
+          color: tag.color.withAlpha(100),
+          width: 0.5,
+        ),
+      ),
+      child: Text(
+        tag.name,
+        style: TextStyle(
+          fontSize: fontSize * 0.85, // Slightly smaller than subtitle
+          color: tag.color,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
   }
 }
 
