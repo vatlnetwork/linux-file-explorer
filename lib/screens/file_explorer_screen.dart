@@ -2861,6 +2861,10 @@ exit
                       borderRadius: BorderRadius.circular(15),
                       borderSide: BorderSide.none,
                     ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
                     filled: true,
                     fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                   ),
