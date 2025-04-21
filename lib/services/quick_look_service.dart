@@ -2,11 +2,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/file_item.dart';
 import 'preview_panel_service.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:logging/logging.dart';
 
 class QuickLookService {
   final BuildContext context;
   final PreviewPanelService previewPanelService;
+  final _logger = Logger('QuickLookService');
 
   QuickLookService({
     required this.context,
@@ -15,14 +16,14 @@ class QuickLookService {
 
   /// Show a quick look preview dialog for the given file item
   Future<void> showQuickLook(FileItem item) async {
-    print('QuickLookService: Initiating Quick Look for ${item.path}');
+    _logger.info('Initiating Quick Look for ${item.path}');
     
     if (!previewPanelService.canPreview(item)) {
-      print('QuickLookService: Cannot preview this file type');
+      _logger.info('Cannot preview this file type');
       return;
     }
 
-    print('QuickLookService: Showing dialog for ${item.name}');
+    _logger.info('Showing dialog for ${item.name}');
     await showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -46,7 +47,7 @@ class QuickLookService {
         );
       },
     );
-    print('QuickLookService: Dialog closed');
+    _logger.info('Dialog closed');
   }
 }
 
@@ -130,7 +131,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
           borderRadius: borderRadius,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Color.fromRGBO(0, 0, 0, 0.1),
               blurRadius: 10,
               spreadRadius: 1,
             ),

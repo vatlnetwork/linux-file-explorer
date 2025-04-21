@@ -15,7 +15,6 @@ import 'app_selection_dialog.dart';
 import 'rename_file_dialog.dart';
 import 'markup_editor.dart';
 import 'annotations_editor.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 class PreviewPanel extends StatefulWidget {
   final Function(String) onNavigate;
