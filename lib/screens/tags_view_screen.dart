@@ -33,10 +33,19 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tags'),
+        title: const Text('Tags', style: TextStyle(fontSize: 16)),
+        toolbarHeight: 48,
+        elevation: 0.5,
+        leadingWidth: 40,
+        titleSpacing: 0,
         actions: [
           IconButton(
-            icon: Icon(_sortByUsage ? Icons.sort : Icons.sort_by_alpha),
+            icon: Icon(
+              _sortByUsage ? Icons.sort : Icons.sort_by_alpha,
+              size: 20,
+            ),
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
             onPressed: () {
               setState(() {
                 _sortByUsage = !_sortByUsage;
@@ -82,58 +91,38 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
 
           return Column(
             children: [
-              // Search bar
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search tags...',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10.0),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12.0),
-                    filled: true,
-                    fillColor: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.grey[800]
-                        : Colors.grey[200],
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                      // Clear selection if the selected tag is filtered out
-                      if (_selectedTagId != null && 
-                          !tags.any((tag) => tag.id == _selectedTagId)) {
-                        _selectedTagId = null;
-                      }
-                    });
-                  },
-                ),
-              ),
-              
               // Tags and files view
               Expanded(
                 child: Row(
                   children: [
-                    // Tags sidebar
-                    SizedBox(
-                      width: 250,
+                    // Tags sidebar with search bar at the top
+                    Expanded(
+                      flex: 1,
                       child: Material(
                         elevation: 1,
                         child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
                           itemCount: tags.length,
                           itemBuilder: (context, index) {
                             final tag = tags[index];
                             final count = tagUsageCounts[tag.id] ?? 0;
                             
                             return ListTile(
+                              visualDensity: VisualDensity.compact,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 2.0),
                               leading: Icon(
                                 Icons.local_offer,
                                 color: tag.color,
+                                size: 20,
                               ),
-                              title: Text(tag.name),
-                              subtitle: Text('$count ${count == 1 ? 'file' : 'files'}'),
+                              title: Text(
+                                tag.name,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              subtitle: Text(
+                                '$count ${count == 1 ? 'file' : 'files'}',
+                                style: const TextStyle(fontSize: 12),
+                              ),
                               selected: _selectedTagId == tag.id,
                               onTap: () {
                                 setState(() {
@@ -141,7 +130,9 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
                                 });
                               },
                               trailing: IconButton(
-                                icon: const Icon(Icons.delete_outline),
+                                icon: const Icon(Icons.delete_outline, size: 18),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
                                 onPressed: count > 0 ? null : () => _confirmDeleteTag(context, tagsService, tag),
                                 tooltip: count > 0 ? 'Cannot delete tag in use' : 'Delete tag',
                               ),
@@ -151,13 +142,65 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
                       ),
                     ),
 
+                    // Add a small divider for visual separation
+                    const VerticalDivider(width: 1, thickness: 1),
+
                     // Files with the selected tag
                     Expanded(
-                      child: _selectedTagId == null
-                          ? const Center(
-                              child: Text('Select a tag to view associated files'),
-                            )
-                          : _buildFilesForTag(tagsService, _selectedTagId!),
+                      flex: 2,
+                      child: Column(
+                        children: [
+                          // Search bar at the top of the right side
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+                            child: Container(
+                              constraints: const BoxConstraints(maxHeight: 36),
+                              child: TextField(
+                                controller: _searchController,
+                                decoration: InputDecoration(
+                                  hintText: 'Search tags...',
+                                  hintStyle: const TextStyle(fontSize: 13),
+                                  prefixIcon: const Icon(Icons.search, size: 18),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8.0),
+                                    borderSide: BorderSide(width: 0.5, color: Colors.grey.shade400),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8.0),
+                                    borderSide: BorderSide(width: 0.5, color: Colors.grey.shade400),
+                                  ),
+                                  contentPadding: EdgeInsets.zero,
+                                  isDense: true,
+                                  filled: true,
+                                  fillColor: Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.grey[800]
+                                      : Colors.grey[200],
+                                ),
+                                style: const TextStyle(fontSize: 13),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _searchQuery = value;
+                                    // Clear selection if the selected tag is filtered out
+                                    if (_selectedTagId != null && 
+                                        !tags.any((tag) => tag.id == _selectedTagId)) {
+                                      _selectedTagId = null;
+                                    }
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                          
+                          // Files content
+                          Expanded(
+                            child: _selectedTagId == null
+                                ? const Center(
+                                    child: Text('Select a tag to view associated files'),
+                                  )
+                                : _buildFilesForTag(tagsService, _selectedTagId!),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -166,10 +209,10 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.small(
         onPressed: () => _showCreateTagDialog(context),
         tooltip: 'Create New Tag',
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add, size: 20),
       ),
     );
   }
@@ -306,16 +349,16 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 12.0),
           child: Row(
             children: [
-              Icon(Icons.local_offer, color: tag.color),
+              Icon(Icons.local_offer, color: tag.color, size: 18),
               const SizedBox(width: 8),
               Text(
                 'Files tagged with "${tag.name}" (${files.length})',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  fontSize: 14,
                 ),
               ),
             ],
@@ -323,6 +366,7 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
         ),
         Expanded(
           child: ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 4.0),
             itemCount: files.length,
             itemBuilder: (context, index) {
               final path = files[index];
