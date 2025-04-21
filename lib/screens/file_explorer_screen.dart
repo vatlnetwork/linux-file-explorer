@@ -1589,18 +1589,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                   ),
                 ),
                 
-                // Theme switcher
-                PopupMenuItem<String>(
-                  value: 'toggle_theme',
-                  child: Row(
-                    children: [
-                      Icon(themeService.isDarkMode ? Icons.dark_mode : Icons.light_mode),
-                      SizedBox(width: 8),
-                      Text(themeService.isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'),
-                    ],
-                  ),
-                ),
-                
                 // Toggle status bar
                 PopupMenuItem<String>(
                   value: 'status_bar',
@@ -1773,9 +1761,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         switch (value) {
           case 'view_mode':
             _showViewModeSubmenu(context, size);
-            break;
-          case 'toggle_theme':
-            themeService.toggleTheme();
             break;
           case 'status_bar':
             statusBarService.toggleStatusBar();

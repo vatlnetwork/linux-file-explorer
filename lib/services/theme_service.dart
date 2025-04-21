@@ -2,76 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeService extends ChangeNotifier {
-  static const String _themeKey = 'theme_mode';
-
-  ThemeMode _themeMode = ThemeMode.system;
+  // Always use system theme
+  final ThemeMode _themeMode = ThemeMode.system;
 
   ThemeMode get themeMode => _themeMode;
 
-  bool get isDarkMode => _themeMode == ThemeMode.dark;
-  bool get isLightMode => _themeMode == ThemeMode.light;
-  bool get isSystemMode => _themeMode == ThemeMode.system;
+  // For compatibility with existing code
+  bool get isDarkMode => false;
+  bool get isLightMode => false;
+  bool get isSystemMode => true;
 
   ThemeService() {
-    _loadThemeMode();
+    // No need to load theme mode as we always use system
   }
 
-  Future<void> _loadThemeMode() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedTheme = prefs.getString(_themeKey);
-
-    if (savedTheme != null) {
-      switch (savedTheme) {
-        case 'dark':
-          _themeMode = ThemeMode.dark;
-          break;
-        case 'light':
-          _themeMode = ThemeMode.light;
-          break;
-        case 'system':
-        default:
-          _themeMode = ThemeMode.system;
-          break;
-      }
-      notifyListeners();
-    }
-  }
-
+  // For compatibility with existing code, but does nothing
   Future<void> setThemeMode(ThemeMode mode) async {
-    if (_themeMode == mode) return;
-
-    _themeMode = mode;
-    notifyListeners();
-
-    final prefs = await SharedPreferences.getInstance();
-    String themeString;
-
-    switch (mode) {
-      case ThemeMode.dark:
-        themeString = 'dark';
-        break;
-      case ThemeMode.light:
-        themeString = 'light';
-        break;
-      case ThemeMode.system:
-        themeString = 'system';
-        break;
-    }
-
-    await prefs.setString(_themeKey, themeString);
+    // Do nothing - we always use system theme
+    return;
   }
 
+  // For compatibility with existing code, but does nothing
   void toggleTheme() {
-    switch (_themeMode) {
-      case ThemeMode.system:
-        setThemeMode(ThemeMode.light);
-        break;
-      case ThemeMode.light:
-        setThemeMode(ThemeMode.dark);
-        break;
-      case ThemeMode.dark:
-        setThemeMode(ThemeMode.system);
-        break;
-    }
+    // Do nothing - we always use system theme
+    return;
   }
 }
