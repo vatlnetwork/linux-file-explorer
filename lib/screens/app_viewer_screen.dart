@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../services/app_service.dart';
 import '../widgets/app_grid_view.dart';
 import 'package:window_manager/window_manager.dart';
-import '../models/app_item.dart';
 
 class AppViewerScreen extends StatefulWidget {
   const AppViewerScreen({super.key});
