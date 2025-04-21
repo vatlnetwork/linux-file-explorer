@@ -108,8 +108,6 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    final themeService = Provider.of<ThemeService>(context);
-    
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Linux File Explorer',

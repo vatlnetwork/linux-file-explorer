@@ -14,7 +14,6 @@ import '../services/notification_service.dart';
 import '../services/view_mode_service.dart';
 import '../services/status_bar_service.dart';
 import '../services/icon_size_service.dart';
-import '../services/theme_service.dart';
 import '../services/usb_drive_service.dart';
 import '../services/preview_panel_service.dart';
 import '../services/app_service.dart';
@@ -1542,7 +1541,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   void _showOptionsMenu(BuildContext context) {
     final viewModeService = Provider.of<ViewModeService>(context, listen: false);
     final previewPanelService = Provider.of<PreviewPanelService>(context, listen: false);
-    final themeService = Provider.of<ThemeService>(context, listen: false);
     final iconSizeService = Provider.of<IconSizeService>(context, listen: false);
     final statusBarService = Provider.of<StatusBarService>(context, listen: false);
     final appService = Provider.of<AppService>(context, listen: false);
