@@ -161,26 +161,41 @@ class GridItemWidget extends StatelessWidget {
                                     ),
                                   ),
                                   
-                                  // Show tags if we have any
+                                  // Show tags if we have any and there's enough vertical space
                                   Builder(
                                     builder: (context) {
                                       final tagsService = Provider.of<TagsService>(context);
                                       final fileTags = tagsService.getTagsForFile(item.path);
                                       
+                                      // Don't render tags if there aren't any
                                       if (fileTags.isEmpty) return const SizedBox.shrink();
                                       
+                                      // Calculate if we have enough space for tags based on container constraints
+                                      // Only show tags if we have enough space (at least 110 pixels in height)
+                                      final hasSpaceForTags = constraints.maxHeight >= 110.0;
+                                      if (!hasSpaceForTags) return const SizedBox.shrink();
+                                      
+                                      // Calculate an appropriate font size for tags based on available space
+                                      final tagFontSize = uiScale > 0 
+                                          ? (subtitleSize * (1.0 / uiScale).clamp(0.5, 1.0) * 0.8).clamp(6.0, 9.0)
+                                          : 7.0;
+                                      
                                       return Padding(
-                                        padding: const EdgeInsets.only(top: 4.0),
-                                        child: Wrap(
-                                          alignment: WrapAlignment.center,
-                                          spacing: 4,
-                                          runSpacing: 4,
-                                          children: fileTags.map((tag) => _buildTagChip(
-                                            tag, 
-                                            uiScale > 0 
-                                                ? (subtitleSize * (1.0 / uiScale).clamp(0.5, 1.0) * 0.85).clamp(6.0, 10.0)
-                                                : 8.0,
-                                          )).toList(),
+                                        padding: const EdgeInsets.only(top: 2.0),
+                                        child: ConstrainedBox(
+                                          constraints: BoxConstraints(
+                                            maxHeight: 16.0, // Limit tag container height
+                                          ),
+                                          child: Wrap(
+                                            alignment: WrapAlignment.center,
+                                            spacing: 2, // Reduce spacing between tags
+                                            runSpacing: 2,
+                                            children: fileTags
+                                              // Limit to max 2 tags in grid view to prevent overflow
+                                              .take(2)
+                                              .map((tag) => _buildTagChip(tag, tagFontSize))
+                                              .toList(),
+                                          ),
                                         ),
                                       );
                                     },
@@ -277,10 +292,10 @@ class GridItemWidget extends StatelessWidget {
   // Add tag chip creation method
   Widget _buildTagChip(Tag tag, double fontSize) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 0),
       decoration: BoxDecoration(
         color: tag.color.withAlpha(50),
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(2),
         border: Border.all(
           color: tag.color.withAlpha(100),
           width: 0.5,
@@ -289,7 +304,7 @@ class GridItemWidget extends StatelessWidget {
       child: Text(
         tag.name,
         style: TextStyle(
-          fontSize: fontSize, // Already calculated the proper size
+          fontSize: fontSize,
           color: tag.color,
           fontWeight: FontWeight.w500,
         ),
