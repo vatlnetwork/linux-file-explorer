@@ -50,8 +50,41 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
       title = 'Preview Options';
     }
     
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
     return AlertDialog(
-      title: Text(title),
+      title: Container(
+        height: 40,
+        decoration: BoxDecoration(
+          color: isDarkMode 
+              ? const Color(0xFF2C2C2C) // Dark mode toolbar color
+              : const Color(0xFFF5F5F5), // Light mode toolbar color
+          border: Border(
+            bottom: BorderSide(
+              color: isDarkMode 
+                  ? Colors.grey.shade800 
+                  : Colors.grey.shade300,
+              width: 0.5,
+            ),
+          ),
+          borderRadius: const BorderRadius.all(Radius.circular(8)),
+        ),
+        child: Row(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 12.0),
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 16,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -59,7 +92,7 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
           children: [
             const Text(
               'General Information',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
             _buildSwitchTile(
               'Tags',
@@ -93,10 +126,10 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
             ),
             
             if (isImage) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               const Text(
                 'Image Information',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
               _buildSwitchTile(
                 'Dimensions',
@@ -121,10 +154,10 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
             ],
             
             if (isDocument) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               const Text(
                 'Document Information',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
               _buildSwitchTile(
                 'Author',
@@ -139,10 +172,10 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
             ],
             
             if (isMedia) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               const Text(
                 'Media Information',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
               _buildSwitchTile(
                 'Duration',
@@ -165,12 +198,26 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          onPressed: () => Navigator.pop(context),
+          child: Text(
+            'Cancel',
+            style: TextStyle(
+              fontSize: 12,
+              color: isDarkMode ? Colors.white70 : Colors.black54,
+            ),
+          ),
         ),
         TextButton(
-          onPressed: () => Navigator.of(context).pop(_currentOptions),
-          child: const Text('Save'),
+          onPressed: () {
+            Navigator.pop(context, _currentOptions);
+          },
+          child: Text(
+            'Save',
+            style: TextStyle(
+              fontSize: 12,
+              color: isDarkMode ? Colors.white70 : Colors.black54,
+            ),
+          ),
         ),
       ],
     );
@@ -178,11 +225,14 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
   
   Widget _buildSwitchTile(String title, bool value, void Function(bool) onChanged) {
     return SwitchListTile(
-      title: Text(title),
+      title: Text(title, style: const TextStyle(fontSize: 13)),
       value: value,
       onChanged: onChanged,
       dense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 0),
+      visualDensity: VisualDensity.compact,
+      controlAffinity: ListTileControlAffinity.trailing,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 } 

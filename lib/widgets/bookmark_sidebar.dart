@@ -64,35 +64,33 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
         final bookmarks = bookmarkService.bookmarks;
         final isDarkMode = Theme.of(context).brightness == Brightness.dark;
         
-        // With 10px blur, we need less background tint
         return Container(
-          width: 220,
+          width: 180,
           decoration: BoxDecoration(
-            color: isDarkMode
-                ? const Color(0xFF303030)  // Lighter gray for dark mode
-                : const Color(0xFFFFFFFF), // White for light mode
-            boxShadow: [
-              BoxShadow(
+            color: isDarkMode 
+                ? const Color(0xFF353535) // Lighter gray for dark mode
+                : const Color(0xFFF5F5F5), // Light mode color
+            border: Border(
+              right: BorderSide(
                 color: isDarkMode 
-                    ? Colors.black.withValues(alpha: 0.5)
-                    : Colors.grey.withValues(alpha: 0.3),
-                offset: const Offset(2, 0),
-                blurRadius: 4,
+                    ? Colors.grey.shade800 
+                    : Colors.grey.shade300,
+                width: 0.5,
               ),
-            ],
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
                 child: const AppsBookmarkButton(),
               ),
               Divider(
                 height: 1,
                 thickness: 0.5,
-                indent: 10,
-                endIndent: 10,
+                indent: 8,
+                endIndent: 8,
                 color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
               ),
               Expanded(
@@ -182,7 +180,7 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
             });
           },
           child: ReorderableListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+            padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
             buildDefaultDragHandles: false,
             itemCount: bookmarks.length,
             onReorder: (oldIndex, newIndex) async {
@@ -263,84 +261,63 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
     );
   }
 
-  Widget _buildReorderableBookmarkTile(BuildContext context, BookmarkItem bookmark, bool isSelected, int index, bool isRecentlyReordered) {
+  Widget _buildReorderableBookmarkTile(
+    BuildContext context,
+    BookmarkItem bookmark,
+    bool isSelected,
+    int index,
+    bool isRecentlyReordered,
+  ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final isFocused = _focusedBookmarkPath == bookmark.path;
     
-    // Animation for the highlight effect
-    final Animation<Color?> highlightAnimation = ColorTween(
-      begin: isDarkMode ? Colors.blue.shade800.withValues(alpha: 0.5) : Colors.blue.shade100.withValues(alpha: 0.7),
-      end: isSelected 
-          ? (isDarkMode ? Colors.blueGrey.shade700.withValues(alpha: 0.6) : Colors.blue.shade100.withValues(alpha: 0.7))
-          : (isDarkMode ? const Color(0xFF454545) : Colors.white),
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
-    
-    return Padding(
+    return ReorderableDragStartListener(
       key: ValueKey(bookmark.path),
-      padding: const EdgeInsets.only(top: 0.5, bottom: 0.5), // Add 1px total spacing between items
+      index: index,
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-        clipBehavior: Clip.antiAlias,
-        child: Ink(
-          decoration: BoxDecoration(
-            color: isRecentlyReordered 
-                ? highlightAnimation.value
-                : (isSelected 
-                    ? (isDarkMode ? const Color(0xFF4169E1).withValues(alpha: 0.3) : Colors.blue.shade100) 
-                    : Colors.transparent),
-            borderRadius: BorderRadius.circular(8),
-            border: isFocused ? Border.all(
-              color: isDarkMode ? Colors.blue.shade400.withValues(alpha: 0.8) : Colors.blue.shade500.withValues(alpha: 0.8),
-              width: 1.5,
-            ) : null,
-          ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: () {
-              // Set focus first and cancel any pending unfocus operations
-              setState(() {
-                _focusedBookmarkPath = bookmark.path;
-              });
-              // Navigate to the bookmark path
-              widget.onNavigate(bookmark.path);
-            },
+        child: InkWell(
+          onTap: () {
+            widget.onNavigate(bookmark.path);
+          },
+          onTapDown: (_) {
+            setState(() {
+              _focusedBookmarkPath = bookmark.path;
+            });
+          },
+          child: Container(
+            height: 32,
+            margin: const EdgeInsets.symmetric(vertical: 1, horizontal: 2),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? (isDarkMode ? Colors.blue.shade900 : Colors.blue.shade100)
+                  : (isFocused
+                      ? (isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200)
+                      : Colors.transparent),
+              borderRadius: BorderRadius.circular(6),
+            ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
                 children: [
                   Icon(
                     Icons.folder,
-                    color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade600,
-                    size: 22,
+                    size: 16,
+                    color: isSelected
+                        ? (isDarkMode ? Colors.blue.shade200 : Colors.blue.shade700)
+                        : (isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       bookmark.name,
-                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontWeight: isSelected || isRecentlyReordered ? FontWeight.bold : FontWeight.normal,
-                        color: isDarkMode
-                            ? Colors.grey.shade200
-                            : Colors.grey.shade800,
+                        fontSize: 13,
+                        color: isSelected
+                            ? (isDarkMode ? Colors.blue.shade200 : Colors.blue.shade700)
+                            : (isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800),
                       ),
-                    ),
-                  ),
-                  ReorderableDragStartListener(
-                    index: index,
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.grab,
-                      child: Icon(
-                        Icons.drag_handle,
-                        size: 20,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.grey.shade500
-                            : Colors.grey.shade600,
-                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],

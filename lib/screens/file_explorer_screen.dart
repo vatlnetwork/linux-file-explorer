@@ -2719,16 +2719,22 @@ exit
 
   Widget _buildAppBar(BuildContext context) {
     final previewPanelService = Provider.of<PreviewPanelService>(context);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
     return GestureDetector(
       onPanStart: (_) => windowManager.startDragging(),
       child: Container(
         height: 40,
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
+          color: isDarkMode 
+              ? const Color(0xFF2C2C2C) // Dark mode toolbar color
+              : const Color(0xFFF5F5F5), // Light mode toolbar color
           border: Border(
             bottom: BorderSide(
-              color: Theme.of(context).dividerColor,
+              color: isDarkMode 
+                  ? Colors.grey.shade800 
+                  : Colors.grey.shade300,
+              width: 0.5,
             ),
           ),
         ),
@@ -2742,16 +2748,15 @@ exit
                   Icon(
                     Icons.folder,
                     size: 18,
-                    color: Theme.of(context).brightness == Brightness.dark 
-                      ? Colors.blue.shade300 
-                      : Colors.blue.shade700,
+                    color: isDarkMode ? Colors.white70 : Colors.black54,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'Linux File Explorer',
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w500,
                       fontSize: 14,
+                      color: isDarkMode ? Colors.white : Colors.black87,
                     ),
                   ),
                 ],
@@ -2762,7 +2767,7 @@ exit
               height: 24,
               width: 1,
               margin: const EdgeInsets.symmetric(horizontal: 8.0),
-              color: Theme.of(context).dividerColor,
+              color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
             ),
             IconButton(
               icon: Icon(Icons.arrow_back),
@@ -2911,13 +2916,21 @@ exit
             ),
             // Window title action buttons
             IconButton(
-              icon: Icon(Icons.remove),
+              icon: Icon(Icons.remove, size: 18),
               onPressed: () => windowManager.minimize(),
               tooltip: 'Minimize',
-              iconSize: 20,
+              color: isDarkMode ? Colors.white70 : Colors.black54,
+              constraints: const BoxConstraints(
+                minWidth: 46,
+                minHeight: 28,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
             ),
             IconButton(
-              icon: Icon(_isMaximized ? Icons.filter_none : Icons.crop_square),
+              icon: Icon(
+                _isMaximized ? Icons.filter_none : Icons.crop_square,
+                size: 18,
+              ),
               onPressed: () async {
                 if (_isMaximized) {
                   await windowManager.unmaximize();
@@ -2926,14 +2939,23 @@ exit
                 }
               },
               tooltip: _isMaximized ? 'Restore' : 'Maximize',
-              iconSize: 20,
+              color: isDarkMode ? Colors.white70 : Colors.black54,
+              constraints: const BoxConstraints(
+                minWidth: 46,
+                minHeight: 28,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
             ),
             IconButton(
-              icon: Icon(Icons.close),
+              icon: Icon(Icons.close, size: 18),
               onPressed: () => windowManager.close(),
               tooltip: 'Close',
-              iconSize: 20,
-              color: Colors.red,
+              color: isDarkMode ? Colors.white70 : Colors.black54,
+              constraints: const BoxConstraints(
+                minWidth: 46,
+                minHeight: 28,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
             ),
           ],
         ),

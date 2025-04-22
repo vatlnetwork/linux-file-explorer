@@ -153,18 +153,21 @@ class _MarkupEditorState extends State<MarkupEditor> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Markup Editor'),
+        toolbarHeight: 40,
         actions: [
           IconButton(
-            icon: const Icon(Icons.undo),
+            icon: const Icon(Icons.undo, size: 20),
             onPressed: _drawingController.canUndo ? () {
               _drawingController.undo();
             } : null,
             tooltip: 'Undo',
+            padding: const EdgeInsets.symmetric(horizontal: 8),
           ),
           IconButton(
-            icon: const Icon(Icons.save),
+            icon: const Icon(Icons.save, size: 20),
             onPressed: _isSaving ? null : _saveImage,
             tooltip: 'Save',
+            padding: const EdgeInsets.symmetric(horizontal: 8),
           ),
         ],
       ),
@@ -288,7 +291,7 @@ class _MarkupEditorState extends State<MarkupEditor> {
   Widget _buildToolbar(bool isDarkMode) {
     return Container(
       color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200,
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -341,34 +344,45 @@ class _MarkupEditorState extends State<MarkupEditor> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('Stroke Width: '),
-              Slider(
-                value: _strokeWidth,
-                min: 1,
-                max: 30,
-                divisions: 29,
-                label: _strokeWidth.round().toString(),
-                onChanged: (value) {
-                  setState(() {
-                    _strokeWidth = value;
-                  });
-                },
+              const Text('Stroke: ', style: TextStyle(fontSize: 12)),
+              SizedBox(
+                width: 120,
+                child: Slider(
+                  value: _strokeWidth,
+                  min: 1,
+                  max: 30,
+                  divisions: 29,
+                  label: _strokeWidth.round().toString(),
+                  onChanged: (value) {
+                    setState(() {
+                      _strokeWidth = value;
+                    });
+                  },
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
+          // Single row of colors with compact spacing
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _buildColorButton(Colors.red),
-              _buildColorButton(Colors.blue),
-              _buildColorButton(Colors.green),
+              _buildColorButton(Colors.orange),
               _buildColorButton(Colors.yellow),
+              _buildColorButton(Colors.green),
+              _buildColorButton(Colors.blue),
+              _buildColorButton(Colors.indigo),
               _buildColorButton(Colors.purple),
+              _buildColorButton(Colors.pink),
+              _buildColorButton(Colors.teal),
+              _buildColorButton(Colors.cyan),
+              _buildColorButton(Colors.brown),
+              _buildColorButton(Colors.grey),
               _buildColorButton(Colors.black),
               _buildColorButton(Colors.white),
             ],
@@ -388,17 +402,17 @@ class _MarkupEditorState extends State<MarkupEditor> {
       message: tooltip,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         child: Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: isSelected ? Colors.blue.withValues(alpha: 0.3) : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6),
           ),
           child: Icon(
             icon,
             color: isSelected ? Colors.blue : null,
-            size: 24,
+            size: 20,
           ),
         ),
       ),
@@ -413,29 +427,29 @@ class _MarkupEditorState extends State<MarkupEditor> {
         });
       },
       child: Container(
-        width: 30,
-        height: 30,
+        width: 18,
+        height: 18,
+        margin: const EdgeInsets.symmetric(horizontal: 3),
         decoration: BoxDecoration(
           color: color,
           border: Border.all(
             color: _selectedColor == color ? Colors.blue : Colors.grey,
             width: _selectedColor == color ? 2 : 1,
           ),
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(9),
         ),
       ),
     );
   }
 
   void _showTextInputDialog() {
-    // Create local copies to track changes in the dialog
     double dialogFontSize = _fontSize;
     
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Add Text'),
+          title: const Text('Add Text', style: TextStyle(fontSize: 16)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -444,13 +458,14 @@ class _MarkupEditorState extends State<MarkupEditor> {
                 decoration: const InputDecoration(
                   hintText: 'Enter text',
                   border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 ),
                 maxLines: 2,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               Row(
                 children: [
-                  const Text('Font Size: '),
+                  const Text('Size: ', style: TextStyle(fontSize: 12)),
                   Expanded(
                     child: Slider(
                       value: dialogFontSize,
@@ -459,7 +474,6 @@ class _MarkupEditorState extends State<MarkupEditor> {
                       divisions: 38,
                       label: dialogFontSize.round().toString(),
                       onChanged: (value) {
-                        // Use setDialogState to update within the dialog
                         setDialogState(() {
                           dialogFontSize = value;
                         });
@@ -468,9 +482,8 @@ class _MarkupEditorState extends State<MarkupEditor> {
                   ),
                 ],
               ),
-              // Preview text with selected font size
               Container(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: 4),
                 alignment: Alignment.center,
                 child: Text(
                   _textController.text.isNotEmpty ? _textController.text : 'Preview Text',
@@ -486,26 +499,17 @@ class _MarkupEditorState extends State<MarkupEditor> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: const Text('Cancel', style: TextStyle(fontSize: 12)),
             ),
             TextButton(
               onPressed: () {
                 _textInput = _textController.text;
-                // Update parent's font size with the dialog value
                 setState(() {
                   _fontSize = dialogFontSize;
                 });
                 Navigator.pop(context);
-                // After dialog closes, wait for tap to position text
-                if (_textInput.isNotEmpty) {
-                  NotificationService.showNotification(
-                    context,
-                    message: 'Tap on the image to place text',
-                    type: NotificationType.info,
-                  );
-                }
               },
-              child: const Text('Add'),
+              child: const Text('Add', style: TextStyle(fontSize: 12)),
             ),
           ],
         ),
