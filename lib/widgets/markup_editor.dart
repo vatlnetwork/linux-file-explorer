@@ -20,7 +20,7 @@ class MarkupEditor extends StatefulWidget {
 
 class _MarkupEditorState extends State<MarkupEditor> {
   late ui.Image? _image;
-  final List<DrawingPoint?> _drawingPoints = [];
+  final DrawingController _drawingController = DrawingController();
   DrawingMode _drawingMode = DrawingMode.pen;
   Color _selectedColor = Colors.red;
   double _strokeWidth = 5;
@@ -47,6 +47,7 @@ class _MarkupEditorState extends State<MarkupEditor> {
   @override
   void dispose() {
     _textController.dispose();
+    _drawingController.dispose();
     super.dispose();
   }
 
@@ -92,23 +93,13 @@ class _MarkupEditorState extends State<MarkupEditor> {
       // Create a recorder to capture the drawing
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
+      final size = Size(_image!.width.toDouble(), _image!.height.toDouble());
       
       // Draw original image
       canvas.drawImage(_image!, Offset.zero, Paint());
       
-      // Draw all points
-      for (int i = 0; i < _drawingPoints.length - 1; i++) {
-        if (_drawingPoints[i] != null && _drawingPoints[i + 1] != null) {
-          canvas.drawLine(
-            _drawingPoints[i]!.offset,
-            _drawingPoints[i + 1]!.offset,
-            Paint()
-              ..color = _drawingPoints[i]!.color
-              ..strokeWidth = _drawingPoints[i]!.strokeWidth
-              ..strokeCap = StrokeCap.round
-          );
-        }
-      }
+      // Draw all points using the controller's drawOnCanvas method
+      _drawingController.drawOnCanvas(canvas, size, null);
       
       // Convert to image
       final picture = recorder.endRecording();
@@ -164,6 +155,13 @@ class _MarkupEditorState extends State<MarkupEditor> {
         title: const Text('Markup Editor'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.undo),
+            onPressed: _drawingController.canUndo ? () {
+              _drawingController.undo();
+            } : null,
+            tooltip: 'Undo',
+          ),
+          IconButton(
             icon: const Icon(Icons.save),
             onPressed: _isSaving ? null : _saveImage,
             tooltip: 'Save',
@@ -184,13 +182,13 @@ class _MarkupEditorState extends State<MarkupEditor> {
               : Column(
                   children: [
                     Expanded(
-                      child: GestureDetector(
-                        onPanStart: (details) {
-                          if (_drawingMode == DrawingMode.text && _textInput.isNotEmpty) {
-                            setState(() {
+                      child: RepaintBoundary(
+                        child: GestureDetector(
+                          onPanStart: (details) {
+                            if (_drawingMode == DrawingMode.text && _textInput.isNotEmpty) {
                               _textPosition = details.localPosition;
                               // Add the text as a TextPoint and clear input
-                              _drawingPoints.add(
+                              _drawingController.addTextPoint(
                                 TextPoint(
                                   offset: _textPosition!,
                                   text: _textInput,
@@ -198,54 +196,18 @@ class _MarkupEditorState extends State<MarkupEditor> {
                                   fontSize: _fontSize,
                                 ),
                               );
-                              _textInput = '';
-                              _textController.clear();
-                            });
-                            return;
-                          }
-                          
-                          if (_drawingMode == DrawingMode.shape) {
-                            setState(() {
+                              setState(() {
+                                _textInput = '';
+                                _textController.clear();
+                              });
+                              return;
+                            }
+                            
+                            if (_drawingMode == DrawingMode.shape) {
                               _shapeStartPosition = details.localPosition;
                               _shapeEndPosition = details.localPosition;
-                            });
-                            return;
-                          }
-                          
-                          setState(() {
-                            _drawingPoints.add(
-                              DrawingPoint(
-                                offset: details.localPosition,
-                                color: _selectedColor,
-                                strokeWidth: _strokeWidth,
-                              ),
-                            );
-                          });
-                        },
-                        onPanUpdate: (details) {
-                          if (_drawingMode == DrawingMode.shape) {
-                            setState(() {
-                              _shapeEndPosition = details.localPosition;
-                            });
-                            return;
-                          }
-                          
-                          setState(() {
-                            _drawingPoints.add(
-                              DrawingPoint(
-                                offset: details.localPosition,
-                                color: _selectedColor,
-                                strokeWidth: _strokeWidth,
-                              ),
-                            );
-                          });
-                        },
-                        onPanEnd: (_) {
-                          if (_drawingMode == DrawingMode.shape && 
-                              _shapeStartPosition != null && 
-                              _shapeEndPosition != null) {
-                            setState(() {
-                              _drawingPoints.add(
+                              // Don't add the shape to points yet, just track start/end positions
+                              _drawingController.setActiveShape(
                                 ShapePoint(
                                   start: _shapeStartPosition!,
                                   end: _shapeEndPosition!,
@@ -254,31 +216,58 @@ class _MarkupEditorState extends State<MarkupEditor> {
                                   shapeType: _selectedShape,
                                 ),
                               );
-                              _shapeStartPosition = null;
-                              _shapeEndPosition = null;
-                            });
-                            return;
-                          }
-                          
-                          setState(() {
-                            _drawingPoints.add(null); // Add null to represent pen lift
-                          });
-                        },
-                        child: CustomPaint(
-                          painter: _DrawingPainter(
-                            drawingPoints: _drawingPoints,
-                            image: _image!,
-                            activeShape: _drawingMode == DrawingMode.shape && _shapeStartPosition != null && _shapeEndPosition != null
-                                ? ShapePoint(
-                                    start: _shapeStartPosition!,
-                                    end: _shapeEndPosition!,
-                                    color: _selectedColor,
-                                    strokeWidth: _strokeWidth,
-                                    shapeType: _selectedShape,
-                                  )
-                                : null,
+                              return;
+                            }
+                            
+                            // For drawing modes like pen and highlighter
+                            _drawingController.startDrawing(
+                              details.localPosition,
+                              _selectedColor,
+                              _strokeWidth,
+                            );
+                          },
+                          onPanUpdate: (details) {
+                            if (_drawingMode == DrawingMode.shape) {
+                              _shapeEndPosition = details.localPosition;
+                              // Update the active shape
+                              _drawingController.updateActiveShape(
+                                ShapePoint(
+                                  start: _shapeStartPosition!,
+                                  end: _shapeEndPosition!,
+                                  color: _selectedColor,
+                                  strokeWidth: _strokeWidth,
+                                  shapeType: _selectedShape,
+                                ),
+                              );
+                              return;
+                            }
+                            
+                            // For drawing modes like pen and highlighter
+                            _drawingController.updateDrawing(details.localPosition);
+                          },
+                          onPanEnd: (_) {
+                            if (_drawingMode == DrawingMode.shape && 
+                                _shapeStartPosition != null && 
+                                _shapeEndPosition != null) {
+                              // Add the final shape
+                              _drawingController.endActiveShape();
+                              setState(() {
+                                _shapeStartPosition = null;
+                                _shapeEndPosition = null;
+                              });
+                              return;
+                            }
+                            
+                            // For drawing modes like pen and highlighter
+                            _drawingController.endDrawing();
+                          },
+                          child: CustomPaint(
+                            painter: _DrawingPainter(
+                              drawingController: _drawingController,
+                              image: _image!,
+                            ),
+                            size: Size.infinite,
                           ),
-                          size: Size.infinite,
                         ),
                       ),
                     ),
@@ -287,9 +276,8 @@ class _MarkupEditorState extends State<MarkupEditor> {
                 ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          setState(() {
-            _drawingPoints.clear();
-          });
+          _drawingController.clear();
+          setState(() {});
         },
         tooltip: 'Clear',
         child: const Icon(Icons.clear),
@@ -581,67 +569,160 @@ class _MarkupEditorState extends State<MarkupEditor> {
   }
 }
 
-class _DrawingPainter extends CustomPainter {
-  final List<DrawingPoint?> drawingPoints;
-  final ui.Image image;
-  final ShapePoint? activeShape;
-
-  _DrawingPainter({
-    required this.drawingPoints,
-    required this.image,
-    this.activeShape,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Calculate scaling to fit the image
-    double scaleX = size.width / image.width;
-    double scaleY = size.height / image.height;
-    double scale = scaleX < scaleY ? scaleX : scaleY;
-    
-    // Center the image
-    double dx = (size.width - image.width * scale) / 2;
-    double dy = (size.height - image.height * scale) / 2;
-    
-    // Draw image
-    canvas.drawImageRect(
-      image,
-      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
-      Rect.fromLTWH(dx, dy, image.width * scale, image.height * scale),
-      Paint(),
+class DrawingController extends ChangeNotifier {
+  final List<DrawingPoint?> _drawingPoints = [];
+  final List<DrawingPoint> _currentStroke = [];
+  ShapePoint? _activeShape;
+  
+  // History management
+  final List<List<DrawingPoint?>> _history = [];
+  final int _maxHistoryLength = 50; // Limit history to prevent memory issues
+  
+  List<DrawingPoint?> get drawingPoints => _drawingPoints;
+  ShapePoint? get activeShape => _activeShape;
+  bool get canUndo => _history.isNotEmpty;
+  
+  void startDrawing(Offset offset, Color color, double strokeWidth) {
+    final point = DrawingPoint(
+      offset: offset,
+      color: color,
+      strokeWidth: strokeWidth,
     );
+    _currentStroke.add(point);
+    notifyListeners();
+  }
+  
+  void updateDrawing(Offset offset) {
+    if (_currentStroke.isEmpty) return;
     
-    // Draw points
-    for (int i = 0; i < drawingPoints.length - 1; i++) {
-      if (drawingPoints[i] != null && drawingPoints[i + 1] != null) {
+    final lastPoint = _currentStroke.last;
+    final newPoint = DrawingPoint(
+      offset: offset,
+      color: lastPoint.color,
+      strokeWidth: lastPoint.strokeWidth,
+    );
+    _currentStroke.add(newPoint);
+    notifyListeners();
+  }
+  
+  void endDrawing() {
+    if (_currentStroke.isEmpty) return;
+    
+    // Save state to history before making changes
+    _saveToHistory();
+    
+    _drawingPoints.addAll(_currentStroke);
+    _drawingPoints.add(null); // Add null to represent pen lift
+    _currentStroke.clear();
+    notifyListeners();
+  }
+  
+  void setActiveShape(ShapePoint shape) {
+    _activeShape = shape;
+    notifyListeners();
+  }
+  
+  void updateActiveShape(ShapePoint shape) {
+    _activeShape = shape;
+    notifyListeners();
+  }
+  
+  void endActiveShape() {
+    if (_activeShape != null) {
+      // Save state to history before making changes
+      _saveToHistory();
+      
+      _drawingPoints.add(_activeShape);
+      _activeShape = null;
+      notifyListeners();
+    }
+  }
+  
+  void addTextPoint(TextPoint textPoint) {
+    // Save state to history before making changes
+    _saveToHistory();
+    
+    _drawingPoints.add(textPoint);
+    notifyListeners();
+  }
+  
+  void clear() {
+    if (_drawingPoints.isEmpty) return;
+    
+    // Save state to history before clearing
+    _saveToHistory();
+    
+    _drawingPoints.clear();
+    _currentStroke.clear();
+    _activeShape = null;
+    notifyListeners();
+  }
+  
+  void undo() {
+    if (_history.isEmpty) return;
+    
+    // Restore previous state
+    _drawingPoints.clear();
+    _drawingPoints.addAll(_history.last);
+    _history.removeLast();
+    notifyListeners();
+  }
+  
+  void _saveToHistory() {
+    // Create a copy of current state and add to history
+    final stateCopy = List<DrawingPoint?>.from(_drawingPoints);
+    _history.add(stateCopy);
+    
+    // Limit history size
+    if (_history.length > _maxHistoryLength) {
+      _history.removeAt(0);
+    }
+  }
+  
+  void drawOnCanvas(Canvas canvas, Size size, Size? viewportSize) {
+    // Draw permanent points
+    for (int i = 0; i < _drawingPoints.length - 1; i++) {
+      if (_drawingPoints[i] != null && _drawingPoints[i + 1] != null) {
         // Skip if it's a TextPoint or ShapePoint
-        if (drawingPoints[i] is TextPoint || drawingPoints[i] is ShapePoint) continue;
+        if (_drawingPoints[i] is TextPoint || _drawingPoints[i] is ShapePoint) continue;
         
         canvas.drawLine(
-          drawingPoints[i]!.offset,
-          drawingPoints[i + 1]!.offset,
+          _drawingPoints[i]!.offset,
+          _drawingPoints[i + 1]!.offset,
           Paint()
-            ..color = drawingPoints[i]!.color
-            ..strokeWidth = drawingPoints[i]!.strokeWidth
+            ..color = _drawingPoints[i]!.color
+            ..strokeWidth = _drawingPoints[i]!.strokeWidth
             ..strokeCap = StrokeCap.round
         );
       }
     }
     
+    // Draw current stroke (for real-time feedback)
+    for (int i = 0; i < _currentStroke.length - 1; i++) {
+      canvas.drawLine(
+        _currentStroke[i].offset,
+        _currentStroke[i + 1].offset,
+        Paint()
+          ..color = _currentStroke[i].color
+          ..strokeWidth = _currentStroke[i].strokeWidth
+          ..strokeCap = StrokeCap.round
+      );
+    }
+    
     // Draw shape points
-    for (final point in drawingPoints) {
+    for (final point in _drawingPoints) {
       if (point is ShapePoint) {
         _drawShape(canvas, point);
       }
     }
     
     // Draw the active shape (while dragging)
-    if (activeShape != null) {
-      _drawShape(canvas, activeShape!);
+    if (_activeShape != null) {
+      _drawShape(canvas, _activeShape!);
     }
     
     // Draw text points separately
-    for (final point in drawingPoints) {
+    for (final point in _drawingPoints) {
       if (point is TextPoint) {
         final textSpan = TextSpan(
           text: point.text,
@@ -698,10 +779,43 @@ class _DrawingPainter extends CustomPainter {
         break;
     }
   }
+}
+
+class _DrawingPainter extends CustomPainter {
+  final DrawingController drawingController;
+  final ui.Image image;
+
+  _DrawingPainter({
+    required this.drawingController,
+    required this.image,
+  }) : super(repaint: drawingController);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Calculate scaling to fit the image
+    double scaleX = size.width / image.width;
+    double scaleY = size.height / image.height;
+    double scale = scaleX < scaleY ? scaleX : scaleY;
+    
+    // Center the image
+    double dx = (size.width - image.width * scale) / 2;
+    double dy = (size.height - image.height * scale) / 2;
+    
+    // Draw image
+    canvas.drawImageRect(
+      image,
+      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+      Rect.fromLTWH(dx, dy, image.width * scale, image.height * scale),
+      Paint(),
+    );
+    
+    // Delegate drawing to the controller
+    drawingController.drawOnCanvas(canvas, size, size);
+  }
 
   @override
   bool shouldRepaint(covariant _DrawingPainter oldDelegate) {
-    return oldDelegate.drawingPoints != drawingPoints;
+    return true; // Let the ChangeNotifier handle repaint optimization
   }
 }
 
