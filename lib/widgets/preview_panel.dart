@@ -14,6 +14,7 @@ import '../services/notification_service.dart';
 import 'app_selection_dialog.dart';
 import 'rename_file_dialog.dart';
 import 'markup_editor.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 class PreviewPanel extends StatefulWidget {
   final Function(String) onNavigate;
@@ -334,22 +335,35 @@ class _PreviewPanelState extends State<PreviewPanel> {
           Center(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.file(
-                  File(item.path),
-                  errorBuilder: (context, error, stackTrace) {
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.broken_image, size: 48, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        Text('Could not load image', style: TextStyle(color: Colors.grey.shade600)),
-                        const SizedBox(height: 8),
-                        Text(error.toString(), style: const TextStyle(fontSize: 12)),
-                      ],
-                    );
-                  },
+              child: Container(
+                height: 300,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Theme.of(context).dividerColor,
+                    width: 1.0,
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(
+                      File(item.path),
+                      errorBuilder: (context, error, stackTrace) {
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                            const SizedBox(height: 16),
+                            Text('Could not load image', style: TextStyle(color: Colors.grey.shade600)),
+                            const SizedBox(height: 8),
+                            Text(error.toString(), style: const TextStyle(fontSize: 12)),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -464,56 +478,56 @@ class _PreviewPanelState extends State<PreviewPanel> {
           ),
         ),
         Expanded(
-          child: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                Padding(
                   padding: const EdgeInsets.all(16),
                   child: SelectableText(_textContent!),
                 ),
-              ),
-              
-              // Quick Actions and metadata
-              if (options.showSize || options.showCreated || options.showModified || options.showQuickActions || options.showTags) ...[
-                const Divider(height: 1),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Metadata
-                      if (options.showSize)
-                        _buildInfoRow('Size', item.formattedSize),
+                
+                // Quick Actions and metadata
+                if (options.showSize || options.showCreated || options.showModified || options.showQuickActions || options.showTags) ...[
+                  const Divider(height: 1),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Metadata
+                        if (options.showSize)
+                          _buildInfoRow('Size', item.formattedSize),
+                          
+                        if (options.showCreated)
+                          _buildInfoRow('Created', item.formattedCreationTime),
+                          
+                        if (options.showModified)
+                          _buildInfoRow('Modified', item.formattedModifiedTime),
+                          
+                        if (options.showWhereFrom && item.whereFrom != null)
+                          _buildInfoRow('Where from', item.whereFrom!),
+                          
+                        // Tags section
+                        if (options.showTags) ...[
+                          const SizedBox(height: 16),
+                          TagSelector(filePath: item.path),
+                          const SizedBox(height: 16),
+                        ],
                         
-                      if (options.showCreated)
-                        _buildInfoRow('Created', item.formattedCreationTime),
-                        
-                      if (options.showModified)
-                        _buildInfoRow('Modified', item.formattedModifiedTime),
-                        
-                      if (options.showWhereFrom && item.whereFrom != null)
-                        _buildInfoRow('Where from', item.whereFrom!),
-                        
-                      // Tags section
-                      if (options.showTags) ...[
-                        const SizedBox(height: 16),
-                        TagSelector(filePath: item.path),
-                        const SizedBox(height: 16),
+                        // Quick Actions
+                        if (options.showQuickActions) ...[
+                          const SizedBox(height: 12),
+                          const Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          _buildQuickActions(context, item),
+                        ],
                       ],
-                      
-                      // Quick Actions
-                      if (options.showQuickActions) ...[
-                        const SizedBox(height: 12),
-                        const Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        _buildQuickActions(context, item),
-                      ],
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ],
@@ -819,6 +833,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -830,40 +845,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade300),
-                      color: Colors.grey.shade100,
-                    ),
-                    padding: const EdgeInsets.all(12),
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      children: [
-                        Wrap(
-                          alignment: WrapAlignment.center,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 4,
-                          children: [
-                            Icon(Icons.info_outline, color: Colors.blue.shade700, size: 12),
-                            const Text(
-                              'PDF Preview',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Use annotation tools to mark up your PDF',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 10),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -882,6 +863,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
+                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -1060,8 +1042,12 @@ class _PreviewPanelState extends State<PreviewPanel> {
     ];
     
     // Filter actions from each category that are available for this file
+    // Exclude markup action for PDF files
     final availableCommonActions = quickActions.where((action) => commonActions.contains(action)).toList();
-    final availableEditingActions = quickActions.where((action) => editingActions.contains(action)).toList();
+    final availableEditingActions = quickActions.where((action) => 
+      editingActions.contains(action) && 
+      !(action == QuickAction.markup && item.fileExtension.toLowerCase() == '.pdf')
+    ).toList();
     final availableConversionActions = quickActions.where((action) => conversionActions.contains(action)).toList();
     final availableFileManagementActions = quickActions.where((action) => fileManagementActions.contains(action)).toList();
     final availableMediaEditingActions = quickActions.where((action) => mediaEditingActions.contains(action)).toList();
@@ -1432,13 +1418,70 @@ class _PreviewPanelState extends State<PreviewPanel> {
     );
   }
   
-  void _extractText(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Extract Text feature coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  void _extractText(BuildContext context, FileItem item) async {
+    final ext = item.fileExtension.toLowerCase();
+    if (!['.pdf'].contains(ext)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Text extraction is only supported for PDF files'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Create output file path
+      final outputPath = '${item.path.substring(0, item.path.lastIndexOf('.'))}.txt';
+      final outputFile = File(outputPath);
+
+      // Extract text from PDF
+      final document = PdfDocument(inputBytes: File(item.path).readAsBytesSync());
+      final text = StringBuffer();
+
+      // Extract text from each page
+      for (var i = 0; i < document.pages.count; i++) {
+        text.writeln(PdfTextExtractor(document).extractText(startPageIndex: i, endPageIndex: i));
+      }
+
+      // Write text to file
+      await outputFile.writeAsString(text.toString());
+
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Text extracted to ${outputFile.path}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error extracting text: $e'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
   
   void _revealInFolder(BuildContext context, FileItem item) {

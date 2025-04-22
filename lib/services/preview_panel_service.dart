@@ -180,7 +180,6 @@ class PreviewPanelService extends ChangeNotifier {
     // PDF files
     else if (['.pdf'].contains(ext)) {
       actions.add(QuickAction.searchablePdf);
-      actions.add(QuickAction.markup);
       actions.add(QuickAction.extractText);
     }
     
@@ -195,7 +194,6 @@ class PreviewPanelService extends ChangeNotifier {
     // Text files
     else if (['.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.html', '.css', '.js'].contains(ext)) {
       actions.add(QuickAction.quickLook);
-      actions.add(QuickAction.markup);
       actions.add(QuickAction.createPdf);
       actions.add(QuickAction.runScript);
     }
