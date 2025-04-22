@@ -508,7 +508,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           value: 'open',
           child: Row(
             children: [
-              Icon(Icons.open_in_new),
+              Icon(Icons.open_in_new, size: 16),
               SizedBox(width: 8),
               Text('Open'),
             ],
@@ -521,7 +521,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           value: 'open_with',
           child: Row(
             children: [
-              Icon(Icons.apps),
+              Icon(Icons.apps, size: 16),
               SizedBox(width: 8),
               Text('Open with...'),
             ],
@@ -533,7 +533,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         value: 'copy',
         child: Row(
           children: [
-            Icon(Icons.copy),
+            Icon(Icons.copy, size: 16),
             SizedBox(width: 8),
             Text(hasMultipleSelection ? 'Copy Items' : 'Copy'),
           ],
@@ -543,7 +543,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         value: 'cut',
         child: Row(
           children: [
-            Icon(Icons.cut),
+            Icon(Icons.cut, size: 16),
             SizedBox(width: 8),
             Text(hasMultipleSelection ? 'Cut Items' : 'Cut'),
           ],
@@ -553,7 +553,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         value: 'delete',
         child: Row(
           children: [
-            Icon(Icons.delete, color: Colors.red),
+            Icon(Icons.delete, size: 16, color: Colors.red),
             SizedBox(width: 8),
             Text(
               hasMultipleSelection ? 'Delete Items' : 'Delete',
@@ -572,7 +572,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             value: 'rename',
             child: Row(
               children: [
-                Icon(Icons.edit),
+                Icon(Icons.edit, size: 16),
                 SizedBox(width: 8),
                 Text('Rename'),
               ],
@@ -585,7 +585,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             value: isBookmarked ? 'remove_bookmark' : 'bookmark',
             child: Row(
               children: [
-                Icon(isBookmarked ? Icons.bookmark_remove : Icons.bookmark_add),
+                Icon(isBookmarked ? Icons.bookmark_remove : Icons.bookmark_add, size: 16),
                 SizedBox(width: 8),
                 Text(isBookmarked ? 'Remove Bookmark' : 'Add Bookmark'),
               ],
@@ -598,7 +598,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             value: 'terminal',
             child: Row(
               children: [
-                Icon(Icons.terminal),
+                Icon(Icons.terminal, size: 16),
                 SizedBox(width: 8),
                 Text('Open in Terminal'),
               ],
@@ -611,7 +611,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             value: 'unmount',
             child: Row(
               children: [
-                Icon(Icons.eject),
+                Icon(Icons.eject, size: 16),
                 SizedBox(width: 8),
                 Text('Unmount Drive'),
               ],
@@ -623,7 +623,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           value: 'properties',
           child: Row(
             children: [
-              Icon(Icons.info_outline),
+              Icon(Icons.info_outline, size: 16),
               SizedBox(width: 8),
               Text('Properties'),
             ],
@@ -636,7 +636,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         value: 'tags',
         child: Row(
           children: [
-            Icon(Icons.local_offer),
+            Icon(Icons.local_offer, size: 16),
             SizedBox(width: 8),
             Text('Manage Tags'),
           ],
@@ -647,7 +647,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         value: 'paste',
         child: Row(
           children: [
-            Icon(Icons.paste),
+            Icon(Icons.paste, size: 16),
             SizedBox(width: 8),
             Text('Paste'),
           ],
@@ -1566,7 +1566,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                   value: 'view_mode',
                   child: Row(
                     children: [
-                      Icon(Icons.view_list),
+                      Icon(Icons.view_list, size: 16),
                       SizedBox(width: 8),
                       Text('View Mode'),
                     ],
@@ -1578,7 +1578,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                   value: 'status_bar',
                   child: Row(
                     children: [
-                      Icon(statusBarService.showStatusBar ? Icons.visibility_off : Icons.visibility),
+                      Icon(statusBarService.showStatusBar ? Icons.visibility_off : Icons.visibility, size: 16),
                       SizedBox(width: 8),
                       Text(statusBarService.showStatusBar ? 'Hide Status Bar' : 'Show Status Bar'),
                     ],
@@ -1590,7 +1590,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                   value: 'preview_panel',
                   child: Row(
                     children: [
-                      Icon(previewPanelService.showPreviewPanel ? Icons.info : Icons.info_outline),
+                      Icon(previewPanelService.showPreviewPanel ? Icons.info : Icons.info_outline, size: 16),
                       SizedBox(width: 8),
                       Text(previewPanelService.showPreviewPanel ? 'Hide Preview Panel' : 'Show Preview Panel'),
                     ],
@@ -1602,7 +1602,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                   value: 'terminal',
                   child: Row(
                     children: [
-                      Icon(Icons.terminal),
+                      Icon(Icons.terminal, size: 16),
                       SizedBox(width: 8),
                       Text('Open in Terminal'),
                     ],
@@ -1614,7 +1614,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                   value: 'tags_view',
                   child: Row(
                     children: [
-                      Icon(Icons.local_offer),
+                      Icon(Icons.local_offer, size: 16),
                       SizedBox(width: 8),
                       Text('Manage Tags'),
                     ],
@@ -1628,7 +1628,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                   value: 'file_associations',
                   child: Row(
                     children: [
-                      Icon(Icons.link),
+                      Icon(Icons.link, size: 16),
                       SizedBox(width: 8),
                       Text('File Associations'),
                     ],
@@ -1640,7 +1640,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                   value: 'refresh_apps',
                   child: Row(
                     children: [
-                      Icon(Icons.refresh),
+                      Icon(Icons.refresh, size: 16),
                       SizedBox(width: 8),
                       Text('Refresh App List'),
                     ],
@@ -2363,7 +2363,7 @@ exit
         value: 'new_folder',
         child: Row(
           children: [
-            Icon(Icons.create_new_folder),
+            Icon(Icons.create_new_folder, size: 16),
             SizedBox(width: 8),
             Text('New Folder'),
           ],
@@ -2373,7 +2373,7 @@ exit
         value: 'new_file',
         child: Row(
           children: [
-            Icon(Icons.note_add),
+            Icon(Icons.note_add, size: 16),
             SizedBox(width: 8),
             Text('New File'),
           ],
@@ -2385,7 +2385,7 @@ exit
         enabled: hasClipboardItems,
         child: Row(
           children: [
-            Icon(Icons.paste, color: hasClipboardItems ? null : Colors.grey),
+            Icon(Icons.paste, size: 16, color: hasClipboardItems ? null : Colors.grey),
             SizedBox(width: 8),
             Text('Paste', style: TextStyle(color: hasClipboardItems ? null : Colors.grey)),
           ],
@@ -2397,7 +2397,7 @@ exit
           value: 'select_all',
           child: Row(
             children: [
-              Icon(Icons.select_all),
+              Icon(Icons.select_all, size: 16),
               SizedBox(width: 8),
               Text('Select All'),
             ],
@@ -2407,7 +2407,7 @@ exit
           value: 'sort_by',
           child: Row(
             children: [
-              Icon(Icons.sort),
+              Icon(Icons.sort, size: 16),
               SizedBox(width: 8),
               Text('Sort By'),
             ],
@@ -2418,7 +2418,7 @@ exit
         value: 'terminal',
         child: Row(
           children: [
-            Icon(Icons.terminal),
+            Icon(Icons.terminal, size: 16),
             SizedBox(width: 8),
             Text('Open in Terminal'),
           ],
@@ -2510,7 +2510,7 @@ exit
           value: 'name_asc',
           child: Row(
             children: [
-              Icon(Icons.sort_by_alpha),
+              Icon(Icons.sort_by_alpha, size: 16),
               SizedBox(width: 8),
               Text('Name (A to Z)'),
             ],
@@ -2520,7 +2520,7 @@ exit
           value: 'name_desc',
           child: Row(
             children: [
-              Icon(Icons.sort_by_alpha, textDirection: TextDirection.rtl),
+              Icon(Icons.sort_by_alpha, textDirection: TextDirection.rtl, size: 16),
               SizedBox(width: 8),
               Text('Name (Z to A)'),
             ],
@@ -2530,7 +2530,7 @@ exit
           value: 'date_newest',
           child: Row(
             children: [
-              Icon(Icons.access_time),
+              Icon(Icons.access_time, size: 16),
               SizedBox(width: 8),
               Text('Date Modified (Newest First)'),
             ],
@@ -2540,7 +2540,7 @@ exit
           value: 'date_oldest',
           child: Row(
             children: [
-              Icon(Icons.access_time),
+              Icon(Icons.access_time, size: 16),
               SizedBox(width: 8),
               Text('Date Modified (Oldest First)'),
             ],
@@ -2550,7 +2550,7 @@ exit
           value: 'size_largest',
           child: Row(
             children: [
-              Icon(Icons.format_size),
+              Icon(Icons.format_size, size: 16),
               SizedBox(width: 8),
               Text('Size (Largest First)'),
             ],
