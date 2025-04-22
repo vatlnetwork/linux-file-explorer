@@ -3139,13 +3139,12 @@ exit
         final previewWidth = previewPanelService.showPreviewPanel ? 300.0 : 0.0;
         final availableWidth = screenWidth - sidebarWidth - previewWidth;
         
-        // Adjust spacing based on available space
-        final isCompact = previewPanelService.showPreviewPanel;
-        final spacing = isCompact ? 8.0 : 10.0;
-        final padding = isCompact ? 12.0 : 16.0;
+        // Use consistent spacing regardless of preview panel state
+        final spacing = 10.0;
+        final padding = 16.0;
         
         // Calculate minimum columns based on available width
-        final minimumColumns = isCompact ? 2 : 3;
+        final minimumColumns = 3;
         
         // Get grid delegate with consistent sizing
         final gridDelegate = iconSizeService.getConsistentSizeGridDelegate(
@@ -3190,34 +3189,7 @@ exit
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
-                    final isSelected = _selectedItemsPaths.contains(item.path);
-                    
-                    return Builder(
-                      builder: (context) {
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted) {
-                            final RenderBox? box = context.findRenderObject() as RenderBox?;
-                            if (box != null) {
-                              final Offset position = box.localToGlobal(Offset.zero);
-                              final Size size = box.size;
-                              _itemPositions[item.path] = Rect.fromLTWH(
-                                position.dx, position.dy, size.width, size.height
-                              );
-                            }
-                          }
-                        });
-                        
-                        return GridItemWidget(
-                          key: ValueKey(item.path),
-                          item: item,
-                          isSelected: isSelected,
-                          onTap: (item, isCtrlPressed) => _selectItem(item),
-                          onDoubleTap: () => _handleItemDoubleTap(item),
-                          onLongPress: (item) => _showContextMenu(item, Offset.zero),
-                          onRightClick: (item, position) => _showContextMenu(item, position),
-                        );
-                      },
-                    );
+                    return _buildGridItem(item);
                   },
                 ),
               ),
@@ -3292,6 +3264,37 @@ exit
       // This will trigger a rebuild of the grid view
       setState(() {});
     }
+  }
+
+  Widget _buildGridItem(FileItem item) {
+    final isSelected = _selectedItemsPaths.contains(item.path);
+    
+    return Builder(
+      builder: (context) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            final RenderBox? box = context.findRenderObject() as RenderBox?;
+            if (box != null) {
+              final Offset position = box.localToGlobal(Offset.zero);
+              final Size size = box.size;
+              _itemPositions[item.path] = Rect.fromLTWH(
+                position.dx, position.dy, size.width, size.height
+              );
+            }
+          }
+        });
+        
+        return GridItemWidget(
+          key: ValueKey(item.path),
+          item: item,
+          isSelected: isSelected,
+          onTap: (item, isCtrlPressed) => _selectItem(item),
+          onDoubleTap: () => _handleItemDoubleTap(item),
+          onLongPress: (item) => _showContextMenu(item, Offset.zero),
+          onRightClick: (item, position) => _showContextMenu(item, position),
+        );
+      },
+    );
   }
 }
 

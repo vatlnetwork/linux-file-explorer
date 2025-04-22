@@ -454,6 +454,11 @@ class _PreviewPanelState extends State<PreviewPanel> {
       return const Center(child: Text('Unable to preview text content'));
     }
     
+    // Get first 500 characters or less for preview
+    final previewText = _textContent!.length > 500 
+        ? '${_textContent!.substring(0, 500)}...' 
+        : _textContent!;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -483,7 +488,32 @@ class _PreviewPanelState extends State<PreviewPanel> {
               children: [
                 Padding(
                   padding: const EdgeInsets.all(16),
-                  child: SelectableText(_textContent!),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SelectableText(
+                        previewText,
+                        style: TextStyle(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey.shade300
+                              : Colors.grey.shade800,
+                        ),
+                      ),
+                      if (_textContent!.length > 500) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Preview only. Use Quick Look to view full content.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey.shade500
+                                : Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
                 
                 // Quick Actions and metadata
@@ -1253,13 +1283,84 @@ class _PreviewPanelState extends State<PreviewPanel> {
     }
   }
   
-  void _createPdfFromFile(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Create PDF feature coming soon!'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  void _createPdfFromFile(BuildContext context, FileItem item) async {
+    final ext = item.fileExtension.toLowerCase();
+    
+    if (['.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.html', '.css', '.js'].contains(ext)) {
+      try {
+        // Read the text file content
+        final file = File(item.path);
+        final content = await file.readAsString();
+        
+        // Create a new PDF document
+        final PdfDocument document = PdfDocument();
+        
+        // Add a new page
+        final PdfPage page = document.pages.add();
+        
+        // Create a PDF font
+        final PdfFont font = PdfStandardFont(PdfFontFamily.helvetica, 12);
+        
+        // Create a PDF brush
+        final PdfBrush brush = PdfSolidBrush(PdfColor(0, 0, 0));
+        
+        // Create a PDF string format
+        final PdfStringFormat format = PdfStringFormat(
+          wordWrap: PdfWordWrapType.word,
+          lineSpacing: 20,
+        );
+        
+        // Draw the text on the page
+        page.graphics.drawString(
+          content,
+          font,
+          brush: brush,
+          format: format,
+          bounds: Rect.fromLTWH(50, 50, page.getClientSize().width - 100, page.getClientSize().height - 100),
+        );
+        
+        // Generate the output file path
+        final outputPath = '${item.path.substring(0, item.path.lastIndexOf('.'))}.pdf';
+        
+        // Save the document
+        final List<int> bytes = await document.save();
+        await File(outputPath).writeAsBytes(bytes);
+        
+        // Dispose the document
+        document.dispose();
+        
+        if (!mounted) return;
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF created successfully at $outputPath'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        
+        // Refresh the preview panel to show the new PDF
+        Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
+        
+      } catch (e) {
+        if (!mounted) return;
+        
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error creating PDF: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('PDF creation is currently only supported for text files'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
   
   void _convertImage(BuildContext context, FileItem item) {
