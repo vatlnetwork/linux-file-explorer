@@ -24,7 +24,6 @@ enum QuickAction {
   createAlias,
   addToFavorites,
   extractText,
-  addAnnotations,
   revealInFolder,
   runScript,
   convertAudio,
@@ -161,7 +160,6 @@ class PreviewPanelService extends ChangeNotifier {
       actions.add(QuickAction.markup);
       actions.add(QuickAction.createPdf);
       actions.add(QuickAction.convertImage);
-      actions.add(QuickAction.addAnnotations);
     }
     
     // Video files
@@ -183,7 +181,6 @@ class PreviewPanelService extends ChangeNotifier {
     else if (['.pdf'].contains(ext)) {
       actions.add(QuickAction.searchablePdf);
       actions.add(QuickAction.markup);
-      actions.add(QuickAction.addAnnotations);
       actions.add(QuickAction.extractText);
     }
     
@@ -255,8 +252,6 @@ class PreviewPanelService extends ChangeNotifier {
         return 'Add to Favorites';
       case QuickAction.extractText:
         return 'Extract Text';
-      case QuickAction.addAnnotations:
-        return 'Add Annotations';
       case QuickAction.revealInFolder:
         return 'Reveal in Folder';
       case QuickAction.runScript:
@@ -307,8 +302,6 @@ class PreviewPanelService extends ChangeNotifier {
         return Icons.star_border;
       case QuickAction.extractText:
         return Icons.text_snippet;
-      case QuickAction.addAnnotations:
-        return Icons.note_add;
       case QuickAction.revealInFolder:
         return Icons.folder_open;
       case QuickAction.runScript:
