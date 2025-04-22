@@ -428,64 +428,87 @@ class _MarkupEditorState extends State<MarkupEditor> {
   }
 
   void _showTextInputDialog() {
+    // Create local copies to track changes in the dialog
+    double dialogFontSize = _fontSize;
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Text'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _textController,
-              decoration: const InputDecoration(
-                hintText: 'Enter text',
-                border: OutlineInputBorder(),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Add Text'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _textController,
+                decoration: const InputDecoration(
+                  hintText: 'Enter text',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
               ),
-              maxLines: 2,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                const Text('Font Size: '),
-                Expanded(
-                  child: Slider(
-                    value: _fontSize,
-                    min: 10,
-                    max: 48,
-                    divisions: 38,
-                    label: _fontSize.round().toString(),
-                    onChanged: (value) {
-                      setState(() {
-                        _fontSize = value;
-                      });
-                    },
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Text('Font Size: '),
+                  Expanded(
+                    child: Slider(
+                      value: dialogFontSize,
+                      min: 10,
+                      max: 48,
+                      divisions: 38,
+                      label: dialogFontSize.round().toString(),
+                      onChanged: (value) {
+                        // Use setDialogState to update within the dialog
+                        setDialogState(() {
+                          dialogFontSize = value;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              // Preview text with selected font size
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                alignment: Alignment.center,
+                child: Text(
+                  _textController.text.isNotEmpty ? _textController.text : 'Preview Text',
+                  style: TextStyle(
+                    fontSize: dialogFontSize,
+                    color: _selectedColor,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                _textInput = _textController.text;
+                // Update parent's font size with the dialog value
+                setState(() {
+                  _fontSize = dialogFontSize;
+                });
+                Navigator.pop(context);
+                // After dialog closes, wait for tap to position text
+                if (_textInput.isNotEmpty) {
+                  NotificationService.showNotification(
+                    context,
+                    message: 'Tap on the image to place text',
+                    type: NotificationType.info,
+                  );
+                }
+              },
+              child: const Text('Add'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              _textInput = _textController.text;
-              Navigator.pop(context);
-              // After dialog closes, wait for tap to position text
-              if (_textInput.isNotEmpty) {
-                NotificationService.showNotification(
-                  context,
-                  message: 'Tap on the image to place text',
-                  type: NotificationType.info,
-                );
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
       ),
     );
   }
