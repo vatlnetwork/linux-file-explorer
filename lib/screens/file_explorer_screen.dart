@@ -2666,42 +2666,47 @@ exit
           children: [
             _buildAppBar(context),
             Expanded(
-              child: Row(
-                children: [
-                  // Bookmark sidebar with animation
-                  AnimatedBuilder(
-                    animation: _bookmarkSidebarAnimation,
-                    builder: (context, child) {
-                      return SizedBox(
-                        width: _bookmarkSidebarAnimation.value * 200,
-                        child: _showBookmarkSidebar ? BookmarkSidebar(
-                          onNavigate: _navigateToDirectory,
-                          currentPath: _currentPath,
-                        ) : null,
-                      );
-                    },
-                  ),
-                  // Main content area
-                  Expanded(
-                    child: _buildMainContentArea(
-                      viewModeService, 
-                      iconSizeService, 
-                      previewPanelService,
-                    ),
-                  ),
-                  // Preview panel with animation
-                  AnimatedBuilder(
-                    animation: _previewPanelAnimation,
-                    builder: (context, child) {
-                      return SizedBox(
-                        width: _previewPanelAnimation.value * 300,
-                        child: previewPanelService.showPreviewPanel ? PreviewPanel(
-                          onNavigate: _navigateToDirectory,
-                        ) : null,
-                      );
-                    },
-                  ),
-                ],
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return Row(
+                    children: [
+                      // Bookmark sidebar with animation
+                      AnimatedBuilder(
+                        animation: _bookmarkSidebarAnimation,
+                        builder: (context, child) {
+                          return SizedBox(
+                            width: _bookmarkSidebarAnimation.value * 200,
+                            child: _showBookmarkSidebar ? BookmarkSidebar(
+                              onNavigate: _navigateToDirectory,
+                              currentPath: _currentPath,
+                            ) : null,
+                          );
+                        },
+                      ),
+                      // Main content area with flexible width
+                      Flexible(
+                        flex: 1,
+                        child: _buildMainContentArea(
+                          viewModeService, 
+                          iconSizeService, 
+                          previewPanelService,
+                        ),
+                      ),
+                      // Preview panel with animation
+                      AnimatedBuilder(
+                        animation: _previewPanelAnimation,
+                        builder: (context, child) {
+                          return SizedBox(
+                            width: _previewPanelAnimation.value * 300,
+                            child: previewPanelService.showPreviewPanel ? PreviewPanel(
+                              onNavigate: _navigateToDirectory,
+                            ) : null,
+                          );
+                        },
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
             // Status bar at the bottom
@@ -3126,112 +3131,113 @@ exit
     // Get preview panel state
     final previewPanelService = Provider.of<PreviewPanelService>(context);
     
-    // Get available width, accounting for preview panel if it's open
-    final screenWidth = MediaQuery.of(context).size.width;
-    final sidebarWidth = _showBookmarkSidebar ? 220.0 : 0.0;
-    final previewWidth = previewPanelService.showPreviewPanel ? 320.0 : 0.0;
-    final availableWidth = screenWidth - sidebarWidth - previewWidth;
-    
-    // Adjust spacing based on available space (not window size)
-    final isCompact = previewPanelService.showPreviewPanel;
-    final spacing = isCompact ? 8.0 : 10.0;
-    final padding = isCompact ? 12.0 : 16.0;
-    
-    // Minimum columns based on current panel state
-    final minimumColumns = isCompact ? 2 : 3;
-    
-    // Get grid delegate with consistent sizing
-    final gridDelegate = iconSizeService.getConsistentSizeGridDelegate(
-      availableWidth,
-      minimumColumns: minimumColumns,
-      spacing: spacing,
-      childAspectRatio: 0.9,
-    );
-    
-    return Stack(
-      children: [
-        GestureDetector(
-          key: _gridViewKey,
-          onTap: () => setState(() => _selectedItemsPaths = {}),
-          onSecondaryTapUp: (details) => _showEmptyAreaContextMenu(details.globalPosition),
-          onPanStart: (details) {
-            setState(() {
-              _dragStartPosition = details.localPosition;
-              _dragEndPosition = details.localPosition;
-              _mightStartDragging = true;
-              _itemPositions.clear();
-            });
-          },
-          onPanUpdate: (details) {
-            if (_mightStartDragging) {
-              // Update the drag end position
-              setState(() {
-                _dragEndPosition = details.localPosition;
-              });
-              
-              // Perform hit testing and update selection
-              _updateSelectionRectangle();
-            }
-          },
-          onPanEnd: (details) {
-            setState(() {
-              _mightStartDragging = false;
-            });
-          },
-          child: GridView.builder(
-            controller: _scrollController,
-            gridDelegate: gridDelegate,
-            padding: EdgeInsets.all(padding),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final item = items[index];
-              final isSelected = _selectedItemsPaths.contains(item.path);
-              
-              // Build item widget and capture its position
-              return Builder(
-                builder: (context) {
-                  // After build, store the item position for hit testing
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) {
-                      final RenderBox? box = context.findRenderObject() as RenderBox?;
-                      if (box != null) {
-                        final Offset position = box.localToGlobal(Offset.zero);
-                        final Size size = box.size;
-                        _itemPositions[item.path] = Rect.fromLTWH(
-                          position.dx, position.dy, size.width, size.height
-                        );
-                      }
-                    }
-                  });
-                  
-                  return GridItemWidget(
-                    key: ValueKey(item.path),
-                    item: item,
-                    isSelected: isSelected,
-                    onTap: _selectItem,
-                    onDoubleTap: () => _handleItemDoubleTap(item),
-                    onLongPress: (item) => _showContextMenu(item, Offset.zero),
-                    onRightClick: _showContextMenu,
-                  );
-                },
-              );
-            },
-          ),
-        ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Calculate available width based on current constraints
+        final screenWidth = constraints.maxWidth;
+        final sidebarWidth = _showBookmarkSidebar ? 200.0 : 0.0;
+        final previewWidth = previewPanelService.showPreviewPanel ? 300.0 : 0.0;
+        final availableWidth = screenWidth - sidebarWidth - previewWidth;
         
-        // Draw selection rectangle
-        if (_dragStartPosition != null && _dragEndPosition != null && _mightStartDragging)
-          Positioned.fill(
-            child: CustomPaint(
-              painter: SelectionRectanglePainter(
-                start: _dragStartPosition!,
-                end: _dragEndPosition!,
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-                strokeColor: Theme.of(context).colorScheme.primary,
+        // Adjust spacing based on available space
+        final isCompact = previewPanelService.showPreviewPanel;
+        final spacing = isCompact ? 8.0 : 10.0;
+        final padding = isCompact ? 12.0 : 16.0;
+        
+        // Calculate minimum columns based on available width
+        final minimumColumns = isCompact ? 2 : 3;
+        
+        // Get grid delegate with consistent sizing
+        final gridDelegate = iconSizeService.getConsistentSizeGridDelegate(
+          availableWidth,
+          minimumColumns: minimumColumns,
+          spacing: spacing,
+          childAspectRatio: 0.9,
+        );
+        
+        return Stack(
+          children: [
+            GestureDetector(
+              key: _gridViewKey,
+              onTap: () => setState(() => _selectedItemsPaths = {}),
+              onSecondaryTapUp: (details) => _showEmptyAreaContextMenu(details.globalPosition),
+              onPanStart: (details) {
+                setState(() {
+                  _dragStartPosition = details.localPosition;
+                  _dragEndPosition = details.localPosition;
+                  _mightStartDragging = true;
+                  _itemPositions.clear();
+                });
+              },
+              onPanUpdate: (details) {
+                if (_mightStartDragging) {
+                  setState(() {
+                    _dragEndPosition = details.localPosition;
+                  });
+                  _updateSelectionRectangle();
+                }
+              },
+              onPanEnd: (details) {
+                setState(() {
+                  _mightStartDragging = false;
+                });
+              },
+              child: Padding(
+                padding: EdgeInsets.all(padding),
+                child: GridView.builder(
+                  controller: _scrollController,
+                  gridDelegate: gridDelegate,
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    final isSelected = _selectedItemsPaths.contains(item.path);
+                    
+                    return Builder(
+                      builder: (context) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            final RenderBox? box = context.findRenderObject() as RenderBox?;
+                            if (box != null) {
+                              final Offset position = box.localToGlobal(Offset.zero);
+                              final Size size = box.size;
+                              _itemPositions[item.path] = Rect.fromLTWH(
+                                position.dx, position.dy, size.width, size.height
+                              );
+                            }
+                          }
+                        });
+                        
+                        return GridItemWidget(
+                          key: ValueKey(item.path),
+                          item: item,
+                          isSelected: isSelected,
+                          onTap: (item, isCtrlPressed) => _selectItem(item),
+                          onDoubleTap: () => _handleItemDoubleTap(item),
+                          onLongPress: (item) => _showContextMenu(item, Offset.zero),
+                          onRightClick: (item, position) => _showContextMenu(item, position),
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
             ),
-          ),
-      ],
+            
+            // Draw selection rectangle
+            if (_dragStartPosition != null && _dragEndPosition != null && _mightStartDragging)
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: SelectionRectanglePainter(
+                    start: _dragStartPosition!,
+                    end: _dragEndPosition!,
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                    strokeColor: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
   
