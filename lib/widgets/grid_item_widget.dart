@@ -105,8 +105,8 @@ class GridItemWidget extends StatelessWidget {
                               // Icon container that takes most space
                               SizedBox(
                                 height: constraints.maxHeight > 0 
-                                    ? iconHeight.clamp(minContainerHeight, constraints.maxHeight * 0.55) 
-                                    : minContainerHeight,
+                                    ? iconHeight.clamp(24.0, constraints.maxHeight * 0.6)
+                                    : 24.0,
                                 width: double.infinity,
                                 child: Center(
                                   child: _buildItemIcon(iconSize),
@@ -115,7 +115,7 @@ class GridItemWidget extends StatelessWidget {
                               
                               // Only show text if there's enough space
                               if (hasSpaceForText) ...[
-                                SizedBox(height: uiScale > 0 ? (8.0 * uiScale).clamp(4.0, 12.0) : 4.0), // Added null safety
+                                SizedBox(height: (4.0 * uiScale).clamp(4.0, 8.0)),
                                 Flexible(
                                   child: Container(
                                     constraints: BoxConstraints(
@@ -128,9 +128,7 @@ class GridItemWidget extends StatelessWidget {
                                       maxLines: 1,
                                       style: TextStyle(
                                         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                        fontSize: uiScale > 0 
-                                            ? (titleSize * (1.0 / uiScale).clamp(0.5, 1.0)).clamp(10.0, 14.0)
-                                            : 12.0, // Default value if calculation fails
+                                        fontSize: (titleSize * (uiScale > 0.5 ? 1.0 : 0.8)).clamp(10.0, 14.0),
                                         color: isDarkMode ? Colors.white : Colors.black87,
                                       ),
                                     ),
@@ -139,7 +137,7 @@ class GridItemWidget extends StatelessWidget {
                                 
                                 // Subtitle - only if we have even more space
                                 if (hasSpaceForSubtitle) ...[
-                                  SizedBox(height: uiScale > 0 ? (4.0 * uiScale).clamp(2.0, 6.0) : 2.0), // Added null safety
+                                  SizedBox(height: (2.0 * uiScale).clamp(2.0, 4.0)),
                                   
                                   // Basic size info
                                   Flexible(
@@ -152,9 +150,7 @@ class GridItemWidget extends StatelessWidget {
                                         textAlign: TextAlign.center,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
-                                          fontSize: uiScale > 0 
-                                              ? (subtitleSize * (1.0 / uiScale).clamp(0.5, 1.0)).clamp(8.0, 11.0)
-                                              : 9.0, // Default value if calculation fails
+                                          fontSize: (subtitleSize * (uiScale > 0.5 ? 1.0 : 0.8)).clamp(8.0, 11.0),
                                           color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
                                         ),
                                       ),
@@ -176,9 +172,7 @@ class GridItemWidget extends StatelessWidget {
                                       if (!hasSpaceForTags) return const SizedBox.shrink();
                                       
                                       // Calculate an appropriate font size for tags based on available space
-                                      final tagFontSize = uiScale > 0 
-                                          ? (subtitleSize * (1.0 / uiScale).clamp(0.5, 1.0) * 0.8).clamp(6.0, 9.0)
-                                          : 7.0;
+                                      final tagFontSize = (subtitleSize * (uiScale > 0.5 ? 0.8 : 0.6)).clamp(6.0, 9.0);
                                       
                                       return Padding(
                                         padding: const EdgeInsets.only(top: 2.0),

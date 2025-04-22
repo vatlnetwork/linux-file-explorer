@@ -278,15 +278,13 @@ class _MountedUsbDrivesWidgetState extends State<MountedUsbDrivesWidget> {
                           ],
                         ),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8),
-                        child: Text(
-                          _usbDriveService.formatBytes(drive.totalBytes),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
-                            fontWeight: FontWeight.w500,
-                          ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _usbDriveService.formatBytes(drive.totalBytes),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
