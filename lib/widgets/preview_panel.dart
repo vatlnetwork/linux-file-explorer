@@ -1433,13 +1433,50 @@ class _PreviewPanelState extends State<PreviewPanel> {
     );
   }
   
-  void _duplicateFile(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Duplicate feature coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  void _duplicateFile(BuildContext context, FileItem item) async {
+    try {
+      final parentDir = p.dirname(item.path);
+      final fileName = item.name;
+      final baseName = p.basenameWithoutExtension(fileName);
+      final extension = p.extension(fileName);
+      
+      // Generate a new filename with "_copy" suffix
+      String newPath = p.join(parentDir, '${baseName}_copy$extension');
+      
+      // Check if file already exists and find a unique name
+      int counter = 1;
+      while (await File(newPath).exists()) {
+        newPath = p.join(parentDir, '${baseName}_copy($counter)$extension');
+        counter++;
+      }
+      
+      // Copy the file
+      await File(item.path).copy(newPath);
+      
+      if (!mounted) return;
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('File duplicated: ${p.basename(newPath)}'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      
+      // Refresh the preview panel to show the new file
+      Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
+      
+    } catch (e) {
+      if (!mounted) return;
+      
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error duplicating file: $e'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
   
   void _renameFile(BuildContext context, FileItem item) {

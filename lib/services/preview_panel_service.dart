@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/file_item.dart';
 import '../models/preview_options.dart';
+import '../widgets/get_info_dialog.dart';
 
 enum QuickAction {
   rotate,
@@ -158,7 +159,6 @@ class PreviewPanelService extends ChangeNotifier {
       actions.add(QuickAction.quickLook);
       actions.add(QuickAction.rotate);
       actions.add(QuickAction.markup);
-      actions.add(QuickAction.createPdf);
       actions.add(QuickAction.convertImage);
     }
     
@@ -389,5 +389,159 @@ class PreviewPanelService extends ChangeNotifier {
     }
     
     notifyListeners();
+  }
+
+  void handleQuickAction(QuickAction action, BuildContext context) {
+    switch (action) {
+      case QuickAction.quickLook:
+        _handleQuickLook(context);
+        break;
+      case QuickAction.preview:
+        _handleOpen(context);
+        break;
+      case QuickAction.openWith:
+        _handleOpenWith(context);
+        break;
+      case QuickAction.getInfo:
+        showDialog(
+          context: context,
+          builder: (context) => GetInfoDialog(item: _selectedItem!),
+        );
+        break;
+      case QuickAction.share:
+        _handleShare(context);
+        break;
+      case QuickAction.rename:
+        _handleRename(context);
+        break;
+      case QuickAction.compress:
+        _handleCompress(context);
+        break;
+      case QuickAction.duplicate:
+        _handleDuplicate(context);
+        break;
+      case QuickAction.compressVideo:
+        _handleCompress(context);
+        break;
+      case QuickAction.rotate:
+        _handleRotate(context);
+        break;
+      case QuickAction.markup:
+        _handleMarkup(context);
+        break;
+      case QuickAction.createPdf:
+        _handleCreatePdf(context);
+        break;
+      case QuickAction.convertImage:
+        _handleConvertImage(context);
+        break;
+      case QuickAction.trim:
+        _handleTrim(context);
+        break;
+      case QuickAction.searchablePdf:
+        _handleSearchablePdf(context);
+        break;
+      case QuickAction.copyPath:
+        _handleCopyPath(context);
+        break;
+      case QuickAction.createAlias:
+        _handleCreateAlias(context);
+        break;
+      case QuickAction.addToFavorites:
+        _handleAddToFavorites(context);
+        break;
+      case QuickAction.extractText:
+        _handleExtractText(context);
+        break;
+      case QuickAction.revealInFolder:
+        _handleRevealInFolder(context);
+        break;
+      case QuickAction.runScript:
+        _handleRunScript(context);
+        break;
+      case QuickAction.convertAudio:
+        _handleConvertAudio(context);
+        break;
+    }
+  }
+
+  void _handleQuickLook(BuildContext context) {
+    // TODO: Implement quick look functionality
+  }
+
+  void _handleOpen(BuildContext context) {
+    // TODO: Implement open functionality
+  }
+
+  void _handleOpenWith(BuildContext context) {
+    // TODO: Implement open with functionality
+  }
+
+  void _handleShare(BuildContext context) {
+    // TODO: Implement share functionality
+  }
+
+  void _handleRename(BuildContext context) {
+    // TODO: Implement rename functionality
+  }
+
+  void _handleCompress(BuildContext context) {
+    // TODO: Implement compress functionality
+  }
+
+  void _handleDuplicate(BuildContext context) {
+    // TODO: Implement duplicate functionality
+  }
+
+  void _handleRotate(BuildContext context) {
+    // TODO: Implement rotate functionality
+  }
+
+  void _handleMarkup(BuildContext context) {
+    // TODO: Implement markup functionality
+  }
+
+  void _handleCreatePdf(BuildContext context) {
+    // TODO: Implement create PDF functionality
+  }
+
+  void _handleConvertImage(BuildContext context) {
+    // TODO: Implement image conversion functionality
+  }
+
+  void _handleTrim(BuildContext context) {
+    // TODO: Implement video trimming functionality
+  }
+
+  void _handleSearchablePdf(BuildContext context) {
+    // TODO: Implement searchable PDF creation functionality
+  }
+
+  void _handleCopyPath(BuildContext context) {
+    // TODO: Implement copy path functionality
+  }
+
+  void _handleCreateAlias(BuildContext context) {
+    // TODO: Implement create alias functionality
+  }
+
+  void _handleAddToFavorites(BuildContext context) {
+    // TODO: Implement add to favorites functionality
+  }
+
+  void _handleExtractText(BuildContext context) {
+    // TODO: Implement extract text functionality
+  }
+
+  void _handleRevealInFolder(BuildContext context) {
+    // TODO: Implement reveal in folder functionality
+  }
+
+  void _handleRunScript(BuildContext context) {
+    // TODO: Implement run script functionality
+  }
+
+  void _handleConvertAudio(BuildContext context) {
+    // TODO: Implement convert audio functionality
   }
 } 
