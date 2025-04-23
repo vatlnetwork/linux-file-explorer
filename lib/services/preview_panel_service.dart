@@ -4,6 +4,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/file_item.dart';
 import '../models/preview_options.dart';
 import '../widgets/get_info_dialog.dart';
+import '../widgets/rename_file_dialog.dart';
+import '../services/quick_look_service.dart';
+import 'package:path/path.dart' as p;
+import '../widgets/markup_editor.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 
 enum QuickAction {
   rotate,
@@ -460,88 +467,790 @@ class PreviewPanelService extends ChangeNotifier {
         _handleRunScript(context);
         break;
       case QuickAction.convertAudio:
-        _handleConvertAudio(context);
+        handleConvertAudio(context);
         break;
     }
   }
 
   void _handleQuickLook(BuildContext context) {
-    // TODO: Implement quick look functionality
+    if (_selectedItem == null) return;
+    
+    final quickLookService = QuickLookService(
+      context: context,
+      previewPanelService: this,
+    );
+    quickLookService.showQuickLook(_selectedItem!);
   }
 
   void _handleOpen(BuildContext context) {
-    // TODO: Implement open functionality
+    if (_selectedItem == null) return;
+    
+    try {
+      final process = Process.run('xdg-open', [_selectedItem!.path]);
+      process.then((result) {
+        if (result.exitCode != 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to open file: ${result.stderr}')),
+          );
+        }
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error opening file: $e')),
+      );
+    }
   }
 
   void _handleOpenWith(BuildContext context) {
-    // TODO: Implement open with functionality
+    if (_selectedItem == null) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Open With'),
+        content: SizedBox(
+          width: 300,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.text_snippet),
+                title: const Text('Text Editor'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Process.run('xdg-open', ['-a', 'gedit', _selectedItem!.path]);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.image),
+                title: const Text('Image Viewer'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Process.run('xdg-open', ['-a', 'eog', _selectedItem!.path]);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.video_library),
+                title: const Text('Video Player'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Process.run('xdg-open', ['-a', 'vlc', _selectedItem!.path]);
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _handleShare(BuildContext context) {
-    // TODO: Implement share functionality
+    if (_selectedItem == null) return;
+    
+    try {
+      final process = Process.run('xdg-open', ['--share', _selectedItem!.path]);
+      process.then((result) {
+        if (result.exitCode != 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to share file: ${result.stderr}')),
+          );
+        }
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error sharing file: $e')),
+      );
+    }
   }
 
   void _handleRename(BuildContext context) {
-    // TODO: Implement rename functionality
+    if (_selectedItem == null) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => RenameFileDialog(fileItem: _selectedItem!),
+    ).then((success) {
+      if (success == true) {
+        refreshSelectedItem();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('File renamed successfully')),
+        );
+      }
+    });
   }
 
-  void _handleCompress(BuildContext context) {
-    // TODO: Implement compress functionality
+  void _handleCompress(BuildContext context) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      final outputPath = '${_selectedItem!.path}.zip';
+      final result = await Process.run('zip', ['-r', outputPath, _selectedItem!.path]);
+      
+      if (result.exitCode == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('File compressed to ${p.basename(outputPath)}')),
+        );
+        refreshSelectedItem();
+      } else {
+        throw Exception(result.stderr);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to compress file: $e')),
+      );
+    }
   }
 
-  void _handleDuplicate(BuildContext context) {
-    // TODO: Implement duplicate functionality
+  void _handleDuplicate(BuildContext context) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      final parentDir = p.dirname(_selectedItem!.path);
+      final fileName = p.basename(_selectedItem!.path);
+      final baseName = p.basenameWithoutExtension(fileName);
+      final extension = p.extension(fileName);
+      
+      String newPath = p.join(parentDir, '${baseName}_copy$extension');
+      int counter = 1;
+      
+      while (await File(newPath).exists()) {
+        newPath = p.join(parentDir, '${baseName}_copy($counter)$extension');
+        counter++;
+      }
+      
+      await File(_selectedItem!.path).copy(newPath);
+      refreshSelectedItem();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('File duplicated: ${p.basename(newPath)}')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to duplicate file: $e')),
+      );
+    }
   }
 
-  void _handleRotate(BuildContext context) {
-    // TODO: Implement rotate functionality
+  void _handleRotate(BuildContext context) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      final result = await Process.run('which', ['convert']);
+      if (result.exitCode != 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ImageMagick is not installed. Please install it to use image rotation.')),
+        );
+        return;
+      }
+      
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Rotate Image'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.rotate_right),
+                title: const Text('Rotate 90° Right'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _rotateImage(context, 90);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.rotate_left),
+                title: const Text('Rotate 90° Left'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _rotateImage(context, -90);
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error rotating image: $e')),
+      );
+    }
+  }
+  
+  Future<void> _rotateImage(BuildContext context, int degrees) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      final result = await Process.run('convert', [
+        _selectedItem!.path,
+        '-rotate',
+        degrees.toString(),
+        _selectedItem!.path
+      ]);
+      
+      if (result.exitCode == 0) {
+        refreshSelectedItem();
+      } else {
+        throw Exception(result.stderr);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to rotate image: $e')),
+      );
+    }
   }
 
   void _handleMarkup(BuildContext context) {
-    // TODO: Implement markup functionality
+    if (_selectedItem == null) return;
+    
+    final ext = _selectedItem!.fileExtension.toLowerCase();
+    if (!['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].contains(ext)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Markup editor only supports image files')),
+      );
+      return;
+    }
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MarkupEditor(fileItem: _selectedItem!),
+      ),
+    ).then((success) {
+      if (success == true) {
+        refreshSelectedItem();
+      }
+    });
   }
 
-  void _handleCreatePdf(BuildContext context) {
-    // TODO: Implement create PDF functionality
+  void _handleCreatePdf(BuildContext context) async {
+    if (_selectedItem == null) return;
+    
+    final ext = _selectedItem!.fileExtension.toLowerCase();
+    if (!['.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.html', '.css', '.js'].contains(ext)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('PDF creation is currently only supported for text files')),
+      );
+      return;
+    }
+    
+    try {
+      final content = await File(_selectedItem!.path).readAsString();
+      final document = PdfDocument();
+      final page = document.pages.add();
+      final font = PdfStandardFont(PdfFontFamily.helvetica, 12);
+      final brush = PdfSolidBrush(PdfColor(0, 0, 0));
+      final format = PdfStringFormat(wordWrap: PdfWordWrapType.word, lineSpacing: 20);
+      
+      page.graphics.drawString(
+        content,
+        font,
+        brush: brush,
+        format: format,
+        bounds: Rect.fromLTWH(50, 50, page.getClientSize().width - 100, page.getClientSize().height - 100),
+      );
+      
+      final outputPath = '${_selectedItem!.path.substring(0, _selectedItem!.path.lastIndexOf('.'))}.pdf';
+      final bytes = await document.save();
+      await File(outputPath).writeAsBytes(bytes);
+      document.dispose();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('PDF created successfully at $outputPath')),
+      );
+      refreshSelectedItem();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error creating PDF: $e')),
+      );
+    }
   }
 
-  void _handleConvertImage(BuildContext context) {
-    // TODO: Implement image conversion functionality
+  void _handleConvertImage(BuildContext context) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      final result = await Process.run('which', ['convert']);
+      if (result.exitCode != 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ImageMagick is not installed. Please install it to use image conversion.')),
+        );
+        return;
+      }
+      
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Convert Image'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.image),
+                title: const Text('PNG'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _convertImageTo(context, 'png');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.image),
+                title: const Text('JPEG'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _convertImageTo(context, 'jpeg');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.image),
+                title: const Text('WebP'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _convertImageTo(context, 'webp');
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error converting image: $e')),
+      );
+    }
+  }
+  
+  Future<void> _convertImageTo(BuildContext context, String format) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      final outputPath = '${_selectedItem!.path.substring(0, _selectedItem!.path.lastIndexOf('.'))}.$format';
+      final result = await Process.run('convert', [
+        _selectedItem!.path,
+        outputPath
+      ]);
+      
+      if (result.exitCode == 0) {
+        refreshSelectedItem();
+      } else {
+        throw Exception(result.stderr);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to convert image: $e')),
+      );
+    }
   }
 
-  void _handleTrim(BuildContext context) {
-    // TODO: Implement video trimming functionality
+  void _handleTrim(BuildContext context) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      final result = await Process.run('which', ['ffmpeg']);
+      if (result.exitCode != 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('FFmpeg is not installed. Please install it to use video trimming.')),
+        );
+        return;
+      }
+      
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Trim Video'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.content_cut),
+                title: const Text('Trim Start'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _trimVideo(context, 'start');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.content_cut),
+                title: const Text('Trim End'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _trimVideo(context, 'end');
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error trimming video: $e')),
+      );
+    }
+  }
+  
+  Future<void> _trimVideo(BuildContext context, String position) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      final outputPath = '${_selectedItem!.path.substring(0, _selectedItem!.path.lastIndexOf('.'))}_trimmed.mp4';
+      final result = await Process.run('ffmpeg', [
+        '-i', _selectedItem!.path,
+        '-ss', position == 'start' ? '00:00:05' : '00:00:00',
+        '-t', position == 'start' ? '00:00:00' : '00:00:05',
+        '-c', 'copy',
+        outputPath
+      ]);
+      
+      if (result.exitCode == 0) {
+        refreshSelectedItem();
+      } else {
+        throw Exception(result.stderr);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to trim video: $e')),
+      );
+    }
   }
 
-  void _handleSearchablePdf(BuildContext context) {
-    // TODO: Implement searchable PDF creation functionality
+  void _handleSearchablePdf(BuildContext context) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      // Check for required tools
+      final ffmpegResult = await Process.run('which', ['ffmpeg']);
+      final tesseractResult = await Process.run('which', ['tesseract']);
+      
+      if (ffmpegResult.exitCode != 0 || tesseractResult.exitCode != 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('FFmpeg and Tesseract OCR are required for searchable PDF creation.')),
+        );
+        return;
+      }
+      
+      // Convert PDF pages to images
+      final tempDir = Directory.systemTemp.createTempSync();
+      final result = await Process.run('ffmpeg', [
+        '-i', _selectedItem!.path,
+        '-r', '1',
+        '-f', 'image2',
+        '${tempDir.path}/page_%d.png'
+      ]);
+      
+      if (result.exitCode != 0) {
+        throw Exception(result.stderr);
+      }
+      
+      // OCR each page and create searchable PDF
+      final outputPath = '${_selectedItem!.path.substring(0, _selectedItem!.path.lastIndexOf('.'))}_searchable.pdf';
+      final ocrResult = await Process.run('tesseract', [
+        '${tempDir.path}/page_*.png',
+        outputPath,
+        'pdf'
+      ]);
+      
+      if (ocrResult.exitCode == 0) {
+        refreshSelectedItem();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Searchable PDF created: ${p.basename(outputPath)}')),
+        );
+      } else {
+        throw Exception(ocrResult.stderr);
+      }
+      
+      // Clean up temp files
+      tempDir.deleteSync(recursive: true);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to create searchable PDF: $e')),
+      );
+    }
   }
 
   void _handleCopyPath(BuildContext context) {
-    // TODO: Implement copy path functionality
+    if (_selectedItem == null) return;
+    
+    Clipboard.setData(ClipboardData(text: _selectedItem!.path)).then((_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Path copied to clipboard')),
+      );
+    });
   }
 
-  void _handleCreateAlias(BuildContext context) {
-    // TODO: Implement create alias functionality
+  void _handleCreateAlias(BuildContext context) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      final parentDir = p.dirname(_selectedItem!.path);
+      final fileName = p.basename(_selectedItem!.path);
+      final aliasPath = p.join(parentDir, '${fileName}_alias');
+      
+      final result = await Process.run('ln', ['-s', _selectedItem!.path, aliasPath]);
+      
+      if (result.exitCode == 0) {
+        refreshSelectedItem();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Alias created: ${p.basename(aliasPath)}')),
+        );
+      } else {
+        throw Exception(result.stderr);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to create alias: $e')),
+      );
+    }
   }
 
-  void _handleAddToFavorites(BuildContext context) {
-    // TODO: Implement add to favorites functionality
+  void _handleAddToFavorites(BuildContext context) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      final favoritesDir = Directory('${Platform.environment['HOME']}/.favorites');
+      if (!await favoritesDir.exists()) {
+        await favoritesDir.create();
+      }
+      
+      final aliasPath = p.join(favoritesDir.path, p.basename(_selectedItem!.path));
+      final result = await Process.run('ln', ['-s', _selectedItem!.path, aliasPath]);
+      
+      if (result.exitCode == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Added to favorites: ${p.basename(aliasPath)}')),
+        );
+      } else {
+        throw Exception(result.stderr);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to add to favorites: $e')),
+      );
+    }
   }
 
-  void _handleExtractText(BuildContext context) {
-    // TODO: Implement extract text functionality
+  void _handleExtractText(BuildContext context) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      final result = await Process.run('which', ['tesseract']);
+      if (result.exitCode != 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tesseract OCR is not installed. Please install it to use text extraction.')),
+        );
+        return;
+      }
+      
+      final outputPath = '${_selectedItem!.path.substring(0, _selectedItem!.path.lastIndexOf('.'))}.txt';
+      final ocrResult = await Process.run('tesseract', [
+        _selectedItem!.path,
+        outputPath.substring(0, outputPath.lastIndexOf('.')),
+        '-l', 'eng'
+      ]);
+      
+      if (ocrResult.exitCode == 0) {
+        refreshSelectedItem();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Text extracted to: ${p.basename(outputPath)}')),
+        );
+      } else {
+        throw Exception(ocrResult.stderr);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to extract text: $e')),
+      );
+    }
   }
 
-  void _handleRevealInFolder(BuildContext context) {
-    // TODO: Implement reveal in folder functionality
+  void _handleRevealInFolder(BuildContext context) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      final parentDir = p.dirname(_selectedItem!.path);
+      final result = await Process.run('xdg-open', [parentDir]);
+      
+      if (result.exitCode != 0) {
+        throw Exception(result.stderr);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to reveal in folder: $e')),
+      );
+    }
   }
 
-  void _handleRunScript(BuildContext context) {
-    // TODO: Implement run script functionality
+  void _handleRunScript(BuildContext context) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      // Make the file executable
+      await Process.run('chmod', ['+x', _selectedItem!.path]);
+      
+      // Run the script
+      final result = await Process.run(_selectedItem!.path, []);
+      
+      if (result.exitCode == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Script executed successfully: ${result.stdout}')),
+        );
+      } else {
+        throw Exception('${result.stderr}\nExit code: ${result.exitCode}');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to run script: $e')),
+      );
+    }
   }
 
-  void _handleConvertAudio(BuildContext context) {
-    // TODO: Implement convert audio functionality
+  void handleConvertAudio(BuildContext context) async {
+    if (_selectedItem == null) return;
+    
+    // Check if ffmpeg is installed
+    try {
+      final result = await Process.run('which', ['ffmpeg']);
+      if (result.exitCode != 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ffmpeg is not installed. Please install it to use audio conversion features.'),
+            duration: Duration(seconds: 5),
+          ),
+        );
+        return;
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error checking for ffmpeg installation.'),
+          duration: Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
+    
+    if (!context.mounted) return;
+    
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Convert Audio'),
+          content: SizedBox(
+            width: 300,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.audiotrack),
+                  title: const Text('MP3'),
+                  subtitle: const Text('High quality audio'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final outputPath = '${_selectedItem!.path}.mp3';
+                    try {
+                      final result = await Process.run('ffmpeg', [
+                        '-i', _selectedItem!.path,
+                        '-codec:a', 'libmp3lame',
+                        '-qscale:a', '2',
+                        outputPath
+                      ]);
+                      if (result.exitCode == 0) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Audio converted to MP3 successfully')),
+                          );
+                        }
+                      } else {
+                        throw Exception(result.stderr);
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Failed to convert audio: $e')),
+                        );
+                      }
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.audiotrack),
+                  title: const Text('WAV'),
+                  subtitle: const Text('Lossless audio'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final outputPath = '${_selectedItem!.path}.wav';
+                    try {
+                      final result = await Process.run('ffmpeg', [
+                        '-i', _selectedItem!.path,
+                        '-codec:a', 'pcm_s16le',
+                        outputPath
+                      ]);
+                      if (result.exitCode == 0) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Audio converted to WAV successfully')),
+                          );
+                        }
+                      } else {
+                        throw Exception(result.stderr);
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Failed to convert audio: $e')),
+                        );
+                      }
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.audiotrack),
+                  title: const Text('FLAC'),
+                  subtitle: const Text('Lossless compressed'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final outputPath = '${_selectedItem!.path}.flac';
+                    try {
+                      final result = await Process.run('ffmpeg', [
+                        '-i', _selectedItem!.path,
+                        '-codec:a', 'flac',
+                        outputPath
+                      ]);
+                      if (result.exitCode == 0) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Audio converted to FLAC successfully')),
+                          );
+                        }
+                      } else {
+                        throw Exception(result.stderr);
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Failed to convert audio: $e')),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
   }
 } 

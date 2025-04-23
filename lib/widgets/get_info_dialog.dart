@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import '../models/file_item.dart';
-import 'package:provider/provider.dart';
-import '../services/preview_panel_service.dart';
 
 class GetInfoDialog extends StatelessWidget {
   final FileItem item;

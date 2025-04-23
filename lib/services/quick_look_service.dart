@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/file_item.dart';
 import 'preview_panel_service.dart';
 import 'package:logging/logging.dart';
+import 'dart:async';
 
 class QuickLookService {
   final BuildContext context;
@@ -31,7 +32,7 @@ class QuickLookService {
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (context, animation, secondaryAnimation) => QuickLookDialog(
-        item: item, 
+        item: item,
         previewPanelService: previewPanelService,
       ),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
@@ -94,7 +95,6 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
     } else if (widget.item.type == FileItemType.file) {
       final ext = widget.item.fileExtension.toLowerCase();
       
-      // Handle text files
       if (['.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.html', '.css', '.js'].contains(ext)) {
         final content = await widget.previewPanelService.getTextFileContent(widget.item.path);
         if (mounted) {
@@ -104,10 +104,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
           });
         }
       } else {
-        // For other files, there's no loading needed
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }

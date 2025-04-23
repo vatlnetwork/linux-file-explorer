@@ -1641,12 +1641,8 @@ class _PreviewPanelState extends State<PreviewPanel> {
   }
   
   void _convertAudio(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Convert Audio feature coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    final previewService = Provider.of<PreviewPanelService>(context, listen: false);
+    previewService.handleConvertAudio(context);
   }
   
   void _compressVideo(BuildContext context, FileItem item) {
