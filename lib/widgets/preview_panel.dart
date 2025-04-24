@@ -16,6 +16,7 @@ import 'rename_file_dialog.dart';
 import 'markup_editor.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'get_info_dialog.dart';
+import '../services/compression_service.dart';
 
 class PreviewPanel extends StatefulWidget {
   final Function(String) onNavigate;
@@ -1425,13 +1426,48 @@ class _PreviewPanelState extends State<PreviewPanel> {
     }
   }
   
-  void _compressFile(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Compress feature coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  void _compressFile(BuildContext context, FileItem item) async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Compress the file
+      final compressionService = CompressionService();
+      final outputPath = await compressionService.compressToZip(item.path);
+
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('File compressed to ${p.basename(outputPath)}'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+
+      // Refresh the directory view
+      Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
+    } catch (e) {
+      // Close loading dialog if it's still open
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to compress file: $e'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
   
   void _duplicateFile(BuildContext context, FileItem item) async {
