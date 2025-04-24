@@ -1,7 +1,9 @@
 import 'dart:io';
-import 'package:path/path.dart' as p;
+import 'package:logging/logging.dart';
 
 class FileSystemService {
+  final _logger = Logger('FileSystemService');
+
   Future<String> getFileOwner(String path) async {
     try {
       final result = await Process.run('stat', ['-c', '%U', path]);
@@ -9,7 +11,7 @@ class FileSystemService {
         return result.stdout.toString().trim();
       }
     } catch (e) {
-      print('Error getting file owner: $e');
+      _logger.warning('Error getting file owner: $e');
     }
     return 'Unknown';
   }
@@ -21,7 +23,7 @@ class FileSystemService {
         return result.stdout.toString().trim();
       }
     } catch (e) {
-      print('Error getting file group: $e');
+      _logger.warning('Error getting file group: $e');
     }
     return 'Unknown';
   }

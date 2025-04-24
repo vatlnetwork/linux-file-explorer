@@ -7,8 +7,7 @@ class MacOSTheme {
     colorScheme: ColorScheme.light(
       primary: const Color(0xFF007AFF), // macOS blue
       secondary: const Color(0xFF5856D6), // macOS purple
-      surface: Colors.white,
-      background: const Color(0xFFF5F5F7), // macOS light gray background
+      surface: const Color(0xFFF5F5F7), // macOS light gray background
       error: const Color(0xFFFF3B30), // macOS red
     ),
     scaffoldBackgroundColor: const Color(0xFFF5F5F7),
@@ -120,8 +119,7 @@ class MacOSTheme {
     colorScheme: ColorScheme.dark(
       primary: const Color(0xFF0A84FF), // macOS dark mode blue
       secondary: const Color(0xFF5E5CE6), // macOS dark mode purple
-      surface: const Color(0xFF2C2C2E), // macOS dark mode surface
-      background: const Color(0xFF1C1C1E), // macOS dark mode background
+      surface: const Color(0xFF1C1C1E), // macOS dark mode background
       error: const Color(0xFFFF453A), // macOS dark mode red
     ),
     scaffoldBackgroundColor: const Color(0xFF1C1C1E),

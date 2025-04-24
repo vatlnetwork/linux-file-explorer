@@ -358,7 +358,6 @@ class _GetInfoDialogState extends State<GetInfoDialog> with SingleTickerProvider
     
     final read = permissions.contains('r');
     final write = permissions.contains('w');
-    final execute = permissions.contains('x');
     
     if (read && write) return 'Read & Write';
     if (read) return 'Read only';

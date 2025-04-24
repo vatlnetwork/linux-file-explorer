@@ -10,7 +10,7 @@ class CompressionService {
   Future<String> compressToZip(String sourcePath) async {
     final sourceFile = File(sourcePath);
     final sourceDir = Directory(sourcePath);
-    final outputPath = '${sourcePath}.zip';
+    final outputPath = '$sourcePath.zip';
 
     // Check if source exists
     if (!sourceFile.existsSync() && !sourceDir.existsSync()) {
