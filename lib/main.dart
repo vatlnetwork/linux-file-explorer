@@ -17,6 +17,7 @@ import 'package:flutter/services.dart';
 import 'services/tags_service.dart';
 import 'utils/audio_init.dart';
 import 'services/drag_drop_service.dart';
+import 'theme/macos_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -107,88 +108,14 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
       title: 'Linux File Explorer',
+      theme: MacOSTheme.lightTheme,
+      darkTheme: MacOSTheme.darkTheme,
       themeMode: ThemeMode.system,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.light,
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFBBDEFB),
-          foregroundColor: Colors.black87,
-          elevation: 4,
-        ),
-        // Use solid background color instead of transparent
-        scaffoldBackgroundColor: const Color(0xFFFFFFFF),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-          ),
-        ),
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: Colors.blue,
-          foregroundColor: Colors.white,
-        ),
-        popupMenuTheme: const PopupMenuThemeData(
-          color: Color(0xFFE0E0E0),
-          elevation: 4,
-          textStyle: TextStyle(
-            color: Colors.black87,
-            fontSize: 14,
-          ),
-        ),
-        dialogTheme: DialogTheme(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.dark,
-        ),
-        // Use solid background color instead of transparent
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF2C2C2C),
-          foregroundColor: Colors.white,
-          elevation: 4,
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue.shade700,
-            foregroundColor: Colors.white,
-          ),
-        ),
-        floatingActionButtonTheme: FloatingActionButtonThemeData(
-          backgroundColor: Colors.blue.shade700,
-          foregroundColor: Colors.white,
-        ),
-        cardColor: const Color(0xFF1E1E1E),
-        popupMenuTheme: const PopupMenuThemeData(
-          color: Color(0xFF424242),
-          elevation: 4,
-          textStyle: TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-          ),
-        ),
-        dialogTheme: DialogTheme(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-      ),
+      debugShowCheckedModeBanner: false,
       home: const FileExplorerScreen(),
       routes: {
         TagsViewScreen.routeName: (context) => const TagsViewScreen(),

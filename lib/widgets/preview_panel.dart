@@ -15,6 +15,7 @@ import 'app_selection_dialog.dart';
 import 'rename_file_dialog.dart';
 import 'markup_editor.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
+import 'get_info_dialog.dart';
 
 class PreviewPanel extends StatefulWidget {
   final Function(String) onNavigate;
@@ -1530,11 +1531,9 @@ class _PreviewPanelState extends State<PreviewPanel> {
   }
   
   void _showFileInfo(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Get Info feature coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
+    showDialog(
+      context: context,
+      builder: (context) => GetInfoDialog(item: item),
     );
   }
   

@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import '../models/file_item.dart';
+import '../services/file_system_service.dart';
 
-class GetInfoDialog extends StatelessWidget {
+class GetInfoDialog extends StatefulWidget {
   final FileItem item;
   
   const GetInfoDialog({
@@ -10,6 +12,67 @@ class GetInfoDialog extends StatelessWidget {
     required this.item,
   });
 
+  @override
+  State<GetInfoDialog> createState() => _GetInfoDialogState();
+}
+
+class _GetInfoDialogState extends State<GetInfoDialog> with SingleTickerProviderStateMixin {
+  late FileSystemEntity _entity;
+  bool _isLoading = true;
+  String? _error;
+  Map<String, String> _info = {};
+  late TabController _tabController;
+  
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _loadFileInfo();
+  }
+  
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+  
+  Future<void> _loadFileInfo() async {
+    try {
+      _entity = widget.item.type == FileItemType.directory
+          ? Directory(widget.item.path)
+          : File(widget.item.path);
+      
+      final stat = await _entity.stat();
+      final fileSystemService = FileSystemService();
+      
+      final owner = await fileSystemService.getFileOwner(widget.item.path);
+      final group = await fileSystemService.getFileGroup(widget.item.path);
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _info = {
+          'Name': widget.item.name,
+          'Kind': widget.item.type == FileItemType.directory ? 'Folder' : '${widget.item.fileExtension.toUpperCase().replaceFirst('.', '')} File',
+          'Size': widget.item.formattedSize,
+          'Created': widget.item.formattedCreationTime,
+          'Modified': widget.item.formattedModifiedTime,
+          'Path': widget.item.path,
+          'Permissions': stat.modeString().substring(1),
+          'Owner': owner,
+          'Group': group,
+        };
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Error loading file info: $e';
+        _isLoading = false;
+      });
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -19,11 +82,10 @@ class GetInfoDialog extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Container(
-        width: 500,
-        constraints: const BoxConstraints(maxHeight: 600),
+        width: 600,
+        height: 700,
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
             Container(
@@ -32,28 +94,46 @@ class GetInfoDialog extends StatelessWidget {
                 color: isDarkMode ? Colors.grey.shade900 : Colors.grey.shade100,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               ),
-              child: Row(
+              child: Column(
                 children: [
-                  Icon(
-                    item.type == FileItemType.directory ? Icons.folder : Icons.insert_drive_file,
-                    size: 24,
-                    color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      item.name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                  Row(
+                    children: [
+                      Icon(
+                        widget.item.type == FileItemType.directory
+                            ? Icons.folder
+                            : Icons.insert_drive_file,
+                        size: 24,
+                        color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          widget.item.name,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(context).pop(),
+                        tooltip: 'Close',
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                    tooltip: 'Close',
+                  const SizedBox(height: 16),
+                  TabBar(
+                    controller: _tabController,
+                    tabs: const [
+                      Tab(text: 'General'),
+                      Tab(text: 'More Info'),
+                      Tab(text: 'Sharing & Permissions'),
+                    ],
+                    labelColor: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
+                    unselectedLabelColor: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                    indicatorColor: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
                   ),
                 ],
               ),
@@ -61,74 +141,107 @@ class GetInfoDialog extends StatelessWidget {
             
             // Content
             Expanded(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Preview section
-                      if (item.type == FileItemType.file) ...[
-                        Center(
-                          child: Container(
-                            width: 200,
-                            height: 200,
-                            decoration: BoxDecoration(
-                              color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200,
-                              borderRadius: BorderRadius.circular(8),
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // General Tab
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_isLoading)
+                          const Center(child: CircularProgressIndicator())
+                        else if (_error != null)
+                          Center(
+                            child: Text(
+                              _error!,
+                              style: TextStyle(color: Theme.of(context).colorScheme.error),
                             ),
-                            child: Center(
-                              child: Icon(
-                                _getIconForFile(item),
-                                size: 64,
-                                color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                          )
+                        else ...[
+                          // Preview section
+                          if (widget.item.type == FileItemType.file) ...[
+                            Center(
+                              child: Container(
+                                width: 200,
+                                height: 200,
+                                decoration: BoxDecoration(
+                                  color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Center(
+                                  child: Icon(
+                                    _getIconForFile(widget.item),
+                                    size: 64,
+                                    color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-                      
-                      // General section
-                      _buildSection(
-                        title: 'General',
-                        children: [
-                          _buildInfoRow('Kind', _getKindDescription(item)),
-                          _buildInfoRow('Size', item.formattedSize),
-                          _buildInfoRow('Where', p.dirname(item.path)),
-                          _buildInfoRow('Created', item.formattedCreationTime),
-                          _buildInfoRow('Modified', item.formattedModifiedTime),
-                          if (item.whereFrom != null)
-                            _buildInfoRow('Where from', item.whereFrom!),
-                        ],
-                      ),
-                      
-                      // More Info section
-                      if (item.type == FileItemType.file) ...[
-                        const SizedBox(height: 16),
-                        _buildSection(
-                          title: 'More Info',
-                          children: [
-                            _buildInfoRow('File extension', item.fileExtension),
-                            _buildInfoRow('File name', p.basename(item.path)),
-                            _buildInfoRow('Full path', item.path),
+                            const SizedBox(height: 16),
                           ],
-                        ),
-                      ],
-                      
-                      // Permissions section
-                      const SizedBox(height: 16),
-                      _buildSection(
-                        title: 'Sharing & Permissions',
-                        children: [
-                          _buildInfoRow('Owner', 'You'),
-                          _buildInfoRow('Access', 'Read & Write'),
-                          _buildInfoRow('Sharing', 'Not shared'),
+                          
+                          _buildInfoRow('Kind', _getKindDescription(widget.item)),
+                          _buildInfoRow('Size', widget.item.formattedSize),
+                          _buildInfoRow('Where', p.dirname(widget.item.path)),
+                          _buildInfoRow('Created', widget.item.formattedCreationTime),
+                          _buildInfoRow('Modified', widget.item.formattedModifiedTime),
+                          if (widget.item.whereFrom != null)
+                            _buildInfoRow('Where from', widget.item.whereFrom!),
                         ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                  
+                  // More Info Tab
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_isLoading)
+                          const Center(child: CircularProgressIndicator())
+                        else if (_error != null)
+                          Center(
+                            child: Text(
+                              _error!,
+                              style: TextStyle(color: Theme.of(context).colorScheme.error),
+                            ),
+                          )
+                        else ...[
+                          _buildInfoRow('File extension', widget.item.fileExtension),
+                          _buildInfoRow('File name', p.basename(widget.item.path)),
+                          _buildInfoRow('Full path', widget.item.path),
+                        ],
+                      ],
+                    ),
+                  ),
+                  
+                  // Sharing & Permissions Tab
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_isLoading)
+                          const Center(child: CircularProgressIndicator())
+                        else if (_error != null)
+                          Center(
+                            child: Text(
+                              _error!,
+                              style: TextStyle(color: Theme.of(context).colorScheme.error),
+                            ),
+                          )
+                        else ...[
+                          _buildInfoRow('Owner', _info['Owner'] ?? 'Unknown'),
+                          _buildInfoRow('Group', _info['Group'] ?? 'Unknown'),
+                          _buildInfoRow('Access', _getAccessString(_info['Permissions'] ?? '')),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
             
@@ -152,23 +265,6 @@ class GetInfoDialog extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-  
-  Widget _buildSection({required String title, required List<Widget> children}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        ...children,
-      ],
     );
   }
   
@@ -255,5 +351,18 @@ class GetInfoDialog extends StatelessWidget {
     } else {
       return Icons.insert_drive_file;
     }
+  }
+  
+  String _getAccessString(String permissions) {
+    if (permissions.isEmpty) return 'Unknown';
+    
+    final read = permissions.contains('r');
+    final write = permissions.contains('w');
+    final execute = permissions.contains('x');
+    
+    if (read && write) return 'Read & Write';
+    if (read) return 'Read only';
+    if (write) return 'Write only';
+    return 'No access';
   }
 } 
