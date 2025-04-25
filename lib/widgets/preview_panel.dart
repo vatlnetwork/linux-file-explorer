@@ -267,6 +267,11 @@ class _PreviewPanelState extends State<PreviewPanel> {
       return _buildDocumentPreview(context, item);
     }
     
+    // Audio preview
+    if (['.mp3', '.wav', '.flac'].contains(ext)) {
+      return _buildAudioPreview(context, item);
+    }
+    
     // Default file info
     return _buildDefaultFileInfo(context, item);
   }
@@ -632,6 +637,95 @@ class _PreviewPanelState extends State<PreviewPanel> {
                   
                 if (options.showDimensions)
                   _buildInfoRow('Dimensions', '1920 × 1080'),  // Replace with actual dimensions
+                  
+                // Tags section
+                if (options.showTags) ...[
+                  const SizedBox(height: 16),
+                  TagSelector(filePath: item.path),
+                ],
+              ],
+            ),
+          ),
+          
+          // Quick Actions section
+          if (options.showQuickActions) ...[
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  _buildQuickActions(context, item),
+                ],
+              ),
+            ),
+          ],
+          
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildAudioPreview(BuildContext context, FileItem item) {
+    final previewService = Provider.of<PreviewPanelService>(context);
+    final options = previewService.optionsManager.mediaOptions;
+    
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Audio icon
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Icon(
+                Icons.audiotrack,
+                size: 64,
+                color: Colors.blue.shade400,
+              ),
+            ),
+          ),
+          
+          // Metadata section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Common info
+                if (options.showSize)
+                  _buildInfoRow('Size', item.formattedSize),
+                  
+                if (options.showCreated)
+                  _buildInfoRow('Created', item.formattedCreationTime),
+                  
+                if (options.showModified)
+                  _buildInfoRow('Modified', item.formattedModifiedTime),
+                  
+                if (options.showWhereFrom && item.whereFrom != null)
+                  _buildInfoRow('Where from', item.whereFrom!),
+                
+                const SizedBox(height: 12),
+                
+                // Audio specific info
+                if (options.showDuration)
+                  _buildInfoRow('Duration', '00:03:45'),  // Replace with actual duration
+                  
+                if (options.showCodecs)
+                  _buildInfoRow('Codec', 'MP3'),  // Replace with actual codec
+                  
+                if (options.showBitrate)
+                  _buildInfoRow('Bitrate', '320 kbps'),  // Replace with actual bitrate
                   
                 // Tags section
                 if (options.showTags) ...[
@@ -1427,46 +1521,50 @@ class _PreviewPanelState extends State<PreviewPanel> {
   }
   
   void _compressFile(BuildContext context, FileItem item) async {
-    try {
-      // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+    if (!mounted) return;
+    
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
 
+    try {
       // Compress the file
       final compressionService = CompressionService();
       final outputPath = await compressionService.compressToZip(item.path);
 
       // Close loading dialog
-      Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
 
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('File compressed to ${p.basename(outputPath)}'),
-          duration: const Duration(seconds: 3),
-        ),
-      );
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('File compressed to ${p.basename(outputPath)}'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
 
-      // Refresh the directory view
-      Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
+        // Refresh the directory view
+        Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
+      }
     } catch (e) {
       // Close loading dialog if it's still open
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
 
-      // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to compress file: $e'),
-          duration: const Duration(seconds: 3),
-        ),
-      );
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to compress file: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
   
@@ -1545,7 +1643,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
   }
   
   void _quickLookFile(BuildContext context, FileItem item) {
-    print('PreviewPanel: Triggering QuickLook for ${item.path}');
+    debugPrint('PreviewPanel: Triggering QuickLook for ${item.path}');
     showDialog(
       context: context,
       barrierColor: Colors.black87,

@@ -53,36 +53,12 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
     return AlertDialog(
-      title: Container(
-        height: 40,
-        decoration: BoxDecoration(
-          color: isDarkMode 
-              ? const Color(0xFF2C2C2C) // Dark mode toolbar color
-              : const Color(0xFFF5F5F5), // Light mode toolbar color
-          border: Border(
-            bottom: BorderSide(
-              color: isDarkMode 
-                  ? Colors.grey.shade800 
-                  : Colors.grey.shade300,
-              width: 0.5,
-            ),
-          ),
-          borderRadius: const BorderRadius.all(Radius.circular(8)),
-        ),
-        child: Row(
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 12.0),
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 16,
-                  color: isDarkMode ? Colors.white : Colors.black87,
-                ),
-              ),
-            ),
-          ],
+      title: Text(
+        title,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: isDarkMode ? Colors.white70 : Colors.black87,
         ),
       ),
       content: SingleChildScrollView(
@@ -224,6 +200,8 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
   }
   
   Widget _buildSwitchTile(String title, bool value, void Function(bool) onChanged) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
     return SwitchListTile(
       title: Text(title, style: const TextStyle(fontSize: 13)),
       value: value,
@@ -233,6 +211,10 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
       visualDensity: VisualDensity.compact,
       controlAffinity: ListTileControlAffinity.trailing,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      activeColor: isDarkMode ? Colors.grey.shade300 : null,
+      activeTrackColor: isDarkMode ? Colors.grey.shade300.withValues(alpha: 77) : null,
+      inactiveThumbColor: isDarkMode ? Colors.grey.shade400 : null,
+      inactiveTrackColor: isDarkMode ? Colors.grey.shade800 : null,
     );
   }
 } 

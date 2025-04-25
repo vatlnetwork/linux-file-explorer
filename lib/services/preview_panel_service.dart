@@ -9,8 +9,8 @@ import '../services/quick_look_service.dart';
 import 'package:path/path.dart' as p;
 import '../widgets/markup_editor.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import '../services/compression_service.dart';
 
 enum QuickAction {
   rotate,
@@ -589,20 +589,73 @@ class PreviewPanelService extends ChangeNotifier {
     if (_selectedItem == null) return;
     
     try {
-      final outputPath = '${_selectedItem!.path}.zip';
-      final result = await Process.run('zip', ['-r', outputPath, _selectedItem!.path]);
+      // Show loading dialog with progress
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Compressing...'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text('Compressing ${_selectedItem!.name}...'),
+            ],
+          ),
+        ),
+      );
+
+      // Get the compression service
+      final compressionService = CompressionService();
       
-      if (result.exitCode == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('File compressed to ${p.basename(outputPath)}')),
-        );
-        refreshSelectedItem();
-      } else {
-        throw Exception(result.stderr);
-      }
-    } catch (e) {
+      // Get original size for comparison
+      final originalSize = await compressionService.getUncompressedSize(_selectedItem!.path);
+      
+      // Compress the file
+      final outputPath = await compressionService.compressToZip(_selectedItem!.path);
+      
+      // Get compressed size
+      final compressedSize = await compressionService.getCompressedSize(outputPath);
+      
+      // Calculate compression ratio
+      final ratio = (compressedSize / originalSize * 100).toStringAsFixed(1);
+      
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      // Show success message with compression details
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to compress file: $e')),
+        SnackBar(
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('File compressed to ${p.basename(outputPath)}'),
+              Text(
+                'Compression ratio: $ratio%',
+                style: const TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+
+      // Refresh the directory view
+      refreshSelectedItem();
+    } catch (e) {
+      // Close loading dialog if it's still open
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to compress file: $e'),
+          duration: const Duration(seconds: 3),
+        ),
       );
     }
   }
