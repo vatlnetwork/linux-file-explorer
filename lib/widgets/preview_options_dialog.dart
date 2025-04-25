@@ -212,7 +212,7 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
       controlAffinity: ListTileControlAffinity.trailing,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       activeColor: isDarkMode ? Colors.grey.shade300 : null,
-      activeTrackColor: isDarkMode ? Colors.grey.shade300.withValues(alpha: 77) : null,
+      activeTrackColor: isDarkMode ? Colors.grey.shade700 : null,
       inactiveThumbColor: isDarkMode ? Colors.grey.shade400 : null,
       inactiveTrackColor: isDarkMode ? Colors.grey.shade800 : null,
     );

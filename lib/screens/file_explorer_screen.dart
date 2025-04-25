@@ -456,6 +456,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     }
   }
 
+  bool _isCompressedFile(FileItem item) {
+    if (item.type != FileItemType.file) return false;
+    final ext = item.fileExtension.toLowerCase();
+    return ['.zip', '.rar', '.tar', '.gz', '.7z'].contains(ext);
+  }
+
   void _showContextMenu(FileItem item, Offset position) async {
     // Select the item when right-clicked
     setState(() {
@@ -469,6 +475,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     final bookmarkService = Provider.of<BookmarkService>(context, listen: false);
     final isFolder = item.type == FileItemType.directory;
     final isBookmarked = isFolder ? bookmarkService.isBookmarked(item.path) : false;
+    final isCompressed = _isCompressedFile(item);
     
     // Check if this directory is a mount point
     bool isMountPoint = false;
@@ -618,6 +625,19 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             ),
           ),
           
+        // Extract option (compressed files only)
+        if (isCompressed)
+          PopupMenuItem<String>(
+            value: 'extract',
+            child: Row(
+              children: [
+                Icon(Icons.file_download, size: 16),
+                SizedBox(width: 8),
+                Text('Extract'),
+              ],
+            ),
+          ),
+          
         // Properties always available
         PopupMenuItem<String>(
           value: 'properties',
@@ -725,11 +745,11 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       case 'unmount':
         _showUnmountConfirmation(item);
         break;
+      case 'extract':
+        _extractFile(item);
+        break;
       case 'properties':
         _showPropertiesDialog(item);
-        break;
-      case 'paste':
-        _pasteFromSystemClipboard();
         break;
       case 'tags':
         Navigator.pushNamed(context, '/tags').then((result) {
@@ -762,6 +782,63 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           }
         });
         break;
+      case 'paste':
+        _pasteFromSystemClipboard();
+        break;
+    }
+  }
+
+  void _extractFile(FileItem item) async {
+    if (!mounted) return;
+    
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      // Get the parent directory
+      final parentDir = p.dirname(item.path);
+      
+      // Run unzip command
+      final result = await Process.run('unzip', ['-o', item.path, '-d', parentDir]);
+      
+      if (result.exitCode != 0) {
+        throw Exception(result.stderr);
+      }
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('File extracted to ${p.basename(parentDir)}'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+
+        // Refresh the directory view
+        Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
+      }
+    } catch (e) {
+      // Close loading dialog if it's still open
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to extract file: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 

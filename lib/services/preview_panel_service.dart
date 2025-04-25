@@ -35,7 +35,8 @@ enum QuickAction {
   revealInFolder,
   runScript,
   convertAudio,
-  compressVideo
+  compressVideo,
+  extractFile
 }
 
 class PreviewPanelService extends ChangeNotifier {
@@ -207,7 +208,7 @@ class PreviewPanelService extends ChangeNotifier {
     
     // Compressed files
     else if (['.zip', '.rar', '.tar', '.gz', '.7z'].contains(ext)) {
-      actions.add(QuickAction.extractText);
+      actions.add(QuickAction.extractFile);
     }
     
     // Executable files
@@ -265,6 +266,8 @@ class PreviewPanelService extends ChangeNotifier {
         return 'Convert Audio';
       case QuickAction.compressVideo:
         return 'Compress Video';
+      case QuickAction.extractFile:
+        return 'Extract File';
     }
   }
   
@@ -315,6 +318,8 @@ class PreviewPanelService extends ChangeNotifier {
         return Icons.audiotrack;
       case QuickAction.compressVideo:
         return Icons.video_library;
+      case QuickAction.extractFile:
+        return Icons.file_download;
     }
   }
   
@@ -468,6 +473,9 @@ class PreviewPanelService extends ChangeNotifier {
         break;
       case QuickAction.convertAudio:
         handleConvertAudio(context);
+        break;
+      case QuickAction.extractFile:
+        _handleExtractFile(context);
         break;
     }
   }
@@ -1305,5 +1313,39 @@ class PreviewPanelService extends ChangeNotifier {
         );
       },
     );
+  }
+
+  void _handleExtractFile(BuildContext context) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      final result = await Process.run('which', ['tesseract']);
+      if (result.exitCode != 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tesseract OCR is not installed. Please install it to use text extraction.')),
+        );
+        return;
+      }
+      
+      final outputPath = '${_selectedItem!.path.substring(0, _selectedItem!.path.lastIndexOf('.'))}.txt';
+      final ocrResult = await Process.run('tesseract', [
+        _selectedItem!.path,
+        outputPath.substring(0, outputPath.lastIndexOf('.')),
+        '-l', 'eng'
+      ]);
+      
+      if (ocrResult.exitCode == 0) {
+        refreshSelectedItem();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Text extracted to: ${p.basename(outputPath)}')),
+        );
+      } else {
+        throw Exception(ocrResult.stderr);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to extract text: $e')),
+      );
+    }
   }
 } 

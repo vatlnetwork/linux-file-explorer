@@ -1340,6 +1340,9 @@ class _PreviewPanelState extends State<PreviewPanel> {
       case QuickAction.compressVideo:
         _compressVideo(context, item);
         break;
+      case QuickAction.extractFile:
+        _extractFile(context, item);
+        break;
     }
   }
   
@@ -1785,5 +1788,59 @@ class _PreviewPanelState extends State<PreviewPanel> {
         duration: Duration(seconds: 2),
       ),
     );
+  }
+  
+  void _extractFile(BuildContext context, FileItem item) async {
+    if (!mounted) return;
+    
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      // Get the parent directory
+      final parentDir = p.dirname(item.path);
+      
+      // Run unzip command
+      final result = await Process.run('unzip', ['-o', item.path, '-d', parentDir]);
+      
+      if (result.exitCode != 0) {
+        throw Exception(result.stderr);
+      }
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('File extracted to ${p.basename(parentDir)}'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+
+        // Refresh the directory view
+        Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
+      }
+    } catch (e) {
+      // Close loading dialog if it's still open
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to extract file: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 } 
