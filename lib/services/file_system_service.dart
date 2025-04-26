@@ -34,7 +34,7 @@ class FileSystemService {
   }
 
   Future<Map<String, dynamic>> getFileInfo(String path) async {
-    final entity = FileSystemEntity.typeSync(path);
+    final entity = FileSystemEntity.isDirectorySync(path) ? Directory(path) : File(path);
     final stat = await entity.stat();
     final isDirectory = entity is Directory;
     final customIcon = isDirectory ? _folderIconService.getFolderIcon(path) : null;
