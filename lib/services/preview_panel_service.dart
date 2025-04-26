@@ -18,10 +18,7 @@ enum QuickAction {
   rotate,
   markup,
   createPdf,
-  convertImage,
-  trim,
   searchablePdf,
-  share,
   // New macOS Finder-like quick actions
   openWith,
   compress,
@@ -35,7 +32,6 @@ enum QuickAction {
   addToFavorites,
   extractText,
   revealInFolder,
-  runScript,
   convertAudio,
   compressVideo,
   extractFile
@@ -149,6 +145,7 @@ class PreviewPanelService extends ChangeNotifier {
         QuickAction.revealInFolder,
         QuickAction.rename,
         QuickAction.duplicate,
+        QuickAction.compress,
       ];
     }
     
@@ -159,7 +156,6 @@ class PreviewPanelService extends ChangeNotifier {
     actions.add(QuickAction.openWith);
     actions.add(QuickAction.rename);
     actions.add(QuickAction.duplicate);
-    actions.add(QuickAction.share);
     actions.add(QuickAction.getInfo);
     actions.add(QuickAction.copyPath);
     actions.add(QuickAction.compress);
@@ -169,14 +165,12 @@ class PreviewPanelService extends ChangeNotifier {
       actions.add(QuickAction.quickLook);
       actions.add(QuickAction.rotate);
       actions.add(QuickAction.markup);
-      actions.add(QuickAction.convertImage);
     }
     
     // Video files
     else if (['.mp4', '.avi', '.mov', '.mkv', '.webm'].contains(ext)) {
       actions.add(QuickAction.quickLook);
       actions.add(QuickAction.preview);
-      actions.add(QuickAction.trim);
       actions.add(QuickAction.compressVideo);
     }
     
@@ -205,7 +199,6 @@ class PreviewPanelService extends ChangeNotifier {
     else if (['.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.html', '.css', '.js'].contains(ext)) {
       actions.add(QuickAction.quickLook);
       actions.add(QuickAction.createPdf);
-      actions.add(QuickAction.runScript);
     }
     
     // Compressed files
@@ -215,7 +208,7 @@ class PreviewPanelService extends ChangeNotifier {
     
     // Executable files
     else if (['.exe', '.sh', '.bat', '.bin', '.app'].contains(ext)) {
-      actions.add(QuickAction.runScript);
+      // Executable files are not supported in the current QuickAction enum
     }
     
     return actions;
@@ -229,14 +222,8 @@ class PreviewPanelService extends ChangeNotifier {
         return 'Markup';
       case QuickAction.createPdf:
         return 'Create PDF';
-      case QuickAction.convertImage:
-        return 'Convert Image';
-      case QuickAction.trim:
-        return 'Trim';
       case QuickAction.searchablePdf:
         return 'Create Searchable PDF';
-      case QuickAction.share:
-        return 'Share';
       // New quick actions
       case QuickAction.openWith:
         return 'Open With';
@@ -262,8 +249,6 @@ class PreviewPanelService extends ChangeNotifier {
         return 'Extract Text';
       case QuickAction.revealInFolder:
         return 'Reveal in Folder';
-      case QuickAction.runScript:
-        return 'Run Script';
       case QuickAction.convertAudio:
         return 'Convert Audio';
       case QuickAction.compressVideo:
@@ -281,14 +266,8 @@ class PreviewPanelService extends ChangeNotifier {
         return Icons.edit;
       case QuickAction.createPdf:
         return Icons.picture_as_pdf;
-      case QuickAction.convertImage:
-        return Icons.transform;
-      case QuickAction.trim:
-        return Icons.content_cut;
       case QuickAction.searchablePdf:
         return Icons.search;
-      case QuickAction.share:
-        return Icons.share;
       // New quick action icons
       case QuickAction.openWith:
         return Icons.open_in_new;
@@ -314,8 +293,6 @@ class PreviewPanelService extends ChangeNotifier {
         return Icons.text_snippet;
       case QuickAction.revealInFolder:
         return Icons.folder_open;
-      case QuickAction.runScript:
-        return Icons.terminal;
       case QuickAction.convertAudio:
         return Icons.audiotrack;
       case QuickAction.compressVideo:
@@ -422,9 +399,6 @@ class PreviewPanelService extends ChangeNotifier {
           builder: (context) => GetInfoDialog(item: _selectedItem!),
         );
         break;
-      case QuickAction.share:
-        _handleShare(context);
-        break;
       case QuickAction.rename:
         _handleRename(context);
         break;
@@ -435,22 +409,16 @@ class PreviewPanelService extends ChangeNotifier {
         _handleDuplicate(context);
         break;
       case QuickAction.compressVideo:
-        _handleCompress(context);
+        handleCompressVideo(context);
         break;
       case QuickAction.rotate:
-        _handleRotate(context);
+        handleRotate(context);
         break;
       case QuickAction.markup:
         _handleMarkup(context);
         break;
       case QuickAction.createPdf:
         _handleCreatePdf(context);
-        break;
-      case QuickAction.convertImage:
-        _handleConvertImage(context);
-        break;
-      case QuickAction.trim:
-        _handleTrim(context);
         break;
       case QuickAction.searchablePdf:
         _handleSearchablePdf(context);
@@ -469,9 +437,6 @@ class PreviewPanelService extends ChangeNotifier {
         break;
       case QuickAction.revealInFolder:
         _handleRevealInFolder(context);
-        break;
-      case QuickAction.runScript:
-        _handleRunScript(context);
         break;
       case QuickAction.convertAudio:
         handleConvertAudio(context);
@@ -560,25 +525,6 @@ class PreviewPanelService extends ChangeNotifier {
     );
   }
 
-  void _handleShare(BuildContext context) {
-    if (_selectedItem == null) return;
-    
-    try {
-      final process = Process.run('xdg-open', ['--share', _selectedItem!.path]);
-      process.then((result) {
-        if (result.exitCode != 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to share file: ${result.stderr}')),
-          );
-        }
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error sharing file: $e')),
-      );
-    }
-  }
-
   void _handleRename(BuildContext context) {
     if (_selectedItem == null) return;
     
@@ -599,12 +545,12 @@ class PreviewPanelService extends ChangeNotifier {
     if (_selectedItem == null) return;
     
     try {
-      // Show loading dialog with progress
+      // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
-          title: const Text('Compressing...'),
+          title: Text('Compressing ${_selectedItem!.type == FileItemType.directory ? 'Folder' : 'File'}...'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -622,7 +568,7 @@ class PreviewPanelService extends ChangeNotifier {
       // Get original size for comparison
       final originalSize = await compressionService.getUncompressedSize(_selectedItem!.path);
       
-      // Compress the file
+      // Compress the file or folder
       final outputPath = await compressionService.compressToZip(_selectedItem!.path);
       
       // Get compressed size
@@ -641,7 +587,7 @@ class PreviewPanelService extends ChangeNotifier {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('File compressed to ${p.basename(outputPath)}'),
+              Text('${_selectedItem!.type == FileItemType.directory ? 'Folder' : 'File'} compressed to ${p.basename(outputPath)}'),
               Text(
                 'Compression ratio: $ratio%',
                 style: const TextStyle(fontSize: 12),
@@ -663,7 +609,7 @@ class PreviewPanelService extends ChangeNotifier {
       // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to compress file: $e'),
+          content: Text('Failed to compress ${_selectedItem!.type == FileItemType.directory ? 'folder' : 'file'}: $e'),
           duration: const Duration(seconds: 3),
         ),
       );
@@ -700,10 +646,11 @@ class PreviewPanelService extends ChangeNotifier {
     }
   }
 
-  void _handleRotate(BuildContext context) async {
+  void handleRotate(BuildContext context) async {
     if (_selectedItem == null) return;
     
     try {
+      // Check if ImageMagick is installed
       final result = await Process.run('which', ['convert']);
       if (result.exitCode != 0) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -712,6 +659,7 @@ class PreviewPanelService extends ChangeNotifier {
         return;
       }
       
+      // Show rotation options dialog
       await showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
@@ -735,6 +683,14 @@ class PreviewPanelService extends ChangeNotifier {
                   await _rotateImage(context, -90);
                 },
               ),
+              ListTile(
+                leading: const Icon(Icons.rotate_90_degrees_ccw),
+                title: const Text('Rotate 180°'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _rotateImage(context, 180);
+                },
+              ),
             ],
           ),
         ),
@@ -750,22 +706,58 @@ class PreviewPanelService extends ChangeNotifier {
     if (_selectedItem == null) return;
     
     try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Create a temporary file for the rotated image
+      final tempFile = File('${_selectedItem!.path}.rotated');
+      
+      // Use ImageMagick to rotate the image
       final result = await Process.run('convert', [
         _selectedItem!.path,
         '-rotate',
         degrees.toString(),
-        _selectedItem!.path
+        tempFile.path
       ]);
       
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+      
       if (result.exitCode == 0) {
+        // Replace the original file with the rotated one
+        await tempFile.copy(_selectedItem!.path);
+        await tempFile.delete();
+        
+        // Refresh the preview
         refreshSelectedItem();
+        
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Image rotated ${degrees}°')),
+          );
+        }
       } else {
         throw Exception(result.stderr);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to rotate image: $e')),
-      );
+      // Close loading dialog if it's still open
+      if (context.mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to rotate image: $e')),
+        );
+      }
     }
   }
 
@@ -831,153 +823,6 @@ class PreviewPanelService extends ChangeNotifier {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error creating PDF: $e')),
-      );
-    }
-  }
-
-  void _handleConvertImage(BuildContext context) async {
-    if (_selectedItem == null) return;
-    
-    try {
-      final result = await Process.run('which', ['convert']);
-      if (result.exitCode != 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ImageMagick is not installed. Please install it to use image conversion.')),
-        );
-        return;
-      }
-      
-      await showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Convert Image'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.image),
-                title: const Text('PNG'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _convertImageTo(context, 'png');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.image),
-                title: const Text('JPEG'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _convertImageTo(context, 'jpeg');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.image),
-                title: const Text('WebP'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _convertImageTo(context, 'webp');
-                },
-              ),
-            ],
-          ),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error converting image: $e')),
-      );
-    }
-  }
-  
-  Future<void> _convertImageTo(BuildContext context, String format) async {
-    if (_selectedItem == null) return;
-    
-    try {
-      final outputPath = '${_selectedItem!.path.substring(0, _selectedItem!.path.lastIndexOf('.'))}.$format';
-      final result = await Process.run('convert', [
-        _selectedItem!.path,
-        outputPath
-      ]);
-      
-      if (result.exitCode == 0) {
-        refreshSelectedItem();
-      } else {
-        throw Exception(result.stderr);
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to convert image: $e')),
-      );
-    }
-  }
-
-  void _handleTrim(BuildContext context) async {
-    if (_selectedItem == null) return;
-    
-    try {
-      final result = await Process.run('which', ['ffmpeg']);
-      if (result.exitCode != 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('FFmpeg is not installed. Please install it to use video trimming.')),
-        );
-        return;
-      }
-      
-      await showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Trim Video'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.content_cut),
-                title: const Text('Trim Start'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _trimVideo(context, 'start');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.content_cut),
-                title: const Text('Trim End'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _trimVideo(context, 'end');
-                },
-              ),
-            ],
-          ),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error trimming video: $e')),
-      );
-    }
-  }
-  
-  Future<void> _trimVideo(BuildContext context, String position) async {
-    if (_selectedItem == null) return;
-    
-    try {
-      final outputPath = '${_selectedItem!.path.substring(0, _selectedItem!.path.lastIndexOf('.'))}_trimmed.mp4';
-      final result = await Process.run('ffmpeg', [
-        '-i', _selectedItem!.path,
-        '-ss', position == 'start' ? '00:00:05' : '00:00:00',
-        '-t', position == 'start' ? '00:00:00' : '00:00:05',
-        '-c', 'copy',
-        outputPath
-      ]);
-      
-      if (result.exitCode == 0) {
-        refreshSelectedItem();
-      } else {
-        throw Exception(result.stderr);
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to trim video: $e')),
       );
     }
   }
@@ -1144,30 +989,6 @@ class PreviewPanelService extends ChangeNotifier {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to reveal in folder: $e')),
-      );
-    }
-  }
-
-  void _handleRunScript(BuildContext context) async {
-    if (_selectedItem == null) return;
-    
-    try {
-      // Make the file executable
-      await Process.run('chmod', ['+x', _selectedItem!.path]);
-      
-      // Run the script
-      final result = await Process.run(_selectedItem!.path, []);
-      
-      if (result.exitCode == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Script executed successfully: ${result.stdout}')),
-        );
-      } else {
-        throw Exception('${result.stderr}\nExit code: ${result.exitCode}');
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to run script: $e')),
       );
     }
   }
@@ -1348,6 +1169,189 @@ class PreviewPanelService extends ChangeNotifier {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to extract text: $e')),
       );
+    }
+  }
+
+  void handleCompressVideo(BuildContext context) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      // Check if FFmpeg is installed
+      final result = await Process.run('which', ['ffmpeg']);
+      if (result.exitCode != 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('FFmpeg is not installed. Please install it to use video compression.'),
+            duration: Duration(seconds: 5),
+          ),
+        );
+        return;
+      }
+      
+      if (!context.mounted) return;
+      
+      // Show compression options dialog
+      await showDialog<void>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Compress Video'),
+            content: SizedBox(
+              width: 300,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.video_library),
+                    title: const Text('High Quality'),
+                    subtitle: const Text('1080p, 8 Mbps'),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _compressVideo(context, 'high');
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.video_library),
+                    title: const Text('Medium Quality'),
+                    subtitle: const Text('720p, 4 Mbps'),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _compressVideo(context, 'medium');
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.video_library),
+                    title: const Text('Low Quality'),
+                    subtitle: const Text('480p, 2 Mbps'),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _compressVideo(context, 'low');
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error compressing video: $e')),
+        );
+      }
+    }
+  }
+  
+  Future<void> _compressVideo(BuildContext context, String quality) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Compressing Video...'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text('Compressing ${_selectedItem!.name}...'),
+            ],
+          ),
+        ),
+      );
+
+      // Set compression parameters based on quality
+      String resolution;
+      String bitrate;
+      switch (quality) {
+        case 'high':
+          resolution = '1920x1080';
+          bitrate = '8M';
+          break;
+        case 'medium':
+          resolution = '1280x720';
+          bitrate = '4M';
+          break;
+        case 'low':
+          resolution = '854x480';
+          bitrate = '2M';
+          break;
+        default:
+          resolution = '1280x720';
+          bitrate = '4M';
+      }
+
+      // Create output file path
+      final outputPath = '${_selectedItem!.path.substring(0, _selectedItem!.path.lastIndexOf('.'))}_compressed.mp4';
+      
+      // Compress video using FFmpeg
+      final result = await Process.run('ffmpeg', [
+        '-i', _selectedItem!.path,
+        '-vf', 'scale=$resolution',
+        '-b:v', bitrate,
+        '-c:v', 'libx264',
+        '-preset', 'medium',
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        outputPath
+      ]);
+      
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+      
+      if (result.exitCode == 0) {
+        // Get original and compressed sizes
+        final originalSize = await File(_selectedItem!.path).length();
+        final compressedSize = await File(outputPath).length();
+        final ratio = (compressedSize / originalSize * 100).toStringAsFixed(1);
+        
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Video compressed to ${p.basename(outputPath)}'),
+                  Text(
+                    'Compression ratio: $ratio%',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        
+        // Refresh the preview
+        refreshSelectedItem();
+      } else {
+        throw Exception(result.stderr);
+      }
+    } catch (e) {
+      // Close loading dialog if it's still open
+      if (context.mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to compress video: $e')),
+        );
+      }
     }
   }
 } 

@@ -1136,7 +1136,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
       QuickAction.openWith,
       QuickAction.preview,
       QuickAction.quickLook,
-      QuickAction.share,
     ];
     
     final editingActions = [
@@ -1147,7 +1146,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
     
     final conversionActions = [
       QuickAction.createPdf,
-      QuickAction.convertImage,
       QuickAction.convertAudio,
       QuickAction.searchablePdf,
     ];
@@ -1165,8 +1163,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
     
     final mediaEditingActions = [
       QuickAction.rotate,
-      QuickAction.trim,
-      QuickAction.runScript,
     ];
     
     // Filter actions from each category that are available for this file
@@ -1284,17 +1280,8 @@ class _PreviewPanelState extends State<PreviewPanel> {
       case QuickAction.createPdf:
         _createPdfFromFile(context, item);
         break;
-      case QuickAction.convertImage:
-        _convertImage(context, item);
-        break;
-      case QuickAction.trim:
-        _trimVideo(context, item);
-        break;
       case QuickAction.searchablePdf:
         _createSearchablePdf(context, item);
-        break;
-      case QuickAction.share:
-        _shareFile(context, item);
         break;
       // Handle new quick actions
       case QuickAction.openWith:
@@ -1333,9 +1320,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
       case QuickAction.revealInFolder:
         _revealInFolder(context, item);
         break;
-      case QuickAction.runScript:
-        _runScript(context, item);
-        break;
       case QuickAction.convertAudio:
         _convertAudio(context, item);
         break;
@@ -1349,13 +1333,8 @@ class _PreviewPanelState extends State<PreviewPanel> {
   }
   
   void _rotateImage(BuildContext context, FileItem item) {
-    // For now show a temporary message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Rotate image feature coming soon!'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    final previewService = Provider.of<PreviewPanelService>(context, listen: false);
+    previewService.handleRotate(context);
   }
   
   void _openMarkupEditor(BuildContext context, FileItem item) async {
@@ -1464,37 +1443,10 @@ class _PreviewPanelState extends State<PreviewPanel> {
     }
   }
   
-  void _convertImage(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Convert image feature coming soon!'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-  
-  void _trimVideo(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Trim video feature coming soon!'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-  
   void _createSearchablePdf(BuildContext context, FileItem item) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Create searchable PDF feature coming soon!'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-  
-  void _shareFile(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Share file feature coming soon!'),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -1769,27 +1721,14 @@ class _PreviewPanelState extends State<PreviewPanel> {
     );
   }
   
-  void _runScript(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Run Script feature coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-  
   void _convertAudio(BuildContext context, FileItem item) {
     final previewService = Provider.of<PreviewPanelService>(context, listen: false);
     previewService.handleConvertAudio(context);
   }
   
   void _compressVideo(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Compress Video feature coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    final previewService = Provider.of<PreviewPanelService>(context, listen: false);
+    previewService.handleCompressVideo(context);
   }
   
   void _extractFile(BuildContext context, FileItem item) async {
