@@ -494,15 +494,20 @@ class _ColumnItemWidget extends StatelessWidget {
         child: Row(
           children: [
             // File icon
-            Icon(
-              item.type == FileItemType.directory
-                  ? Icons.folder
-                  : _getIconForFile(item),
-              color: item.type == FileItemType.directory
-                  ? Colors.amber
-                  : _getColorForFile(item),
-              size: 20,
-            ),
+            if (item.type == FileItemType.directory && item.specialFolderIcon != null)
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: item.specialFolderIcon,
+              )
+            else
+              Icon(
+                _getIconForFile(item),
+                color: item.type == FileItemType.directory
+                    ? Colors.amber
+                    : _getColorForFile(item),
+                size: 20,
+              ),
             const SizedBox(width: 8),
             // File name
             Expanded(
@@ -563,6 +568,10 @@ class _ColumnItemWidget extends StatelessWidget {
   }
   
   IconData _getIconForFile(FileItem item) {
+    if (item.type == FileItemType.directory) {
+      return Icons.folder;
+    }
+
     switch (item.fileExtension.toLowerCase()) {
       case '.jpg':
       case '.jpeg':

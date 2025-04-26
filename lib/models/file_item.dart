@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
+import 'package:flutter/material.dart';
 
 /// Represents types of file system items
 enum FileItemType {
@@ -137,5 +138,104 @@ class FileItem {
     if (entity is File) return FileItemType.file;
     if (entity is Directory) return FileItemType.directory;
     return FileItemType.unknown;
+  }
+
+  /// Get the special folder icon if this is a special folder
+  Widget? get specialFolderIcon {
+    if (type != FileItemType.directory) return null;
+    
+    // Get the base name of the path
+    final baseName = p.basename(path);
+    
+    // Check for special folders
+    IconData? overlayIcon;
+    Color? iconColor;
+    
+    switch (baseName.toLowerCase()) {
+      case 'desktop':
+        overlayIcon = Icons.desktop_windows;
+        iconColor = Colors.blue;
+        break;
+      case 'home':
+      case 'home directory':
+        overlayIcon = Icons.home;
+        iconColor = Colors.green;
+        break;
+      case 'downloads':
+        overlayIcon = Icons.download;
+        iconColor = Colors.orange;
+        break;
+      case 'documents':
+        overlayIcon = Icons.description;
+        iconColor = Colors.purple;
+        break;
+      case 'pictures':
+      case 'photos':
+        overlayIcon = Icons.image;
+        iconColor = Colors.pink;
+        break;
+      case 'videos':
+        overlayIcon = Icons.video_library;
+        iconColor = Colors.red;
+        break;
+      case 'music':
+        overlayIcon = Icons.music_note;
+        iconColor = Colors.indigo;
+        break;
+      default:
+        return null;
+    }
+    
+    if (overlayIcon != null) {
+      return Stack(
+        alignment: Alignment.center,
+        children: [
+          // Base folder icon
+          Icon(Icons.folder, color: Colors.blue),
+          // Overlay icon
+          Positioned(
+            bottom: 2,
+            right: 2,
+            child: Icon(
+              overlayIcon,
+              color: iconColor,
+              size: 16,
+            ),
+          ),
+        ],
+      );
+    }
+    
+    return null;
+  }
+
+  /// Get the special folder color if this is a special folder
+  Color? get specialFolderColor {
+    if (type != FileItemType.directory) return null;
+    
+    // Get the base name of the path
+    final baseName = p.basename(path);
+    
+    // Check for special folders
+    switch (baseName.toLowerCase()) {
+      case 'desktop':
+        return Colors.blue;
+      case 'home':
+      case 'home directory':
+        return Colors.green;
+      case 'downloads':
+        return Colors.orange;
+      case 'documents':
+        return Colors.purple;
+      case 'pictures':
+      case 'photos':
+        return Colors.pink;
+      case 'videos':
+        return Colors.red;
+      case 'music':
+        return Colors.indigo;
+      default:
+        return null;
+    }
   }
 } 

@@ -216,6 +216,17 @@ class GridItemWidget extends StatelessWidget {
     double safeSize = size.clamp(0, 80.0);
     
     if (item.type == FileItemType.directory) {
+      // Check for special folder icon
+      final specialIcon = item.specialFolderIcon;
+      
+      if (specialIcon != null) {
+        return SizedBox(
+          width: safeSize,
+          height: safeSize,
+          child: specialIcon,
+        );
+      }
+      
       return Icon(Icons.folder, color: Colors.blue, size: safeSize);
     }
 
