@@ -1,8 +1,9 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import '../models/file_item.dart';
 import '../services/drag_drop_service.dart';
 import '../services/file_service.dart';
-import 'package:logging/logging.dart';
 
 class FolderDropTarget extends StatefulWidget {
   final FileItem folder;
@@ -22,8 +23,6 @@ class FolderDropTarget extends StatefulWidget {
 
 class _FolderDropTargetState extends State<FolderDropTarget> {
   final _fileService = FileService();
-  final _logger = Logger('FolderDropTarget');
-  bool _isHovering = false;
   
   @override
   Widget build(BuildContext context) {
@@ -51,21 +50,15 @@ class _FolderDropTargetState extends State<FolderDropTarget> {
         
         // Get the drag/drop service to check validity
         final dragDropService = DragDropService.of(context);
-        final isValid = dragDropService.canDropOnTarget(widget.folder);
-        
-        // Update hover state for visual feedback
-        setState(() => _isHovering = isValid);
-        
-        return isValid;
+        return dragDropService.canDropOnTarget(widget.folder);
       },
       
       // Handle when a drag operation enters this target
       onAcceptWithDetails: (DragTargetDetails<FileItem> details) async {
         final draggedItem = details.data;
+        if (!mounted) return;
         final dragDropService = DragDropService.of(context);
         final operation = dragDropService.currentOperation;
-        
-        _logger.info('Dropping item ${draggedItem.name} to folder ${widget.folder.name} with operation $operation');
         
         try {
           switch (operation) {
@@ -98,63 +91,31 @@ class _FolderDropTargetState extends State<FolderDropTarget> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(
-                  '${_getOperationText(operation)} ${draggedItem.name} to ${widget.folder.name}',
-                ),
+                content: Text('Successfully ${operation.name}d ${draggedItem.name}'),
                 duration: const Duration(seconds: 2),
               ),
             );
           }
         } catch (e) {
-          _logger.severe('Error during drop operation: $e');
-          
+          // Show error message if widget is still mounted
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Error: $e'),
-                backgroundColor: Colors.red,
+                content: Text('Error ${operation.name}ing ${draggedItem.name}: $e'),
+                backgroundColor: Theme.of(context).colorScheme.error,
                 duration: const Duration(seconds: 3),
               ),
             );
           }
         }
-        
-        setState(() => _isHovering = false);
-      },
-      
-      // When drag leaves this target without dropping
-      onLeave: (FileItem? item) {
-        setState(() => _isHovering = false);
       },
     );
   }
   
-  // Get appropriate background color based on drag state
-  Color _getBackgroundColor(bool isDragAccepted) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  Color _getBackgroundColor(bool isHovering) {
+    if (!isHovering) return Colors.transparent;
     
-    if (!_isHovering) {
-      return Colors.transparent;
-    }
-    
-    if (isDragAccepted) {
-      return isDarkMode 
-          ? Colors.blue.shade700.withValues(alpha: 0.2)
-          : Colors.blue.shade100.withValues(alpha: 0.7);
-    }
-    
-    return Colors.transparent;
-  }
-  
-  // Helper to get text description of operation
-  String _getOperationText(DragOperation operation) {
-    switch (operation) {
-      case DragOperation.copy:
-        return 'Copied';
-      case DragOperation.move:
-        return 'Moved';
-      case DragOperation.link:
-        return 'Linked';
-    }
+    final theme = Theme.of(context);
+    return theme.colorScheme.primary.withAlpha(25);
   }
 } 

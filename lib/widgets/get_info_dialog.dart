@@ -81,7 +81,7 @@ class _GetInfoDialogState extends State<GetInfoDialog> with SingleTickerProvider
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Container(
+      child: SizedBox(
         width: 600,
         height: 700,
         child: Column(
