@@ -7,8 +7,7 @@ class GoogleTheme {
     colorScheme: ColorScheme.light(
       primary: const Color(0xFF1A73E8), // Google Blue
       secondary: const Color(0xFF34A853), // Google Green
-      surface: Colors.white,
-      background: const Color(0xFFF8F9FA), // Google Light Gray
+      surface: const Color(0xFFF8F9FA), // Google Light Gray
       error: const Color(0xFFEA4335), // Google Red
     ),
     scaffoldBackgroundColor: const Color(0xFFF8F9FA),
@@ -18,7 +17,7 @@ class GoogleTheme {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      shadowColor: Colors.black.withOpacity(0.1),
+      shadowColor: Colors.black.withValues(alpha: 26),
     ),
     appBarTheme: AppBarTheme(
       elevation: 0,
@@ -79,7 +78,6 @@ class GoogleTheme {
       primary: const Color(0xFF8AB4F8), // Google Blue Light
       secondary: const Color(0xFF81C995), // Google Green Light
       surface: const Color(0xFF202124), // Google Dark Gray
-      background: const Color(0xFF202124),
       error: const Color(0xFFF28B82), // Google Red Light
     ),
     scaffoldBackgroundColor: const Color(0xFF202124),
@@ -89,7 +87,7 @@ class GoogleTheme {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      shadowColor: Colors.black.withOpacity(0.2),
+      shadowColor: Colors.black.withValues(alpha: 51),
     ),
     appBarTheme: AppBarTheme(
       elevation: 0,

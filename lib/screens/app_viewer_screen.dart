@@ -12,7 +12,6 @@ class AppViewerScreen extends StatefulWidget {
 }
 
 class _AppViewerScreenState extends State<AppViewerScreen> with WindowListener, TickerProviderStateMixin {
-  bool _isMaximized = false;
   late AnimationController _titleBarAnimationController;
   late AnimationController _contentAnimationController;
   late Animation<double> _titleBarOpacity;
@@ -24,7 +23,6 @@ class _AppViewerScreenState extends State<AppViewerScreen> with WindowListener, 
   void initState() {
     super.initState();
     windowManager.addListener(this);
-    _initWindowState();
     _initAnimations();
   }
   
@@ -84,11 +82,6 @@ class _AppViewerScreenState extends State<AppViewerScreen> with WindowListener, 
     });
   }
 
-  Future<void> _initWindowState() async {
-    _isMaximized = await windowManager.isMaximized();
-    setState(() {});
-  }
-
   @override
   void dispose() {
     _titleBarAnimationController.dispose();
@@ -99,12 +92,12 @@ class _AppViewerScreenState extends State<AppViewerScreen> with WindowListener, 
   
   @override
   void onWindowMaximize() {
-    setState(() => _isMaximized = true);
+    // No longer needed
   }
 
   @override
   void onWindowUnmaximize() {
-    setState(() => _isMaximized = false);
+    // No longer needed
   }
 
   @override
@@ -151,7 +144,7 @@ class _AppViewerScreenState extends State<AppViewerScreen> with WindowListener, 
           color: backgroundColor,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 26),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
