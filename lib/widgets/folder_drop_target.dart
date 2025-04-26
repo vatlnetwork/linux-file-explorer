@@ -5,7 +5,6 @@ import '../models/file_item.dart';
 import '../services/drag_drop_service.dart';
 import '../services/file_service.dart';
 import 'dart:async';
-import '../screens/file_explorer_screen.dart';
 
 class FolderDropTarget extends StatefulWidget {
   final FileItem folder;
@@ -56,7 +55,7 @@ class _FolderDropTargetState extends State<FolderDropTarget> {
       },
       
       // Check if we'll accept this item before it's dropped
-      onWillAccept: (item) {
+      onWillAcceptWithDetails: (details) {
         setState(() {
           _isHovering = true;
         });
@@ -81,9 +80,8 @@ class _FolderDropTargetState extends State<FolderDropTarget> {
       },
       
       // Handle when a drag operation is accepted
-      onAccept: (draggedItem) async {
+      onAcceptWithDetails: (details) async {
         if (!mounted) return;
-        final dragDropService = DragDropService.of(context);
         
         // Show dialog to choose operation
         final operation = await showDialog<DragOperation>(
@@ -94,7 +92,7 @@ class _FolderDropTargetState extends State<FolderDropTarget> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('What would you like to do with "${draggedItem.name}"?'),
+                Text('What would you like to do with "${details.data.name}"?'),
                 SizedBox(height: 8),
                 Text('Target folder: ${widget.folder.name}'),
               ],
@@ -138,7 +136,7 @@ class _FolderDropTargetState extends State<FolderDropTarget> {
           switch (operation) {
             case DragOperation.copy:
               await _fileService.copyFileOrDirectory(
-                draggedItem.path,
+                details.data.path,
                 widget.folder.path,
                 handleConflicts: true,
               );
@@ -146,15 +144,15 @@ class _FolderDropTargetState extends State<FolderDropTarget> {
               
             case DragOperation.move:
               await _fileService.moveFileOrDirectory(
-                draggedItem.path,
+                details.data.path,
                 widget.folder.path,
               );
               break;
               
             case DragOperation.link:
               await _fileService.createSymlink(
-                draggedItem.path, 
-                '${widget.folder.path}/${draggedItem.name}',
+                details.data.path, 
+                '${widget.folder.path}/${details.data.name}',
               );
               break;
           }
@@ -166,7 +164,7 @@ class _FolderDropTargetState extends State<FolderDropTarget> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Successfully ${operation.name}d ${draggedItem.name}'),
+                content: Text('Successfully ${operation.name}d ${details.data.name}'),
                 duration: const Duration(seconds: 2),
               ),
             );
@@ -176,7 +174,7 @@ class _FolderDropTargetState extends State<FolderDropTarget> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Error ${operation.name}ing ${draggedItem.name}: $e'),
+                content: Text('Error ${operation.name}ing ${details.data.name}: $e'),
                 backgroundColor: Theme.of(context).colorScheme.error,
                 duration: const Duration(seconds: 3),
               ),

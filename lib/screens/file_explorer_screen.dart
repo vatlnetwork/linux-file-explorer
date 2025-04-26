@@ -21,8 +21,6 @@ import '../services/preview_panel_service.dart';
 import '../services/app_service.dart';
 import '../services/file_association_service.dart';
 import '../services/quick_look_service.dart'; // Add import for QuickLookService
-import '../widgets/file_item_widget.dart';
-import '../widgets/grid_item_widget.dart';
 import '../widgets/split_folder_view.dart';
 import '../widgets/bookmark_sidebar.dart';
 import '../widgets/status_bar.dart';
@@ -1164,8 +1162,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       
       // Process each item in the clipboard
       for (final item in _clipboardItems!) {
-        if (item == null) continue; // Skip null items
-        
         final String sourcePath = item.path;
         final String itemName = item.name;
         final String targetPath = p.join(_currentPath, itemName);
@@ -3367,53 +3363,6 @@ exit
       // This will trigger a rebuild of the grid view
       setState(() {});
     }
-  }
-
-  Widget _buildGridItem(FileItem item, IconSizeService iconSizeService) {
-    final isSelected = _selectedItemsPaths.contains(item.path);
-    
-    return Builder(
-      builder: (context) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            final RenderBox? box = context.findRenderObject() as RenderBox?;
-            if (box != null) {
-              final Offset position = box.localToGlobal(Offset.zero);
-              final Size size = box.size;
-              _itemPositions[item.path] = Rect.fromLTWH(
-                position.dx, position.dy, size.width, size.height
-              );
-            }
-          }
-        });
-        
-        Widget itemWidget = DraggableFileItem(
-          key: ValueKey(item.path),
-          item: item,
-          isSelected: isSelected,
-          isGridMode: true,
-          onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
-          onDoubleTap: () => _handleItemDoubleTap(item),
-          onLongPress: (item) => _showContextMenu(item, Offset.zero),
-          onRightClick: _showContextMenu,
-        );
-        
-        // Wrap directory items with FolderDropTarget
-        if (item.type == FileItemType.directory) {
-          itemWidget = FolderDropTarget(
-            folder: item,
-            onNavigateToDirectory: _navigateToDirectory,
-            onDropSuccessful: () {
-              // Refresh the directory after a successful drop
-              _loadDirectory(_currentPath);
-            },
-            child: itemWidget,
-          );
-        }
-        
-        return itemWidget;
-      },
-    );
   }
 
   int _calculateGridColumns(BuildContext context, IconSizeService iconSizeService) {
