@@ -30,6 +30,8 @@ import '../widgets/preview_panel.dart';
 import '../widgets/app_selection_dialog.dart';
 import '../widgets/column_view_widget.dart';
 import 'file_associations_screen.dart';
+import '../widgets/draggable_file_item.dart';
+import '../widgets/folder_drop_target.dart';
 
 /// A file explorer screen that displays files and folders in a customizable interface.
 /// 
@@ -1121,7 +1123,16 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   }
   
   Future<void> _pasteItemsFromInternalClipboard() async {
-    if (_clipboardItems == null || _clipboardItems!.isEmpty) return;
+    if (_clipboardItems == null || _clipboardItems!.isEmpty) {
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'No items to paste',
+          type: NotificationType.info,
+        );
+      }
+      return;
+    }
     
     try {
       // Show progress dialog for multiple pastes
@@ -1153,6 +1164,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       
       // Process each item in the clipboard
       for (final item in _clipboardItems!) {
+        if (item == null) continue; // Skip null items
+        
         final String sourcePath = item.path;
         final String itemName = item.name;
         final String targetPath = p.join(_currentPath, itemName);
@@ -3152,12 +3165,9 @@ exit
       },
       onPanUpdate: (details) {
         if (_mightStartDragging) {
-          // Update the drag end position
           setState(() {
             _dragEndPosition = details.localPosition;
           });
-          
-          // Perform hit testing and update selection
           _updateSelectionRectangle();
         }
       },
@@ -3173,10 +3183,8 @@ exit
           final item = items[index];
           final isSelected = _selectedItemsPaths.contains(item.path);
           
-          // Build item widget and capture its position
           return Builder(
             builder: (context) {
-              // After build, store the item position for hit testing
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) {
                   final RenderBox? box = context.findRenderObject() as RenderBox?;
@@ -3190,16 +3198,32 @@ exit
                 }
               });
               
-              return FileItemWidget(
+              Widget itemWidget = DraggableFileItem(
                 key: ValueKey(item.path),
                 item: item,
                 isSelected: isSelected,
-                onTap: (item, isMultiSelect) => _selectItem(item, isMultiSelect),
+                isGridMode: false,
+                onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
                 onDoubleTap: () => _handleItemDoubleTap(item),
                 onLongPress: (item) => _showContextMenu(item, Offset.zero),
-                onRightClick: (item, position) => _showContextMenu(item, position),
+                onRightClick: _showContextMenu,
               );
-            },
+              
+              // Wrap directory items with FolderDropTarget
+              if (item.type == FileItemType.directory) {
+                itemWidget = FolderDropTarget(
+                  folder: item,
+                  onNavigateToDirectory: _navigateToDirectory,
+                  onDropSuccessful: () {
+                    // Refresh the directory after a successful drop
+                    _loadDirectory(_currentPath);
+                  },
+                  child: itemWidget,
+                );
+              }
+              
+              return itemWidget;
+            }
           );
         },
       ),
@@ -3207,88 +3231,88 @@ exit
   }
   
   Widget _buildGridView(List<FileItem> items, IconSizeService iconSizeService) {
-    // Get preview panel state
-    final previewPanelService = Provider.of<PreviewPanelService>(context);
-    
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Calculate available width based on current constraints
-        final screenWidth = constraints.maxWidth;
-        final sidebarWidth = _showBookmarkSidebar ? 200.0 : 0.0;
-        final previewWidth = previewPanelService.showPreviewPanel ? 300.0 : 0.0;
-        final availableWidth = screenWidth - sidebarWidth - previewWidth;
-        
-        // Use consistent spacing regardless of preview panel state
-        final spacing = 10.0;
-        final padding = 16.0;
-        
-        // Calculate minimum columns based on available width
-        final minimumColumns = 3;
-        
-        // Get grid delegate with consistent sizing
-        final gridDelegate = iconSizeService.getConsistentSizeGridDelegate(
-          availableWidth,
-          minimumColumns: minimumColumns,
-          spacing: spacing,
-          childAspectRatio: 0.9,
-        );
-        
-        return Stack(
-          children: [
-            GestureDetector(
-              key: _gridViewKey,
-              onTap: () => setState(() => _selectedItemsPaths = {}),
-              onSecondaryTapUp: (details) => _showEmptyAreaContextMenu(details.globalPosition),
-              onPanStart: (details) {
-                setState(() {
-                  _dragStartPosition = details.localPosition;
-                  _dragEndPosition = details.localPosition;
-                  _mightStartDragging = true;
-                  _itemPositions.clear();
-                });
-              },
-              onPanUpdate: (details) {
-                if (_mightStartDragging) {
-                  setState(() {
-                    _dragEndPosition = details.localPosition;
-                  });
-                  _updateSelectionRectangle();
-                }
-              },
-              onPanEnd: (details) {
-                setState(() {
-                  _mightStartDragging = false;
-                });
-              },
-              child: Padding(
-                padding: EdgeInsets.all(padding),
-                child: GridView.builder(
-                  controller: _scrollController,
-                  gridDelegate: gridDelegate,
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    return _buildGridItem(item);
-                  },
-                ),
-              ),
-            ),
-            
-            // Draw selection rectangle
-            if (_dragStartPosition != null && _dragEndPosition != null && _mightStartDragging)
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: SelectionRectanglePainter(
-                    start: _dragStartPosition!,
-                    end: _dragEndPosition!,
-                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-                    strokeColor: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ),
-          ],
-        );
+    return GestureDetector(
+      onTap: () => setState(() => _selectedItemsPaths = {}),
+      onSecondaryTapUp: (details) => _showEmptyAreaContextMenu(details.globalPosition),
+      onPanStart: (details) {
+        setState(() {
+          _dragStartPosition = details.localPosition;
+          _dragEndPosition = details.localPosition;
+          _mightStartDragging = true;
+          _itemPositions.clear();
+        });
       },
+      onPanUpdate: (details) {
+        if (_mightStartDragging) {
+          setState(() {
+            _dragEndPosition = details.localPosition;
+          });
+          _updateSelectionRectangle();
+        }
+      },
+      onPanEnd: (details) {
+        setState(() {
+          _mightStartDragging = false;
+        });
+      },
+      child: GridView.builder(
+        key: _gridViewKey,
+        controller: _scrollController,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: _calculateGridColumns(context, iconSizeService),
+          childAspectRatio: 1.0,
+          crossAxisSpacing: 8.0,
+          mainAxisSpacing: 8.0,
+        ),
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final item = items[index];
+          final isSelected = _selectedItemsPaths.contains(item.path);
+          
+          return Builder(
+            builder: (context) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  final RenderBox? box = context.findRenderObject() as RenderBox?;
+                  if (box != null) {
+                    final Offset position = box.localToGlobal(Offset.zero);
+                    final Size size = box.size;
+                    _itemPositions[item.path] = Rect.fromLTWH(
+                      position.dx, position.dy, size.width, size.height
+                    );
+                  }
+                }
+              });
+              
+              Widget itemWidget = DraggableFileItem(
+                key: ValueKey(item.path),
+                item: item,
+                isSelected: isSelected,
+                isGridMode: true,
+                onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
+                onDoubleTap: () => _handleItemDoubleTap(item),
+                onLongPress: (item) => _showContextMenu(item, Offset.zero),
+                onRightClick: _showContextMenu,
+              );
+              
+              // Wrap directory items with FolderDropTarget
+              if (item.type == FileItemType.directory) {
+                itemWidget = FolderDropTarget(
+                  folder: item,
+                  onNavigateToDirectory: _navigateToDirectory,
+                  onDropSuccessful: () {
+                    // Refresh the directory after a successful drop
+                    _loadDirectory(_currentPath);
+                  },
+                  child: itemWidget,
+                );
+              }
+              
+              return itemWidget;
+            }
+          );
+        },
+      ),
     );
   }
   
@@ -3345,7 +3369,7 @@ exit
     }
   }
 
-  Widget _buildGridItem(FileItem item) {
+  Widget _buildGridItem(FileItem item, IconSizeService iconSizeService) {
     final isSelected = _selectedItemsPaths.contains(item.path);
     
     return Builder(
@@ -3363,17 +3387,40 @@ exit
           }
         });
         
-        return GridItemWidget(
+        Widget itemWidget = DraggableFileItem(
           key: ValueKey(item.path),
           item: item,
           isSelected: isSelected,
-          onTap: (item, isCtrlPressed) => _selectItem(item),
+          isGridMode: true,
+          onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
           onDoubleTap: () => _handleItemDoubleTap(item),
           onLongPress: (item) => _showContextMenu(item, Offset.zero),
-          onRightClick: (item, position) => _showContextMenu(item, position),
+          onRightClick: _showContextMenu,
         );
+        
+        // Wrap directory items with FolderDropTarget
+        if (item.type == FileItemType.directory) {
+          itemWidget = FolderDropTarget(
+            folder: item,
+            onNavigateToDirectory: _navigateToDirectory,
+            onDropSuccessful: () {
+              // Refresh the directory after a successful drop
+              _loadDirectory(_currentPath);
+            },
+            child: itemWidget,
+          );
+        }
+        
+        return itemWidget;
       },
     );
+  }
+
+  int _calculateGridColumns(BuildContext context, IconSizeService iconSizeService) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final iconSize = iconSizeService.gridUIScale;
+    final spacing = 16.0; // Assuming 16.0 is the spacing between items
+    return (screenWidth / (iconSize + spacing)).floor();
   }
 }
 

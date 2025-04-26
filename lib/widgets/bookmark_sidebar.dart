@@ -3,10 +3,12 @@ import 'package:provider/provider.dart';
 // ignore: unused_import
 import '../utils/color_extensions.dart' show ColorExtensions;
 import '../models/bookmark_item.dart';
+import '../models/file_item.dart';
 import '../services/bookmark_service.dart';
 import 'disk_usage_widget.dart';
 import 'mounted_usb_drives_widget.dart';
 import 'apps_bookmark_button.dart';
+import 'folder_drop_target.dart';
 
 class BookmarkSidebar extends StatefulWidget {
   final Function(String) onNavigate;
@@ -271,12 +273,14 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final isFocused = _focusedBookmarkPath == bookmark.path;
     
-    return ReorderableDragStartListener(
-      key: ValueKey(bookmark.path),
+    Widget bookmarkTile = ReorderableDragStartListener(
+      key: ValueKey('${bookmark.path}_drag_listener'),
       index: index,
       child: Material(
+        key: ValueKey('${bookmark.path}_material'),
         color: Colors.transparent,
         child: InkWell(
+          key: ValueKey('${bookmark.path}_inkwell'),
           onTap: () {
             widget.onNavigate(bookmark.path);
           },
@@ -286,6 +290,7 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
             });
           },
           child: Container(
+            key: ValueKey('${bookmark.path}_container'),
             height: 32,
             margin: const EdgeInsets.symmetric(vertical: 1, horizontal: 2),
             decoration: BoxDecoration(
@@ -296,36 +301,55 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
                       : Colors.transparent),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.folder,
-                    size: 16,
-                    color: isSelected
-                        ? (isDarkMode ? Colors.blue.shade200 : Colors.blue.shade700)
-                        : (isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      bookmark.name,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: isSelected
-                            ? (isDarkMode ? Colors.blue.shade200 : Colors.blue.shade700)
-                            : (isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800),
-                      ),
-                      overflow: TextOverflow.ellipsis,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              key: ValueKey('${bookmark.path}_row'),
+              children: [
+                Icon(
+                  Icons.folder,
+                  key: ValueKey('${bookmark.path}_icon'),
+                  size: 16,
+                  color: isSelected
+                      ? (isDarkMode ? Colors.blue.shade200 : Colors.blue.shade700)
+                      : (isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  key: ValueKey('${bookmark.path}_expanded'),
+                  child: Text(
+                    key: ValueKey('${bookmark.path}_text'),
+                    bookmark.name,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isSelected
+                          ? (isDarkMode ? Colors.blue.shade200 : Colors.blue.shade700)
+                          : (isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800),
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
       ),
+    );
+
+    // Wrap with FolderDropTarget to enable dropping files
+    return FolderDropTarget(
+      key: ValueKey('${bookmark.path}_drop_target'),
+      folder: FileItem(
+        name: bookmark.name,
+        path: bookmark.path,
+        type: FileItemType.directory,
+        modifiedTime: DateTime.now(),
+        size: 0,
+      ),
+      onNavigateToDirectory: widget.onNavigate,
+      onDropSuccessful: () {
+        // No need to refresh since this is a bookmark
+      },
+      child: bookmarkTile,
     );
   }
   

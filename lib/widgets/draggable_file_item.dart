@@ -26,28 +26,6 @@ class DraggableFileItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Only make draggable if selected
-    if (!isSelected) {
-      // Return the regular file item without drag capability
-      return isGridMode
-          ? GridItemWidget(
-              item: item,
-              onTap: onTap,
-              onDoubleTap: onDoubleTap,
-              onLongPress: onLongPress,
-              onRightClick: onRightClick,
-              isSelected: isSelected,
-            )
-          : FileItemWidget(
-              item: item,
-              onTap: onTap,
-              onDoubleTap: onDoubleTap,
-              onLongPress: onLongPress,
-              onRightClick: onRightClick,
-              isSelected: isSelected,
-            );
-    }
-    
     return Draggable<FileItem>(
       // Data is the file item being dragged
       data: item,

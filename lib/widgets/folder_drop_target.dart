@@ -4,17 +4,21 @@ import 'package:flutter/material.dart';
 import '../models/file_item.dart';
 import '../services/drag_drop_service.dart';
 import '../services/file_service.dart';
+import 'dart:async';
+import '../screens/file_explorer_screen.dart';
 
 class FolderDropTarget extends StatefulWidget {
   final FileItem folder;
   final Widget child;
   final VoidCallback? onDropSuccessful;
+  final Function(String)? onNavigateToDirectory;
   
   const FolderDropTarget({
     super.key,
     required this.folder,
     required this.child,
     this.onDropSuccessful,
+    this.onNavigateToDirectory,
   });
 
   @override
@@ -23,6 +27,14 @@ class FolderDropTarget extends StatefulWidget {
 
 class _FolderDropTargetState extends State<FolderDropTarget> {
   final _fileService = FileService();
+  Timer? _hoverTimer;
+  bool _isHovering = false;
+  
+  @override
+  void dispose() {
+    _hoverTimer?.cancel();
+    super.dispose();
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -44,35 +56,98 @@ class _FolderDropTargetState extends State<FolderDropTarget> {
       },
       
       // Check if we'll accept this item before it's dropped
-      onWillAcceptWithDetails: (DragTargetDetails<FileItem?> details) {
-        final draggedItem = details.data;
-        if (draggedItem == null) return false;
+      onWillAccept: (item) {
+        setState(() {
+          _isHovering = true;
+        });
         
-        // Get the drag/drop service to check validity
-        final dragDropService = DragDropService.of(context);
-        return dragDropService.canDropOnTarget(widget.folder);
+        // Start a timer to transition to this directory after 7 seconds
+        _hoverTimer?.cancel();
+        _hoverTimer = Timer(const Duration(seconds: 7), () {
+          if (mounted && _isHovering) {
+            // Use the provided callback to navigate
+            widget.onNavigateToDirectory?.call(widget.folder.path);
+          }
+        });
+        return true;
       },
       
-      // Handle when a drag operation enters this target
-      onAcceptWithDetails: (DragTargetDetails<FileItem> details) async {
-        final draggedItem = details.data;
+      // Handle when a drag operation exits this target
+      onLeave: (item) {
+        setState(() {
+          _isHovering = false;
+        });
+        _hoverTimer?.cancel();
+      },
+      
+      // Handle when a drag operation is accepted
+      onAccept: (draggedItem) async {
         if (!mounted) return;
         final dragDropService = DragDropService.of(context);
-        final operation = dragDropService.currentOperation;
+        
+        // Show dialog to choose operation
+        final operation = await showDialog<DragOperation>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('File Operation'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('What would you like to do with "${draggedItem.name}"?'),
+                SizedBox(height: 8),
+                Text('Target folder: ${widget.folder.name}'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, DragOperation.copy),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.copy, size: 16),
+                    SizedBox(width: 8),
+                    Text('Copy Here'),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, DragOperation.move),
+                style: TextButton.styleFrom(foregroundColor: Colors.orange),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.cut, size: 16),
+                    SizedBox(width: 8),
+                    Text('Move Here'),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancel'),
+              ),
+            ],
+          ),
+        );
+        
+        // If no operation was selected (dialog was cancelled), return
+        if (operation == null || !mounted) return;
         
         try {
           switch (operation) {
             case DragOperation.copy:
-              await _fileService.copyFile(
-                draggedItem.path, 
-                '${widget.folder.path}/${draggedItem.name}',
+              await _fileService.copyFileOrDirectory(
+                draggedItem.path,
+                widget.folder.path,
+                handleConflicts: true,
               );
               break;
               
             case DragOperation.move:
-              await _fileService.moveFile(
-                draggedItem.path, 
-                '${widget.folder.path}/${draggedItem.name}',
+              await _fileService.moveFileOrDirectory(
+                draggedItem.path,
+                widget.folder.path,
               );
               break;
               
