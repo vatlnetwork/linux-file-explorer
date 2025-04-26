@@ -7,17 +7,20 @@ class CompressionService {
   CompressionService._internal();
 
   /// Get the correct output path for a compressed file
-  String getOutputPath(String sourcePath) {
+  String getOutputPath(String sourcePath, {String? customOutputPath}) {
+    if (customOutputPath != null) {
+      return customOutputPath;
+    }
     final baseName = p.basenameWithoutExtension(sourcePath);
     final parentDir = p.dirname(sourcePath);
     return p.join(parentDir, '$baseName.zip');
   }
 
   /// Compress a file or directory into a ZIP archive
-  Future<String> compressToZip(String sourcePath, {int compressionLevel = 9}) async {
+  Future<String> compressToZip(String sourcePath, {int compressionLevel = 6, String? outputPath}) async {
     final sourceFile = File(sourcePath);
     final sourceDir = Directory(sourcePath);
-    final outputPath = getOutputPath(sourcePath);
+    final finalOutputPath = getOutputPath(sourcePath, customOutputPath: outputPath);
 
     // Validate compression level
     if (compressionLevel < 0 || compressionLevel > 9) {
@@ -30,7 +33,7 @@ class CompressionService {
     }
 
     // Check if output file already exists
-    if (File(outputPath).existsSync()) {
+    if (File(finalOutputPath).existsSync()) {
       throw Exception('Output file already exists');
     }
 
@@ -42,37 +45,51 @@ class CompressionService {
       final List<String> args = ['-$compressionLevel'];
       
       if (isDirectory) {
-        // For directories, use recursive mode but store relative paths
-        args.addAll(['-r', '-j']);
-      } else {
-        // For files, use -j to store only the file without directory structure
-        args.add('-j');
-      }
-      
-      // Add output and input paths
-      args.addAll([outputPath, sourcePath]);
-
-      // Run the zip command
-      final result = await Process.run('zip', args);
-      
-      if (result.exitCode != 0) {
-        // Clean up partial output file if it exists
-        if (File(outputPath).existsSync()) {
-          await File(outputPath).delete();
+        // For directories, use recursive mode and preserve directory structure
+        args.addAll(['-r']);
+        // Get the parent directory to ensure proper path structure
+        final parentDir = p.dirname(sourcePath);
+        final baseName = p.basename(sourcePath);
+        args.addAll([finalOutputPath, baseName]);
+        
+        // Change to parent directory to ensure proper path structure
+        final result = await Process.run('zip', args, workingDirectory: parentDir);
+        
+        if (result.exitCode != 0) {
+          // Clean up partial output file if it exists
+          if (File(finalOutputPath).existsSync()) {
+            await File(finalOutputPath).delete();
+          }
+          throw Exception('Failed to compress directory: ${result.stderr}');
         }
-        throw Exception('Failed to compress: ${result.stderr}');
+      } else {
+        // For files, preserve the directory structure relative to the parent
+        final parentDir = p.dirname(sourcePath);
+        final fileName = p.basename(sourcePath);
+        args.addAll([finalOutputPath, fileName]);
+        
+        // Change to parent directory to ensure proper path structure
+        final result = await Process.run('zip', args, workingDirectory: parentDir);
+        
+        if (result.exitCode != 0) {
+          // Clean up partial output file if it exists
+          if (File(finalOutputPath).existsSync()) {
+            await File(finalOutputPath).delete();
+          }
+          throw Exception('Failed to compress file: ${result.stderr}');
+        }
       }
 
       // Verify the output file was created
-      if (!File(outputPath).existsSync()) {
+      if (!File(finalOutputPath).existsSync()) {
         throw Exception('Compression completed but output file was not created');
       }
 
-      return outputPath;
+      return finalOutputPath;
     } catch (e) {
       // Clean up partial output file if it exists
-      if (File(outputPath).existsSync()) {
-        await File(outputPath).delete();
+      if (File(finalOutputPath).existsSync()) {
+        await File(finalOutputPath).delete();
       }
       throw Exception('Failed to compress: $e');
     }

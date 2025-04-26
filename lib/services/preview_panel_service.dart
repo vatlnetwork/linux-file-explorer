@@ -741,7 +741,7 @@ class PreviewPanelService extends ChangeNotifier {
         
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Image rotated ${degrees}°')),
+            SnackBar(content: Text('Image rotated $degrees°')),
           );
         }
       } else {

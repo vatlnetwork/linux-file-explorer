@@ -30,6 +30,7 @@ import '../widgets/column_view_widget.dart';
 import 'file_associations_screen.dart';
 import '../widgets/draggable_file_item.dart';
 import '../widgets/folder_drop_target.dart';
+import '../services/compression_service.dart';
 
 /// A file explorer screen that displays files and folders in a customizable interface.
 /// 
@@ -461,7 +462,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   bool _isCompressedFile(FileItem item) {
     if (item.type != FileItemType.file) return false;
     final ext = item.fileExtension.toLowerCase();
-    return ['.zip', '.rar', '.tar', '.gz', '.7z'].contains(ext);
+    return ['.zip', '.rar', '.tar', '.gz', '.7z', '.bz2'].contains(ext);
   }
 
   void _showContextMenu(FileItem item, Offset position) async {
@@ -640,6 +641,19 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             ),
           ),
           
+        // Compress option (for both files and folders, but not for already compressed files)
+        if (!_isCompressedFile(item))
+          PopupMenuItem<String>(
+            value: 'compress',
+            child: Row(
+              children: [
+                Icon(Icons.archive, size: 16),
+                SizedBox(width: 8),
+                Text('Compress'),
+              ],
+            ),
+          ),
+          
         // Properties always available
         PopupMenuItem<String>(
           value: 'properties',
@@ -786,6 +800,13 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         break;
       case 'paste':
         _pasteFromSystemClipboard();
+        break;
+      case 'compress':
+        if (hasMultipleSelection) {
+          _compressMultipleItems(context);
+        } else {
+          _compressItem(context, item);
+        }
         break;
     }
   }
@@ -3370,6 +3391,136 @@ exit
     final iconSize = iconSizeService.gridUIScale;
     final spacing = 16.0; // Assuming 16.0 is the spacing between items
     return (screenWidth / (iconSize + spacing)).floor();
+  }
+
+  void _compressItem(BuildContext context, FileItem item) async {
+    if (!mounted) return;
+    
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text('Compressing ${item.type == FileItemType.directory ? 'Folder' : 'File'}...'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text('Compressing ${item.name}...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // Compress the file
+      final compressionService = CompressionService();
+      final outputPath = await compressionService.compressToZip(item.path);
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${item.type == FileItemType.directory ? 'Folder' : 'File'} compressed to ${p.basename(outputPath)}'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+
+        // Refresh the directory view
+        setState(() {});
+      }
+    } catch (e) {
+      // Close loading dialog if it's still open
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to compress ${item.type == FileItemType.directory ? 'folder' : 'file'}: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  void _compressMultipleItems(BuildContext context) async {
+    if (!mounted) return;
+    
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Compressing Items...'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text('Compressing ${_selectedItemsPaths.length} items...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final compressionService = CompressionService();
+      final outputDir = p.dirname(_selectedItemsPaths.first);
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final outputPath = p.join(outputDir, 'compressed_$timestamp.zip');
+      
+      // Create a temporary directory to store the items
+      final tempDir = await Directory.systemTemp.createTemp('compress_');
+      try {
+        // Copy all selected items to the temporary directory
+        for (final path in _selectedItemsPaths) {
+          final source = File(path);
+          final dest = File(p.join(tempDir.path, p.basename(path)));
+          await source.copy(dest.path);
+        }
+        
+        // Compress the temporary directory
+        await compressionService.compressToZip(tempDir.path, outputPath: outputPath);
+        
+        // Close loading dialog
+        if (mounted) {
+          Navigator.of(context).pop(); // Close loading dialog
+
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${_selectedItemsPaths.length} items compressed to ${p.basename(outputPath)}'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+
+          // Refresh the directory view
+          setState(() {});
+        }
+      } finally {
+        // Clean up temporary directory
+        await tempDir.delete(recursive: true);
+      }
+    } catch (e) {
+      // Close loading dialog if it's still open
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to compress items: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 }
 
