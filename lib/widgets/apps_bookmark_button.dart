@@ -13,26 +13,26 @@ class AppsBookmarkButton extends StatelessWidget {
     return GestureDetector(
       onTap: () => _openAppViewer(context),
       child: Container(
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isDarkMode 
-              ? const Color(0xFF424242) 
-              : const Color(0xFFFFCC80), // Light orange
-          borderRadius: BorderRadius.circular(6),
+              ? const Color(0xFF3C4043)
+              : const Color(0xFFF1F3F4),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           children: [
             Icon(
               Icons.apps,
-              size: 16,
-              color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade800,
+              size: 18,
+              color: isDarkMode ? const Color(0xFF8AB4F8) : const Color(0xFF1A73E8),
             ),
             const SizedBox(width: 8),
             Text(
               'Apps',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: FontWeight.w500,
                 color: isDarkMode ? Colors.white : Colors.black87,
               ),

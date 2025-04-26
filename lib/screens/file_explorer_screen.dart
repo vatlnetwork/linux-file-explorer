@@ -697,6 +697,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     final result = await showMenu<String>(
       context: context,
       position: menuPosition,
+      color: Theme.of(context).brightness == Brightness.dark 
+          ? const Color(0xFF2D2E30)
+          : Colors.white,
       items: menuItems,
     );
     
@@ -1842,6 +1845,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
               child: Material(
                 elevation: 8,
                 borderRadius: BorderRadius.circular(4),
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? const Color(0xFF2D2E30)
+                    : Colors.white,
                 child: statefulBuilder,
               ),
             ),
@@ -2539,6 +2545,9 @@ exit
     final result = await showMenu<String>(
       context: context,
       position: menuPosition,
+      color: Theme.of(context).brightness == Brightness.dark 
+          ? const Color(0xFF2D2E30)
+          : Colors.white,
       items: menuItems,
     );
     
@@ -2614,6 +2623,9 @@ exit
     showMenu<String>(
       context: context,
       position: menuPosition,
+      color: Theme.of(context).brightness == Brightness.dark 
+          ? const Color(0xFF2D2E30)
+          : Colors.white,
       items: <PopupMenuEntry<String>>[
         PopupMenuItem<String>(
           value: 'name_asc',
@@ -2866,7 +2878,7 @@ exit
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Linux File Explorer',
+                    'Linux File Manager',
                     style: TextStyle(
                       fontWeight: FontWeight.w500,
                       fontSize: 14,

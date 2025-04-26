@@ -17,7 +17,7 @@ import 'package:flutter/services.dart';
 import 'services/tags_service.dart';
 import 'utils/audio_init.dart';
 import 'services/drag_drop_service.dart';
-import 'theme/macos_theme.dart';
+import 'theme/google_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -111,9 +111,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Linux File Explorer',
-      theme: MacOSTheme.lightTheme,
-      darkTheme: MacOSTheme.darkTheme,
+      title: 'Linux File Manager',
+      theme: GoogleTheme.lightTheme,
+      darkTheme: GoogleTheme.darkTheme,
       themeMode: ThemeMode.system,
       debugShowCheckedModeBanner: false,
       home: const FileExplorerScreen(),

@@ -139,19 +139,19 @@ class _AppViewerScreenState extends State<AppViewerScreen> with WindowListener, 
   Widget _buildTitleBar(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final backgroundColor = isDarkMode 
-        ? const Color(0xFF303030) 
-        : const Color(0xFFBBDEFB);
+        ? const Color(0xFF202124)
+        : Colors.white;
     
     return GestureDetector(
       onPanStart: (_) => windowManager.startDragging(),
       child: Container(
-        height: 50,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           color: backgroundColor,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(26),
+              color: Colors.black.withOpacity(0.1),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -162,18 +162,17 @@ class _AppViewerScreenState extends State<AppViewerScreen> with WindowListener, 
             // App Icon and Title
             Row(
               children: [
-                const SizedBox(width: 8),
                 Icon(
                   Icons.apps,
-                  color: Colors.orange,
+                  color: isDarkMode ? const Color(0xFF8AB4F8) : const Color(0xFF1A73E8),
                   size: 24,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Text(
                   'Applications',
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
                     color: isDarkMode ? Colors.white : Colors.black87,
                   ),
                 ),
@@ -187,29 +186,24 @@ class _AppViewerScreenState extends State<AppViewerScreen> with WindowListener, 
               icon: const Icon(Icons.refresh),
               tooltip: 'Refresh Applications',
               onPressed: () {
-                // Find the AppService and refresh the applications
                 Provider.of<AppService>(context, listen: false).refreshApps();
               },
             ),
             
             // Window controls
-            IconButton(
-              icon: Icon(_isMaximized ? Icons.fullscreen_exit : Icons.fullscreen),
-              tooltip: _isMaximized ? 'Restore' : 'Maximize',
-              onPressed: () {
-                if (_isMaximized) {
-                  windowManager.unmaximize();
-                } else {
-                  windowManager.maximize();
-                }
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: 'Close',
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.minimize),
+                  tooltip: 'Minimize',
+                  onPressed: () => windowManager.minimize(),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Close',
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
             ),
           ],
         ),

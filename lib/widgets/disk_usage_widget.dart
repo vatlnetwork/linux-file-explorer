@@ -147,64 +147,56 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
     if (_isLoading) {
-      return Container(
-        height: 80,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDarkMode ? const Color(0xFF303030) : const Color(0xFFE8E8E8),
-          border: Border(
-            top: BorderSide(
-              color: isDarkMode ? Colors.black54 : Colors.black12,
-            ),
-          ),
+      return Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
-        child: const Center(
-          child: SizedBox(
-            height: 20,
-            width: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          child: const Center(
+            child: SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
           ),
         ),
       );
     }
     
     if (_hasError || _diskSpace == null) {
-      return Container(
-        height: 80,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDarkMode ? const Color(0xFF303030) : const Color(0xFFE8E8E8),
-          border: Border(
-            top: BorderSide(
-              color: isDarkMode ? Colors.black54 : Colors.black12,
-            ),
-          ),
+      return Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Unable to load disk information',
-                style: TextStyle(
-                  color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
-                  fontSize: 12,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Unable to load disk information',
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(
-                height: 24, // Fixed height button container
-                child: TextButton(
+                const SizedBox(height: 8),
+                TextButton(
                   onPressed: _loadDiskInfo,
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  child: const Text('Retry', style: TextStyle(fontSize: 12)),
+                  child: const Text('Retry', style: TextStyle(fontSize: 14)),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );
@@ -212,110 +204,95 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
     
     return GestureDetector(
       onTap: _toggleLargestFilesPopup,
-      child: Container(
+      child: Card(
         key: _widgetKey,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDarkMode ? const Color(0xFF303030) : const Color(0xFFE8E8E8),
-          border: Border(
-            top: BorderSide(
-              color: isDarkMode ? Colors.black54 : Colors.black12,
-            ),
-          ),
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
-        child: SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minWidth: double.infinity,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.storage,
-                      size: 16,
-                      color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Disk Usage',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${_diskSpace!.usagePercentage.toStringAsFixed(1)}%',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: _getDiskSpaceColor(_diskSpace!.usagePercentage),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Icon(
-                      Icons.info_outline,
-                      size: 14,
-                      color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: _diskSpace!.usagePercentage / 100,
-                    backgroundColor: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      _getDiskSpaceColor(_diskSpace!.usagePercentage),
-                    ),
-                    minHeight: 8,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.storage,
+                    size: 18,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF8AB4F8)
+                        : const Color(0xFF1A73E8),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Free: ${_diskService.formatBytes(_diskSpace!.availableBytes)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Disk Usage',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : Colors.black87,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Total: ${_diskService.formatBytes(_diskSpace!.totalBytes)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        textAlign: TextAlign.right,
-                      ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: Icon(
+                      Icons.info_outline,
+                      size: 18,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade700,
                     ),
-                  ],
+                    onPressed: _toggleLargestFilesPopup,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: 'Show Largest Files',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${_diskService.formatBytes(_diskSpace!.usedBytes)} used, ${_diskService.formatBytes(_diskSpace!.availableBytes)} free',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white70
+                      : Colors.black54,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${_diskSpace!.usagePercentage.toStringAsFixed(1)}%',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white60
+                      : Colors.black45,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: _diskSpace!.usagePercentage / 100,
+                  backgroundColor: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF3C4043)
+                      : const Color(0xFFF1F3F4),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    _getColorForPercentage(_diskSpace!.usagePercentage),
+                  ),
+                  minHeight: 8,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
   
-  Color _getDiskSpaceColor(double percentage) {
+  Color _getColorForPercentage(double percentage) {
     if (percentage >= 90) {
       return Colors.red;
     } else if (percentage >= 75) {

@@ -35,7 +35,13 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
       appBar: AppBar(
         title: const Text('Tags', style: TextStyle(fontSize: 16)),
         toolbarHeight: 48,
-        elevation: 0.5,
+        elevation: 0,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark 
+            ? const Color(0xFF2D2E30)
+            : const Color(0xFFF1F3F4),
+        foregroundColor: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.white
+            : Colors.black87,
         leadingWidth: 40,
         titleSpacing: 0,
         actions: [

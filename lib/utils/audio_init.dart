@@ -11,7 +11,7 @@ Future<void> initializeAudioSupport() async {
     JustAudioMediaKit.ensureInitialized();
     
     // Set the title for the audio player (appears in system volume controls)
-    JustAudioMediaKit.title = 'Linux File Explorer';
+    JustAudioMediaKit.title = 'Linux File Manager';
   }
   // The default just_audio implementation is used for other platforms
 } 

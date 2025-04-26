@@ -1,4 +1,4 @@
-# Linux File Explorer
+# Linux File Manager
 
 A modern file explorer for Linux built with Flutter, featuring a clean UI, multiple view modes, and comprehensive file management capabilities.
 

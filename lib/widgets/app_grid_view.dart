@@ -152,7 +152,7 @@ class _AppGridViewState extends State<AppGridView> with SingleTickerProviderStat
     
     return Card(
       elevation: 2,
-      color: isDarkMode ? Colors.grey.shade800 : Colors.white,
+      color: isDarkMode ? const Color(0xFF2D2E30) : Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -160,7 +160,7 @@ class _AppGridViewState extends State<AppGridView> with SingleTickerProviderStat
         onTap: () => _launchApp(app),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(12.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -171,18 +171,18 @@ class _AppGridViewState extends State<AppGridView> with SingleTickerProviderStat
                 padding: const EdgeInsets.all(8.0),
                 decoration: BoxDecoration(
                   color: isDarkMode 
-                      ? Colors.grey.shade700 
-                      : Colors.grey.shade200,
+                      ? const Color(0xFF3C4043)
+                      : const Color(0xFFF1F3F4),
                   shape: BoxShape.circle,
                 ),
                 child: SystemIcon(
                   app: app,
                   size: actualIconSize,
-                  fallbackColor: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
+                  fallbackColor: isDarkMode ? const Color(0xFF8AB4F8) : const Color(0xFF1A73E8),
                 ),
               ),
               
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               
               // App name
               Text(
