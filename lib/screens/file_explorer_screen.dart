@@ -97,7 +97,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   final Map<String, Rect> _itemPositions = {}; // Store positions of items for hit testing
   final GlobalKey _gridViewKey = GlobalKey(); // Key for the grid container
   bool _mightStartDragging = false;
-  bool _showTabBar = true; // Add this line for tab bar visibility
+  bool _showTabBar = false; // Changed from true to false to hide tab bar by default
+  bool _showHiddenFiles = false; // Add state variable for hidden files visibility
 
   @override
   void initState() {
@@ -209,7 +210,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     });
 
     try {
-      final items = await _fileService.listDirectory(path);
+      final items = await _fileService.listDirectory(path, showHidden: _showHiddenFiles);
       
       setState(() {
         _items = items;
@@ -1554,6 +1555,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         setState(() {
           _showTabBar = !_showTabBar;
         });
+      } else if (event.logicalKey == LogicalKeyboardKey.keyH && HardwareKeyboard.instance.isControlPressed) {
+        // Toggle hidden files visibility
+        setState(() {
+          _showHiddenFiles = !_showHiddenFiles;
+        });
+        _loadDirectory(_currentPath); // Reload directory with new visibility setting
       }
     }
   }

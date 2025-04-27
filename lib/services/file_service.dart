@@ -13,16 +13,16 @@ class FileService {
   }
   
   /// List files and directories in a given path
-  Future<List<FileItem>> listDirectory(String path) async {
+  Future<List<FileItem>> listDirectory(String path, {bool showHidden = false}) async {
     try {
       final directory = Directory(path);
       final entities = await directory.list().toList();
       final items = <FileItem>[];
       
       for (final entity in entities) {
-        // Skip hidden files if needed
+        // Skip hidden files if showHidden is false
         final fileName = p.basename(entity.path);
-        if (fileName.startsWith('.')) continue;
+        if (!showHidden && fileName.startsWith('.')) continue;
         
         try {
           final item = await FileItem.fromEntity(entity);
