@@ -75,20 +75,18 @@ class FileExplorerTabBar extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Material(
-              elevation: 2,
-              borderRadius: BorderRadius.circular(8),
-              child: IconButton(
-                icon: const Icon(Icons.add),
-                onPressed: () {
-                  final currentTab = tabManager.currentTab;
-                  if (currentTab != null) {
-                    tabManager.addTab(currentTab.path);
-                  }
-                },
-                tooltip: 'New Tab',
-              ),
+            padding: const EdgeInsets.only(right: 16.0),
+            child: IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () {
+                final currentTab = tabManager.currentTab;
+                if (currentTab != null) {
+                  tabManager.addTab(currentTab.path);
+                }
+              },
+              tooltip: 'New Tab',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
             ),
           ),
         ],
