@@ -97,6 +97,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   final Map<String, Rect> _itemPositions = {}; // Store positions of items for hit testing
   final GlobalKey _gridViewKey = GlobalKey(); // Key for the grid container
   bool _mightStartDragging = false;
+  bool _showTabBar = true; // Add this line for tab bar visibility
 
   @override
   void initState() {
@@ -1546,6 +1547,13 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         setState(() {
           _selectedItemsPaths = _items.map((item) => item.path).toSet();
         });
+      } else if (event.logicalKey == LogicalKeyboardKey.keyH && 
+                 HardwareKeyboard.instance.isControlPressed && 
+                 HardwareKeyboard.instance.isShiftPressed) {
+        // Toggle tab bar visibility
+        setState(() {
+          _showTabBar = !_showTabBar;
+        });
       }
     }
   }
@@ -2795,13 +2803,17 @@ exit
       _bookmarkSidebarAnimation.reverse();
     }
 
-    return RawKeyboardListener(
+    return Focus(
       focusNode: _focusNode,
-      onKey: _handleKeyEvent,
+      autofocus: true,
+      onKey: (node, event) {
+        _handleKeyEvent(event);
+        return KeyEventResult.handled;
+      },
       child: Scaffold(
         body: Column(
           children: [
-            const FileExplorerTabBar(),
+            if (_showTabBar) const FileExplorerTabBar(),
             _buildAppBar(context),
             Expanded(
               child: Row(

@@ -31,52 +31,65 @@ class FileExplorerTabBar extends StatelessWidget {
                 final tab = tabManager.tabs[index];
                 final isSelected = index == tabManager.currentTabIndex;
 
-                return GestureDetector(
-                  onTap: () => tabManager.switchTab(index),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: isSelected ? theme.colorScheme.primaryContainer : null,
-                      border: Border(
-                        bottom: BorderSide(
-                          color: isSelected ? theme.colorScheme.primary : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          tab.title,
-                          style: TextStyle(
-                            color: isSelected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurface,
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Material(
+                    elevation: isSelected ? 4 : 2,
+                    borderRadius: BorderRadius.circular(8),
+                    child: GestureDetector(
+                      onTap: () => tabManager.switchTab(index),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: isSelected ? theme.colorScheme.primaryContainer : theme.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isSelected ? theme.colorScheme.primary : theme.dividerColor,
+                            width: 1,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.close, size: 16),
-                          onPressed: () => tabManager.removeTab(index),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          color: isSelected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurface,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              tab.title,
+                              style: TextStyle(
+                                color: isSelected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 16),
+                              onPressed: () => tabManager.removeTab(index),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              color: isSelected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurface,
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 );
               },
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              final currentTab = tabManager.currentTab;
-              if (currentTab != null) {
-                tabManager.addTab(currentTab.path);
-              }
-            },
-            tooltip: 'New Tab',
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Material(
+              elevation: 2,
+              borderRadius: BorderRadius.circular(8),
+              child: IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: () {
+                  final currentTab = tabManager.currentTab;
+                  if (currentTab != null) {
+                    tabManager.addTab(currentTab.path);
+                  }
+                },
+                tooltip: 'New Tab',
+              ),
+            ),
           ),
         ],
       ),
