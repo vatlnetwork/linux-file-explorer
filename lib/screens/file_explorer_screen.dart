@@ -31,6 +31,8 @@ import 'file_associations_screen.dart';
 import '../widgets/draggable_file_item.dart';
 import '../widgets/folder_drop_target.dart';
 import '../services/compression_service.dart';
+import '../services/tab_manager_service.dart';
+import '../widgets/tab_bar.dart';
 
 /// A file explorer screen that displays files and folders in a customizable interface.
 /// 
@@ -123,6 +125,15 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final previewPanelService = Provider.of<PreviewPanelService>(context, listen: false);
       previewPanelService.addListener(_handlePreviewPanelChange);
+      
+      // Initialize first tab
+      final tabManager = Provider.of<TabManagerService>(context, listen: false);
+      if (tabManager.tabs.isEmpty) {
+        tabManager.addTab(_currentPath);
+      }
+      
+      // Add listener for tab changes
+      tabManager.addListener(_handleTabChange);
     });
   }
 
@@ -145,6 +156,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     final previewPanelService = Provider.of<PreviewPanelService>(context, listen: false);
     previewPanelService.removeListener(_handlePreviewPanelChange);
     
+    // Remove tab manager listener
+    final tabManager = Provider.of<TabManagerService>(context, listen: false);
+    tabManager.removeListener(_handleTabChange);
+    
     super.dispose();
   }
   
@@ -164,6 +179,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       setState(() {
         _currentPath = homeDir;
       });
+      final tabManager = Provider.of<TabManagerService>(context, listen: false);
+      tabManager.updateCurrentTabLoading(true);
       _loadDirectory(homeDir, addToHistory: false);
     } catch (e) {
       _handleError('Failed to get home directory: $e');
@@ -200,8 +217,14 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         // Reset selection when changing directories
         _selectedItemsPaths = {};
       });
+
+      // Update current tab path
+      final tabManager = Provider.of<TabManagerService>(context, listen: false);
+      tabManager.updateCurrentTabPath(path);
     } catch (e) {
       _handleError('Failed to load directory: $e');
+      final tabManager = Provider.of<TabManagerService>(context, listen: false);
+      tabManager.updateCurrentTabError(true, 'Failed to load directory: $e');
     }
   }
 
@@ -214,6 +237,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   }
 
   void _navigateToDirectory(String path) {
+    final tabManager = Provider.of<TabManagerService>(context, listen: false);
+    tabManager.updateCurrentTabLoading(true);
     _loadDirectory(path);
   }
 
@@ -223,6 +248,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       _forwardHistory.add(_currentPath);
       // Navigate to previous path
       final previousPath = _navigationHistory.removeLast();
+      final tabManager = Provider.of<TabManagerService>(context, listen: false);
+      tabManager.updateCurrentTabLoading(true);
       _loadDirectory(previousPath, addToHistory: false);
     }
   }
@@ -233,6 +260,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       _navigationHistory.add(_currentPath);
       // Navigate to forward path
       final forwardPath = _forwardHistory.removeLast();
+      final tabManager = Provider.of<TabManagerService>(context, listen: false);
+      tabManager.updateCurrentTabLoading(true);
       _loadDirectory(forwardPath, addToHistory: false);
     }
   }
@@ -2759,87 +2788,131 @@ exit
 
   @override
   Widget build(BuildContext context) {
-    final viewModeService = Provider.of<ViewModeService>(context);
-    final statusBarService = Provider.of<StatusBarService>(context);
+    final tabManager = Provider.of<TabManagerService>(context);
+    final currentTab = tabManager.currentTab;
     final previewPanelService = Provider.of<PreviewPanelService>(context);
-    final iconSizeService = Provider.of<IconSizeService>(context);
-    
-    // Listen for animation changes
+
+    // Handle animations
     if (previewPanelService.showPreviewPanel && _previewPanelAnimation.isDismissed) {
       _previewPanelAnimation.forward();
     } else if (!previewPanelService.showPreviewPanel && _previewPanelAnimation.isCompleted) {
       _previewPanelAnimation.reverse();
     }
     
-    // Listen for bookmark sidebar changes
     if (_showBookmarkSidebar && _bookmarkSidebarAnimation.isDismissed) {
       _bookmarkSidebarAnimation.forward();
     } else if (!_showBookmarkSidebar && _bookmarkSidebarAnimation.isCompleted) {
       _bookmarkSidebarAnimation.reverse();
     }
-    
+
     return Scaffold(
-      body: Focus(
-        focusNode: _focusNode,
-        autofocus: true,
-        onKeyEvent: _handleKeyEvent,
-        child: Column(
-          children: [
-            _buildAppBar(context),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return Row(
-                    children: [
-                      // Bookmark sidebar with animation
-                      AnimatedBuilder(
-                        animation: _bookmarkSidebarAnimation,
-                        builder: (context, child) {
-                          return SizedBox(
-                            width: _bookmarkSidebarAnimation.value * 200,
-                            child: _showBookmarkSidebar ? BookmarkSidebar(
-                              onNavigate: _navigateToDirectory,
-                              currentPath: _currentPath,
-                            ) : null,
-                          );
-                        },
-                      ),
-                      // Main content area with flexible width
-                      Flexible(
-                        flex: 1,
-                        child: _buildMainContentArea(
-                          viewModeService, 
-                          iconSizeService, 
-                          previewPanelService,
+      body: Column(
+        children: [
+          const FileExplorerTabBar(),
+          Expanded(
+            child: Row(
+              children: [
+                if (_showBookmarkSidebar)
+                  AnimatedBuilder(
+                    animation: _bookmarkSidebarAnimation,
+                    builder: (context, child) {
+                      return SizedBox(
+                        width: _bookmarkSidebarAnimation.value * 200,
+                        child: BookmarkSidebar(
+                          onNavigate: _navigateToDirectory,
+                          currentPath: _currentPath,
                         ),
-                      ),
-                      // Preview panel with animation
-                      AnimatedBuilder(
-                        animation: _previewPanelAnimation,
-                        builder: (context, child) {
-                          return SizedBox(
-                            width: _previewPanelAnimation.value * 300,
-                            child: previewPanelService.showPreviewPanel ? PreviewPanel(
-                              onNavigate: _navigateToDirectory,
-                            ) : null,
-                          );
-                        },
+                      );
+                    },
+                  ),
+                Expanded(
+                  child: Column(
+                    children: [
+                      // ... existing breadcrumb and search bar code ...
+                      Expanded(
+                        child: currentTab != null && currentTab.hasError
+                            ? Center(child: Text(currentTab.errorMessage))
+                            : _isLoading
+                                ? const Center(child: CircularProgressIndicator())
+                                : _buildFileView(),
                       ),
                     ],
-                  );
-                },
-              ),
+                  ),
+                ),
+                if (previewPanelService.showPreviewPanel)
+                  AnimatedBuilder(
+                    animation: _previewPanelAnimation,
+                    builder: (context, child) {
+                      return SizedBox(
+                        width: _previewPanelAnimation.value * 300,
+                        child: PreviewPanel(
+                          onNavigate: _navigateToDirectory,
+                        ),
+                      );
+                    },
+                  ),
+              ],
             ),
-            // Status bar at the bottom
-            if (statusBarService.showStatusBar)
-              StatusBar(
-                items: _items,
-                selectedItemsPaths: _selectedItemsPaths,
-                currentPath: _currentPath,
-              ),
-          ],
-        ),
+          ),
+          if (Provider.of<StatusBarService>(context).showStatusBar)
+            StatusBar(
+              items: _items,
+              selectedItemsPaths: _selectedItemsPaths,
+              currentPath: _currentPath,
+            ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildFileView() {
+    final viewModeService = Provider.of<ViewModeService>(context);
+    final statusBarService = Provider.of<StatusBarService>(context);
+    final iconSizeService = Provider.of<IconSizeService>(context);
+    final previewPanelService = Provider.of<PreviewPanelService>(context);
+
+    return Column(
+      children: [
+        _buildAppBar(context),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Row(
+                children: [
+                  // Main content area with flexible width
+                  Flexible(
+                    flex: 1,
+                    child: _buildMainContentArea(
+                      viewModeService, 
+                      iconSizeService, 
+                      previewPanelService,
+                    ),
+                  ),
+                  // Preview panel with animation
+                  AnimatedBuilder(
+                    animation: _previewPanelAnimation,
+                    builder: (context, child) {
+                      return SizedBox(
+                        width: _previewPanelAnimation.value * 300,
+                        child: previewPanelService.showPreviewPanel ? PreviewPanel(
+                          onNavigate: _navigateToDirectory,
+                        ) : null,
+                      );
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        // Status bar at the bottom
+        if (statusBarService.showStatusBar)
+          StatusBar(
+            items: _items,
+            selectedItemsPaths: _selectedItemsPaths,
+            currentPath: _currentPath,
+          ),
+      ],
     );
   }
 
@@ -3531,6 +3604,24 @@ exit
             duration: const Duration(seconds: 3),
           ),
         );
+      }
+    }
+  }
+
+  void _handleTabChange() {
+    final tabManager = Provider.of<TabManagerService>(context, listen: false);
+    final currentTab = tabManager.currentTab;
+    
+    if (currentTab != null && currentTab.path != _currentPath) {
+      setState(() {
+        _currentPath = currentTab.path;
+        _isLoading = currentTab.isLoading;
+        _hasError = currentTab.hasError;
+        _errorMessage = currentTab.errorMessage;
+      });
+      
+      if (!currentTab.isLoading && !currentTab.hasError) {
+        _loadDirectory(currentTab.path, addToHistory: false);
       }
     }
   }
