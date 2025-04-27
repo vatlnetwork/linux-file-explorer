@@ -1488,14 +1488,14 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   }
 
   // Handle key events for the file explorer
-  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+  void _handleKeyEvent(RawKeyEvent event) {
     // If we're searching, don't interfere with normal text input
     if (_isSearchActive && _searchFocusNode.hasFocus) {
-      return KeyEventResult.ignored;
+      return;
     }
 
     // Handle quick look with space bar
-    if (event is KeyDownEvent && 
+    if (event is RawKeyDownEvent && 
         event.logicalKey == LogicalKeyboardKey.space && 
         _selectedItemsPaths.isNotEmpty) {
       // Get the first selected item for quick look
@@ -1511,12 +1511,11 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       
       if (selectedItem.type != FileItemType.unknown) {
         _showQuickLook(selectedItem);
-        return KeyEventResult.handled;
       }
     }
 
     // Navigation with arrow keys
-    if (event is KeyDownEvent) {
+    if (event is RawKeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.backspace || 
           (event.logicalKey == LogicalKeyboardKey.arrowUp && HardwareKeyboard.instance.isAltPressed)) {
         // Navigate up one directory
@@ -1524,40 +1523,31 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         final parentDir = currentDir.parent.path;
         if (parentDir != _currentPath) {
           _navigateToDirectory(parentDir);
-          return KeyEventResult.handled;
         }
       } else if (event.logicalKey == LogicalKeyboardKey.delete) {
         // Delete selected items
         if (_selectedItemsPaths.isNotEmpty) {
           _deleteSelectedItems();
-          return KeyEventResult.handled;
         }
       } else if (event.logicalKey == LogicalKeyboardKey.f5) {
         // Refresh directory
         _loadDirectory(_currentPath);
-        return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.keyC && HardwareKeyboard.instance.isControlPressed) {
         // Copy selected items
         _copySelectedItems();
-        return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.keyX && HardwareKeyboard.instance.isControlPressed) {
         // Cut selected items
         _cutSelectedItems();
-        return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.keyV && HardwareKeyboard.instance.isControlPressed) {
         // Paste items
         _pasteItemsToCurrentDirectory();
-        return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.keyA && HardwareKeyboard.instance.isControlPressed) {
         // Select all items
         setState(() {
           _selectedItemsPaths = _items.map((item) => item.path).toSet();
         });
-        return KeyEventResult.handled;
       }
     }
-
-    return KeyEventResult.ignored;
   }
 
   // Check if a directory is a mount point
@@ -2805,62 +2795,66 @@ exit
       _bookmarkSidebarAnimation.reverse();
     }
 
-    return Scaffold(
-      body: Column(
-        children: [
-          const FileExplorerTabBar(),
-          Expanded(
-            child: Row(
-              children: [
-                if (_showBookmarkSidebar)
-                  AnimatedBuilder(
-                    animation: _bookmarkSidebarAnimation,
-                    builder: (context, child) {
-                      return SizedBox(
-                        width: _bookmarkSidebarAnimation.value * 200,
-                        child: BookmarkSidebar(
-                          onNavigate: _navigateToDirectory,
-                          currentPath: _currentPath,
+    return RawKeyboardListener(
+      focusNode: _focusNode,
+      onKey: _handleKeyEvent,
+      child: Scaffold(
+        body: Column(
+          children: [
+            const FileExplorerTabBar(),
+            _buildAppBar(context),
+            Expanded(
+              child: Row(
+                children: [
+                  if (_showBookmarkSidebar)
+                    AnimatedBuilder(
+                      animation: _bookmarkSidebarAnimation,
+                      builder: (context, child) {
+                        return SizedBox(
+                          width: _bookmarkSidebarAnimation.value * 200,
+                          child: BookmarkSidebar(
+                            onNavigate: _navigateToDirectory,
+                            currentPath: _currentPath,
+                          ),
+                        );
+                      },
+                    ),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: currentTab != null && currentTab.hasError
+                              ? Center(child: Text(currentTab.errorMessage))
+                              : _isLoading
+                                  ? const Center(child: CircularProgressIndicator())
+                                  : _buildFileView(),
                         ),
-                      );
-                    },
+                      ],
+                    ),
                   ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      // ... existing breadcrumb and search bar code ...
-                      Expanded(
-                        child: currentTab != null && currentTab.hasError
-                            ? Center(child: Text(currentTab.errorMessage))
-                            : _isLoading
-                                ? const Center(child: CircularProgressIndicator())
-                                : _buildFileView(),
-                      ),
-                    ],
-                  ),
-                ),
-                if (previewPanelService.showPreviewPanel)
-                  AnimatedBuilder(
-                    animation: _previewPanelAnimation,
-                    builder: (context, child) {
-                      return SizedBox(
-                        width: _previewPanelAnimation.value * 300,
-                        child: PreviewPanel(
-                          onNavigate: _navigateToDirectory,
-                        ),
-                      );
-                    },
-                  ),
-              ],
+                  if (previewPanelService.showPreviewPanel)
+                    AnimatedBuilder(
+                      animation: _previewPanelAnimation,
+                      builder: (context, child) {
+                        return SizedBox(
+                          width: _previewPanelAnimation.value * 300,
+                          child: PreviewPanel(
+                            onNavigate: _navigateToDirectory,
+                          ),
+                        );
+                      },
+                    ),
+                ],
+              ),
             ),
-          ),
-          if (Provider.of<StatusBarService>(context).showStatusBar)
-            StatusBar(
-              items: _items,
-              selectedItemsPaths: _selectedItemsPaths,
-              currentPath: _currentPath,
-            ),
-        ],
+            if (Provider.of<StatusBarService>(context).showStatusBar)
+              StatusBar(
+                items: _items,
+                selectedItemsPaths: _selectedItemsPaths,
+                currentPath: _currentPath,
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -2873,7 +2867,6 @@ exit
 
     return Column(
       children: [
-        _buildAppBar(context),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
