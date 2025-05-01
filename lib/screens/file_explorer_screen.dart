@@ -2949,7 +2949,12 @@ exit
                     _isSearching = false;
                     _searchResults.clear();
                   } else {
-                    _searchFocusNode.requestFocus();
+                    // Request focus after a short delay to ensure the widget is built
+                    Future.delayed(Duration.zero, () {
+                      if (mounted) {
+                        _searchFocusNode.requestFocus();
+                      }
+                    });
                   }
                 });
               },
@@ -2964,6 +2969,7 @@ exit
                 child: TextField(
                   controller: _searchController,
                   focusNode: _searchFocusNode,
+                  autofocus: true,
                   decoration: InputDecoration(
                     contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 12),
                     hintText: 'Search...',
