@@ -50,14 +50,14 @@ class GridItemWidget extends StatelessWidget {
                 ? (isDarkMode ? Colors.blueGrey.shade800 : Colors.blue.shade50)
                 : (isHovering 
                     ? (isDarkMode ? Color(0xFF2C2C2C) : Colors.grey.shade100)
-                    : Colors.transparent),
+                    : (isDarkMode ? Color(0xFF1E1E1E) : Colors.white)),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(6.0 * uiScale),
               side: BorderSide(
                 color: isSelected
                     ? (isDarkMode ? Colors.blue.shade700 : Colors.blue.shade300)
-                    : Colors.transparent,
-                width: isSelected ? 1.5 * uiScale : 0,
+                    : (isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300),
+                width: isSelected ? 1.5 * uiScale : 0.5,
               ),
             ),
             child: GestureDetector(

@@ -981,7 +981,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         showDialog(
           context: context,
           barrierDismissible: false,
-          builder: (BuildContext context) {
+          builder: (context) {
             return AlertDialog(
               title: Text('Deleting Files'),
               content: Row(
@@ -3285,68 +3285,73 @@ exit
           _mightStartDragging = false;
         });
       },
-      child: GridView.builder(
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: _getGridColumnCount(context, iconSizeService),
-          childAspectRatio: 1.0,
-          crossAxisSpacing: 8.0,
-          mainAxisSpacing: 8.0,
-        ),
-        itemCount: items.length,
-        itemBuilder: (context, index) {
-          final item = items[index];
-          final isSelected = _selectedItemsPaths.contains(item.path);
-          
-          // Get all selected items
-          final selectedItems = _selectedItemsPaths.isNotEmpty
-              ? items.where((i) => _selectedItemsPaths.contains(i.path)).toList()
-              : null;
-          
-          return Builder(
-            builder: (context) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  final RenderBox? box = context.findRenderObject() as RenderBox?;
-                  if (box != null) {
-                    final Offset position = box.localToGlobal(Offset.zero);
-                    final Size size = box.size;
-                    _itemPositions[item.path] = Rect.fromLTWH(
-                      position.dx,
-                      position.dy,
-                      size.width,
-                      size.height,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return GridView.builder(
+            padding: const EdgeInsets.all(8.0),
+            gridDelegate: iconSizeService.getConsistentSizeGridDelegate(
+              constraints.maxWidth,
+              minimumColumns: 3,
+              childAspectRatio: 0.9,
+              spacing: 8.0,
+            ),
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              final item = items[index];
+              final isSelected = _selectedItemsPaths.contains(item.path);
+              
+              // Get all selected items
+              final selectedItems = _selectedItemsPaths.isNotEmpty
+                  ? items.where((i) => _selectedItemsPaths.contains(i.path)).toList()
+                  : null;
+              
+              return Builder(
+                builder: (context) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      final RenderBox? box = context.findRenderObject() as RenderBox?;
+                      if (box != null) {
+                        final Offset position = box.localToGlobal(Offset.zero);
+                        final Size size = box.size;
+                        _itemPositions[item.path] = Rect.fromLTWH(
+                          position.dx,
+                          position.dy,
+                          size.width,
+                          size.height,
+                        );
+                      }
+                    }
+                  });
+                  
+                  Widget itemWidget = DraggableFileItem(
+                    key: ValueKey(item.path),
+                    item: item,
+                    isSelected: isSelected,
+                    isGridMode: true,
+                    selectedItems: selectedItems,
+                    onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
+                    onDoubleTap: () => _handleItemDoubleTap(item),
+                    onLongPress: (item) => _showContextMenu(item, Offset.zero),
+                    onRightClick: _showContextMenu,
+                  );
+                  
+                  // Wrap directory items with FolderDropTarget
+                  if (item.type == FileItemType.directory) {
+                    itemWidget = FolderDropTarget(
+                      folder: item,
+                      onNavigateToDirectory: _navigateToDirectory,
+                      onDropSuccessful: () {
+                        // Refresh the directory after a successful drop
+                        _loadDirectory(_currentPath);
+                      },
+                      child: itemWidget,
                     );
                   }
+                  
+                  return itemWidget;
                 }
-              });
-              
-              Widget itemWidget = DraggableFileItem(
-                key: ValueKey(item.path),
-                item: item,
-                isSelected: isSelected,
-                isGridMode: true,
-                selectedItems: selectedItems,
-                onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
-                onDoubleTap: () => _handleItemDoubleTap(item),
-                onLongPress: (item) => _showContextMenu(item, Offset.zero),
-                onRightClick: _showContextMenu,
               );
-              
-              // Wrap directory items with FolderDropTarget
-              if (item.type == FileItemType.directory) {
-                itemWidget = FolderDropTarget(
-                  folder: item,
-                  onNavigateToDirectory: _navigateToDirectory,
-                  onDropSuccessful: () {
-                    // Refresh the directory after a successful drop
-                    _loadDirectory(_currentPath);
-                  },
-                  child: itemWidget,
-                );
-              }
-              
-              return itemWidget;
-            }
+            },
           );
         },
       ),
@@ -3404,12 +3409,6 @@ exit
       // This will trigger a rebuild of the grid view
       setState(() {});
     }
-  }
-
-  int _getGridColumnCount(BuildContext context, IconSizeService iconSizeService) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final iconSize = iconSizeService.gridUIScale;
-    return (screenWidth / (iconSize + 16)).floor();
   }
 
   void _compressItem(BuildContext context, FileItem item) async {
