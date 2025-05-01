@@ -5,6 +5,8 @@ import '../models/file_item.dart';
 import '../services/drag_drop_service.dart';
 import '../services/file_service.dart';
 import 'dart:async';
+import 'package:provider/provider.dart';
+import '../services/bookmark_service.dart';
 
 class FolderDropTarget extends StatefulWidget {
   final FileItem folder;
@@ -159,6 +161,12 @@ class _FolderDropTargetState extends State<FolderDropTarget> {
           
           // Notify parent of successful drop
           widget.onDropSuccessful?.call();
+          
+          // Refresh bookmarks if the target folder is a bookmark
+          final bookmarkService = Provider.of<BookmarkService>(context, listen: false);
+          if (bookmarkService.isBookmarked(widget.folder.path)) {
+            bookmarkService.refreshBookmarks();
+          }
           
           // Show success message if widget is still mounted
           if (mounted) {

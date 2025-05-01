@@ -66,6 +66,11 @@ class BookmarkService extends ChangeNotifier {
   bool isBookmarked(String path) {
     return _bookmarks.any((b) => b.path == path);
   }
+
+  // Refresh bookmarks from storage
+  Future<void> refreshBookmarks() async {
+    await _loadBookmarks();
+  }
   
   // Reorder bookmarks
   Future<void> reorderBookmarks(int oldIndex, int newIndex) async {

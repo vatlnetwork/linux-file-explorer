@@ -30,6 +30,7 @@ import '../widgets/column_view_widget.dart';
 import 'file_associations_screen.dart';
 import '../widgets/draggable_file_item.dart';
 import '../widgets/folder_drop_target.dart';
+import '../widgets/multi_draggable_files.dart';
 import '../services/compression_service.dart';
 import '../services/tab_manager_service.dart';
 import '../widgets/tab_bar.dart';
@@ -3312,16 +3313,33 @@ exit
                 }
               });
               
-              Widget itemWidget = DraggableFileItem(
-                key: ValueKey(item.path),
-                item: item,
-                isSelected: isSelected,
-                isGridMode: false,
-                onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
-                onDoubleTap: () => _handleItemDoubleTap(item),
-                onLongPress: (item) => _showContextMenu(item, Offset.zero),
-                onRightClick: _showContextMenu,
-              );
+              // Get all selected items
+              final selectedItems = items.where((i) => _selectedItemsPaths.contains(i.path)).toList();
+              
+              Widget itemWidget = isSelected && selectedItems.length > 1
+                ? MultiDraggableFiles(
+                    selectedItems: selectedItems,
+                    child: DraggableFileItem(
+                      key: ValueKey(item.path),
+                      item: item,
+                      isSelected: isSelected,
+                      isGridMode: false,
+                      onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
+                      onDoubleTap: () => _handleItemDoubleTap(item),
+                      onLongPress: (item) => _showContextMenu(item, Offset.zero),
+                      onRightClick: _showContextMenu,
+                    ),
+                  )
+                : DraggableFileItem(
+                    key: ValueKey(item.path),
+                    item: item,
+                    isSelected: isSelected,
+                    isGridMode: false,
+                    onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
+                    onDoubleTap: () => _handleItemDoubleTap(item),
+                    onLongPress: (item) => _showContextMenu(item, Offset.zero),
+                    onRightClick: _showContextMenu,
+                  );
               
               // Wrap directory items with FolderDropTarget
               if (item.type == FileItemType.directory) {
@@ -3398,16 +3416,33 @@ exit
                 }
               });
               
-              Widget itemWidget = DraggableFileItem(
-                key: ValueKey(item.path),
-                item: item,
-                isSelected: isSelected,
-                isGridMode: true,
-                onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
-                onDoubleTap: () => _handleItemDoubleTap(item),
-                onLongPress: (item) => _showContextMenu(item, Offset.zero),
-                onRightClick: _showContextMenu,
-              );
+              // Get all selected items
+              final selectedItems = items.where((i) => _selectedItemsPaths.contains(i.path)).toList();
+              
+              Widget itemWidget = isSelected && selectedItems.length > 1
+                ? MultiDraggableFiles(
+                    selectedItems: selectedItems,
+                    child: DraggableFileItem(
+                      key: ValueKey(item.path),
+                      item: item,
+                      isSelected: isSelected,
+                      isGridMode: true,
+                      onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
+                      onDoubleTap: () => _handleItemDoubleTap(item),
+                      onLongPress: (item) => _showContextMenu(item, Offset.zero),
+                      onRightClick: _showContextMenu,
+                    ),
+                  )
+                : DraggableFileItem(
+                    key: ValueKey(item.path),
+                    item: item,
+                    isSelected: isSelected,
+                    isGridMode: true,
+                    onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
+                    onDoubleTap: () => _handleItemDoubleTap(item),
+                    onLongPress: (item) => _showContextMenu(item, Offset.zero),
+                    onRightClick: _showContextMenu,
+                  );
               
               // Wrap directory items with FolderDropTarget
               if (item.type == FileItemType.directory) {
