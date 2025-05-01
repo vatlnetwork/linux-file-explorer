@@ -85,6 +85,12 @@ class _FolderDropTargetState extends State<FolderDropTarget> {
       onAcceptWithDetails: (details) async {
         if (!mounted) return;
         
+        // Get the drag drop service
+        final dragDropService = DragDropService.of(context);
+        final draggedItems = dragDropService.draggedItems;
+        
+        if (draggedItems == null || draggedItems.isEmpty) return;
+        
         // Show dialog to choose operation
         final operation = await showDialog<DragOperation>(
           context: context,
@@ -94,9 +100,27 @@ class _FolderDropTargetState extends State<FolderDropTarget> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('What would you like to do with "${details.data.name}"?'),
+                Text('What would you like to do with ${draggedItems.length} items?'),
                 SizedBox(height: 8),
                 Text('Target folder: ${widget.folder.name}'),
+                if (draggedItems.length > 1) ...[
+                  SizedBox(height: 8),
+                  Text(
+                    'First few items:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 4),
+                  for (var i = 0; i < draggedItems.length && i < 3; i++)
+                    Text(
+                      '• ${draggedItems[i].name}',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  if (draggedItems.length > 3)
+                    Text(
+                      '... and ${draggedItems.length - 3} more',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                ],
               ],
             ),
             actions: [
@@ -135,28 +159,57 @@ class _FolderDropTargetState extends State<FolderDropTarget> {
         if (operation == null || !mounted) return;
         
         try {
-          switch (operation) {
-            case DragOperation.copy:
-              await _fileService.copyFileOrDirectory(
-                details.data.path,
-                widget.folder.path,
-                handleConflicts: true,
-              );
-              break;
-              
-            case DragOperation.move:
-              await _fileService.moveFileOrDirectory(
-                details.data.path,
-                widget.folder.path,
-              );
-              break;
-              
-            case DragOperation.link:
-              await _fileService.createSymlink(
-                details.data.path, 
-                '${widget.folder.path}/${details.data.name}',
-              );
-              break;
+          // Show progress dialog for multiple items
+          if (draggedItems.length > 1 && mounted) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: Text(operation == DragOperation.copy ? 'Copying Files' : 'Moving Files'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      LinearProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Processing ${draggedItems.length} items...'),
+                    ],
+                  ),
+                );
+              },
+            );
+          }
+          
+          // Process each item
+          for (final item in draggedItems) {
+            switch (operation) {
+              case DragOperation.copy:
+                await _fileService.copyFileOrDirectory(
+                  item.path,
+                  widget.folder.path,
+                  handleConflicts: true,
+                );
+                break;
+                
+              case DragOperation.move:
+                await _fileService.moveFileOrDirectory(
+                  item.path,
+                  widget.folder.path,
+                );
+                break;
+                
+              case DragOperation.link:
+                await _fileService.createSymlink(
+                  item.path, 
+                  '${widget.folder.path}/${item.name}',
+                );
+                break;
+            }
+          }
+          
+          // Dismiss progress dialog if it was shown
+          if (draggedItems.length > 1 && mounted) {
+            Navigator.of(context).pop();
           }
           
           // Notify parent of successful drop
@@ -172,17 +225,22 @@ class _FolderDropTargetState extends State<FolderDropTarget> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Successfully ${operation.name}d ${details.data.name}'),
+                content: Text('Successfully ${operation.name}d ${draggedItems.length} items'),
                 duration: const Duration(seconds: 2),
               ),
             );
           }
         } catch (e) {
+          // Dismiss progress dialog if it was shown
+          if (draggedItems.length > 1 && mounted) {
+            Navigator.of(context).pop();
+          }
+          
           // Show error message if widget is still mounted
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Error ${operation.name}ing ${details.data.name}: $e'),
+                content: Text('Error ${operation.name}ing items: $e'),
                 backgroundColor: Theme.of(context).colorScheme.error,
                 duration: const Duration(seconds: 3),
               ),

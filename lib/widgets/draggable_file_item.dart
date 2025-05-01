@@ -26,6 +26,13 @@ class DraggableFileItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Get the drag drop service
+    final dragDropService = DragDropService.of(context);
+    
+    // Check if there are multiple items selected
+    final selectedItems = dragDropService.draggedItems;
+    final isMultiDrag = selectedItems != null && selectedItems.length > 1;
+    
     return Draggable<FileItem>(
       // Data is the file item being dragged
       data: item,
@@ -35,7 +42,7 @@ class DraggableFileItem extends StatelessWidget {
         elevation: 4.0,
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(8),
-        child: _buildFeedback(context),
+        child: isMultiDrag ? _buildMultiItemFeedback(context, selectedItems!) : _buildFeedback(context),
       ),
       
       // Child when dragging is the item that stays in place but visually shows it's being dragged
@@ -82,7 +89,17 @@ class DraggableFileItem extends StatelessWidget {
       // When drag starts
       onDragStarted: () {
         final dragDropService = DragDropService.of(context);
-        dragDropService.startDrag([item]);
+        // If this item is selected, drag all selected items
+        if (isSelected) {
+          final selectedItems = dragDropService.draggedItems;
+          if (selectedItems != null && selectedItems.isNotEmpty) {
+            dragDropService.startDrag(selectedItems);
+          } else {
+            dragDropService.startDrag([item]);
+          }
+        } else {
+          dragDropService.startDrag([item]);
+        }
       },
       
       // When drag ends without dropping on valid target
@@ -217,5 +234,64 @@ class DraggableFileItem extends StatelessWidget {
     }
     
     return Icon(iconData, color: iconColor, size: 24);
+  }
+  
+  // Build the visual feedback for multiple items during drag
+  Widget _buildMultiItemFeedback(BuildContext context, List<FileItem> items) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      decoration: BoxDecoration(
+        color: isDarkMode ? Color(0xFF333333) : Color(0xFFF5F5F5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).primaryColor.withValues(alpha: 0.5),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Stack of icons for the first few items
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: Stack(
+              children: [
+                for (var i = 0; i < items.length && i < 3; i++)
+                  Positioned(
+                    left: i * 8.0,
+                    child: Icon(
+                      items[i].type == FileItemType.directory ? Icons.folder : Icons.insert_drive_file,
+                      color: items[i].type == FileItemType.directory ? Colors.blue : Colors.grey,
+                      size: 24,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(width: 12),
+          
+          // Number of items text
+          Text(
+            '${items.length} items',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: isDarkMode ? Colors.white : Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 } 
