@@ -12,6 +12,7 @@ class DraggableFileItem extends StatelessWidget {
   final Function(FileItem, Offset position) onRightClick;
   final bool isSelected;
   final bool isGridMode;
+  final List<FileItem>? selectedItems;
   
   const DraggableFileItem({
     super.key,
@@ -22,16 +23,13 @@ class DraggableFileItem extends StatelessWidget {
     required this.onRightClick,
     this.isSelected = false,
     this.isGridMode = false,
+    this.selectedItems,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Get the drag drop service
-    final dragDropService = DragDropService.of(context);
-    
     // Check if there are multiple items selected
-    final selectedItems = dragDropService.draggedItems;
-    final isMultiDrag = selectedItems != null && selectedItems.length > 1;
+    final isMultiDrag = selectedItems != null && selectedItems!.length > 1;
     
     return Draggable<FileItem>(
       // Data is the file item being dragged
@@ -89,14 +87,9 @@ class DraggableFileItem extends StatelessWidget {
       // When drag starts
       onDragStarted: () {
         final dragDropService = DragDropService.of(context);
-        // If this item is selected, drag all selected items
-        if (isSelected) {
-          final selectedItems = dragDropService.draggedItems;
-          if (selectedItems != null && selectedItems.isNotEmpty) {
-            dragDropService.startDrag(selectedItems);
-          } else {
-            dragDropService.startDrag([item]);
-          }
+        // If this item is selected and we have multiple items selected, drag all selected items
+        if (isSelected && selectedItems != null && selectedItems!.length > 1) {
+          dragDropService.startDrag(selectedItems!);
         } else {
           dragDropService.startDrag([item]);
         }

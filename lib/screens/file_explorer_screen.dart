@@ -3215,54 +3215,37 @@ exit
         });
       },
       child: ListView.builder(
-        controller: _scrollController,
         itemCount: items.length,
         itemBuilder: (context, index) {
           final item = items[index];
           final isSelected = _selectedItemsPaths.contains(item.path);
           
-          return Builder(
-            builder: (context) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  final RenderBox? box = context.findRenderObject() as RenderBox?;
-                  if (box != null) {
-                    final Offset position = box.localToGlobal(Offset.zero);
-                    final Size size = box.size;
-                    _itemPositions[item.path] = Rect.fromLTWH(
-                      position.dx, position.dy, size.width, size.height
-                    );
-                  }
-                }
-              });
+          // Get all selected items
+          final selectedItems = _selectedItemsPaths.isNotEmpty
+              ? items.where((i) => _selectedItemsPaths.contains(i.path)).toList()
+              : null;
+          
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              // Record item position for selection rectangle
+              _itemPositions[item.path] = Rect.fromLTWH(
+                0,
+                index * constraints.maxHeight / items.length,
+                constraints.maxWidth,
+                constraints.maxHeight / items.length,
+              );
               
-              // Get all selected items
-              final selectedItems = items.where((i) => _selectedItemsPaths.contains(i.path)).toList();
-              
-              Widget itemWidget = isSelected && selectedItems.length > 1
-                ? MultiDraggableFiles(
-                    selectedItems: selectedItems,
-                    child: DraggableFileItem(
-                      key: ValueKey(item.path),
-                      item: item,
-                      isSelected: isSelected,
-                      isGridMode: false,
-                      onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
-                      onDoubleTap: () => _handleItemDoubleTap(item),
-                      onLongPress: (item) => _showContextMenu(item, Offset.zero),
-                      onRightClick: _showContextMenu,
-                    ),
-                  )
-                : DraggableFileItem(
-                    key: ValueKey(item.path),
-                    item: item,
-                    isSelected: isSelected,
-                    isGridMode: false,
-                    onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
-                    onDoubleTap: () => _handleItemDoubleTap(item),
-                    onLongPress: (item) => _showContextMenu(item, Offset.zero),
-                    onRightClick: _showContextMenu,
-                  );
+              Widget itemWidget = DraggableFileItem(
+                key: ValueKey(item.path),
+                item: item,
+                isSelected: isSelected,
+                isGridMode: false,
+                selectedItems: selectedItems,
+                onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
+                onDoubleTap: () => _handleItemDoubleTap(item),
+                onLongPress: (item) => _showContextMenu(item, Offset.zero),
+                onRightClick: _showContextMenu,
+              );
               
               // Wrap directory items with FolderDropTarget
               if (item.type == FileItemType.directory) {
@@ -3311,10 +3294,8 @@ exit
         });
       },
       child: GridView.builder(
-        key: _gridViewKey,
-        controller: _scrollController,
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: _calculateGridColumns(context, iconSizeService),
+          crossAxisCount: _getGridColumnCount(context, iconSizeService),
           childAspectRatio: 1.0,
           crossAxisSpacing: 8.0,
           mainAxisSpacing: 8.0,
@@ -3324,48 +3305,32 @@ exit
           final item = items[index];
           final isSelected = _selectedItemsPaths.contains(item.path);
           
-          return Builder(
-            builder: (context) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  final RenderBox? box = context.findRenderObject() as RenderBox?;
-                  if (box != null) {
-                    final Offset position = box.localToGlobal(Offset.zero);
-                    final Size size = box.size;
-                    _itemPositions[item.path] = Rect.fromLTWH(
-                      position.dx, position.dy, size.width, size.height
-                    );
-                  }
-                }
-              });
+          // Get all selected items
+          final selectedItems = _selectedItemsPaths.isNotEmpty
+              ? items.where((i) => _selectedItemsPaths.contains(i.path)).toList()
+              : null;
+          
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              // Record item position for selection rectangle
+              _itemPositions[item.path] = Rect.fromLTWH(
+                0,
+                0,
+                constraints.maxWidth,
+                constraints.maxHeight,
+              );
               
-              // Get all selected items
-              final selectedItems = items.where((i) => _selectedItemsPaths.contains(i.path)).toList();
-              
-              Widget itemWidget = isSelected && selectedItems.length > 1
-                ? MultiDraggableFiles(
-                    selectedItems: selectedItems,
-                    child: DraggableFileItem(
-                      key: ValueKey(item.path),
-                      item: item,
-                      isSelected: isSelected,
-                      isGridMode: true,
-                      onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
-                      onDoubleTap: () => _handleItemDoubleTap(item),
-                      onLongPress: (item) => _showContextMenu(item, Offset.zero),
-                      onRightClick: _showContextMenu,
-                    ),
-                  )
-                : DraggableFileItem(
-                    key: ValueKey(item.path),
-                    item: item,
-                    isSelected: isSelected,
-                    isGridMode: true,
-                    onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
-                    onDoubleTap: () => _handleItemDoubleTap(item),
-                    onLongPress: (item) => _showContextMenu(item, Offset.zero),
-                    onRightClick: _showContextMenu,
-                  );
+              Widget itemWidget = DraggableFileItem(
+                key: ValueKey(item.path),
+                item: item,
+                isSelected: isSelected,
+                isGridMode: true,
+                selectedItems: selectedItems,
+                onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
+                onDoubleTap: () => _handleItemDoubleTap(item),
+                onLongPress: (item) => _showContextMenu(item, Offset.zero),
+                onRightClick: _showContextMenu,
+              );
               
               // Wrap directory items with FolderDropTarget
               if (item.type == FileItemType.directory) {
@@ -3441,11 +3406,10 @@ exit
     }
   }
 
-  int _calculateGridColumns(BuildContext context, IconSizeService iconSizeService) {
+  int _getGridColumnCount(BuildContext context, IconSizeService iconSizeService) {
     final screenWidth = MediaQuery.of(context).size.width;
     final iconSize = iconSizeService.gridUIScale;
-    final spacing = 16.0; // Assuming 16.0 is the spacing between items
-    return (screenWidth / (iconSize + spacing)).floor();
+    return (screenWidth / (iconSize + 16)).floor();
   }
 
   void _compressItem(BuildContext context, FileItem item) async {
