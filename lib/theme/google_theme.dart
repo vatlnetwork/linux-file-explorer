@@ -69,6 +69,10 @@ class GoogleTheme {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
     ),
+    iconTheme: const IconThemeData(
+      weight: 200, // Make icons thinner (default is 400)
+      color: Colors.black87, // Light theme icon color
+    ),
   );
 
   static ThemeData darkTheme = ThemeData(
@@ -138,6 +142,10 @@ class GoogleTheme {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
+    ),
+    iconTheme: const IconThemeData(
+      weight: 200, // Make icons thinner (default is 400)
+      color: Colors.white, // Dark theme icon color
     ),
   );
 } 
