@@ -20,7 +20,7 @@ import '../services/usb_drive_service.dart';
 import '../services/preview_panel_service.dart';
 import '../services/app_service.dart';
 import '../services/file_association_service.dart';
-import '../services/quick_look_service.dart'; // Add import for QuickLookService
+import '../services/quick_look_service.dart';
 import '../widgets/split_folder_view.dart';
 import '../widgets/bookmark_sidebar.dart';
 import '../widgets/status_bar.dart';
@@ -30,7 +30,6 @@ import '../widgets/column_view_widget.dart';
 import 'file_associations_screen.dart';
 import '../widgets/draggable_file_item.dart';
 import '../widgets/folder_drop_target.dart';
-import '../widgets/multi_draggable_files.dart';
 import '../services/compression_service.dart';
 import '../services/tab_manager_service.dart';
 import '../widgets/tab_bar.dart';
@@ -96,7 +95,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   Offset? _dragStartPosition;
   Offset? _dragEndPosition;
   final Map<String, Rect> _itemPositions = {}; // Store positions of items for hit testing
-  final GlobalKey _gridViewKey = GlobalKey(); // Key for the grid container
   bool _mightStartDragging = false;
   bool _showTabBar = false; // Changed from true to false to hide tab bar by default
   bool _showHiddenFiles = false; // Add state variable for hidden files visibility
@@ -1216,7 +1214,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       
       final sourcePaths = _clipboardItems!.map((item) => item.path).toList();
       var completed = 0;
-      final total = sourcePaths.length;
       
       // Process files asynchronously
       await _fileService.processFilesAsync(
@@ -2077,7 +2074,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     );
   }
   
-  // Cut selected items to clipboard
   void _cutSelectedItems() {
     if (_selectedItemsPaths.isEmpty) return;
     
@@ -3225,15 +3221,23 @@ exit
               ? items.where((i) => _selectedItemsPaths.contains(i.path)).toList()
               : null;
           
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              // Record item position for selection rectangle
-              _itemPositions[item.path] = Rect.fromLTWH(
-                0,
-                index * constraints.maxHeight / items.length,
-                constraints.maxWidth,
-                constraints.maxHeight / items.length,
-              );
+          return Builder(
+            builder: (context) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  final RenderBox? box = context.findRenderObject() as RenderBox?;
+                  if (box != null) {
+                    final Offset position = box.localToGlobal(Offset.zero);
+                    final Size size = box.size;
+                    _itemPositions[item.path] = Rect.fromLTWH(
+                      position.dx,
+                      position.dy,
+                      size.width,
+                      size.height,
+                    );
+                  }
+                }
+              });
               
               Widget itemWidget = DraggableFileItem(
                 key: ValueKey(item.path),
@@ -3310,15 +3314,23 @@ exit
               ? items.where((i) => _selectedItemsPaths.contains(i.path)).toList()
               : null;
           
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              // Record item position for selection rectangle
-              _itemPositions[item.path] = Rect.fromLTWH(
-                0,
-                0,
-                constraints.maxWidth,
-                constraints.maxHeight,
-              );
+          return Builder(
+            builder: (context) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  final RenderBox? box = context.findRenderObject() as RenderBox?;
+                  if (box != null) {
+                    final Offset position = box.localToGlobal(Offset.zero);
+                    final Size size = box.size;
+                    _itemPositions[item.path] = Rect.fromLTWH(
+                      position.dx,
+                      position.dy,
+                      size.width,
+                      size.height,
+                    );
+                  }
+                }
+              });
               
               Widget itemWidget = DraggableFileItem(
                 key: ValueKey(item.path),
