@@ -1,10 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:path/path.dart' as p;
 import '../models/file_item.dart';
 import '../services/file_service.dart';
-import '../services/preview_panel_service.dart';
 import '../services/tags_service.dart';
 import '../models/tag.dart';
 
