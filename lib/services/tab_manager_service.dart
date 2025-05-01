@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import 'package:window_manager/window_manager.dart';
 
 class Tab {
   final String id;
@@ -63,6 +64,18 @@ class TabManagerService extends ChangeNotifier {
       _currentTabIndex = _tabs.length - 1;
     }
     notifyListeners();
+
+    // If this was the last tab, close the window
+    if (_tabs.isEmpty) {
+      windowManager.close();
+    }
+  }
+
+  void closeAllTabs() {
+    _tabs.clear();
+    _currentTabIndex = 0;
+    notifyListeners();
+    windowManager.close();
   }
 
   void switchTab(int index) {
