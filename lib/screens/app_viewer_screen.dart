@@ -138,7 +138,7 @@ class _AppViewerScreenState extends State<AppViewerScreen> with WindowListener, 
     return GestureDetector(
       onPanStart: (_) => windowManager.startDragging(),
       child: Container(
-        height: 56,
+        height: 40,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           color: backgroundColor,

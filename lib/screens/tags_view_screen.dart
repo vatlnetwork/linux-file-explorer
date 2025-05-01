@@ -34,7 +34,7 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tags', style: TextStyle(fontSize: 16)),
-        toolbarHeight: 48,
+        toolbarHeight: 40,
         elevation: 0,
         backgroundColor: Theme.of(context).brightness == Brightness.dark 
             ? const Color(0xFF2D2E30)

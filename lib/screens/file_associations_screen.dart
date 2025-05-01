@@ -96,7 +96,7 @@ class _FileAssociationsScreenState extends State<FileAssociationsScreen> with Wi
         : const Color(0xFFBBDEFB);
     
     return Container(
-      height: 50,
+      height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: backgroundColor,
