@@ -2820,18 +2820,6 @@ exit
                       previewPanelService,
                     ),
                   ),
-                  // Preview panel with animation
-                  AnimatedBuilder(
-                    animation: _previewPanelAnimation,
-                    builder: (context, child) {
-                      return SizedBox(
-                        width: _previewPanelAnimation.value * 300,
-                        child: previewPanelService.showPreviewPanel ? PreviewPanel(
-                          onNavigate: _navigateToDirectory,
-                        ) : null,
-                      );
-                    },
-                  ),
                 ],
               );
             },
