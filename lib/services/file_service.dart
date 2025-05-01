@@ -174,6 +174,39 @@ class FileService {
     await entity.rename(targetPath);
   }
   
+  /// Process multiple files asynchronously with progress reporting
+  Future<void> processFilesAsync({
+    required List<String> sourcePaths,
+    required String targetDir,
+    required bool isMove,
+    required void Function(int progress, int total) onProgress,
+  }) async {
+    final total = sourcePaths.length;
+    var completed = 0;
+
+    // Process files in batches to avoid overwhelming the system
+    const batchSize = 5;
+    for (var i = 0; i < total; i += batchSize) {
+      final batch = sourcePaths.skip(i).take(batchSize).toList();
+      await Future.wait(
+        batch.map((sourcePath) async {
+          try {
+            if (isMove) {
+              await moveFileOrDirectory(sourcePath, targetDir);
+            } else {
+              await copyFileOrDirectory(sourcePath, targetDir);
+            }
+          } catch (e) {
+            _logger.warning('Error processing $sourcePath: $e');
+            // Continue with other files even if one fails
+          }
+          completed++;
+          onProgress(completed, total);
+        }),
+      );
+    }
+  }
+  
   // Method to copy a file or folder from source to destination
   Future<void> copyFile(String sourcePath, String destinationPath) async {
     try {

@@ -1189,159 +1189,82 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     }
     
     try {
-      // Show progress dialog for multiple pastes
-      if (_clipboardItems!.length > 1 && mounted) {
+      // Show progress dialog
+      if (mounted) {
         showDialog(
           context: context,
           barrierDismissible: false,
           builder: (BuildContext context) {
-            return AlertDialog(
-              title: Text(_isItemCut ? 'Moving Files' : 'Copying Files'),
-              content: Row(
-                children: [
-                  SizedBox(
-                    width: 30,
-                    height: 30,
-                    child: CircularProgressIndicator(),
+            return StatefulBuilder(
+              builder: (context, setState) {
+                return AlertDialog(
+                  title: Text(_isItemCut ? 'Moving Files' : 'Copying Files'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      LinearProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Processing files...'),
+                    ],
                   ),
-                  SizedBox(width: 16),
-                  Text('Processing ${_clipboardItems!.length} items...'),
-                ],
-              ),
+                );
+              },
             );
           },
         );
       }
       
-      int successCount = 0;
-      List<String> errors = [];
+      final sourcePaths = _clipboardItems!.map((item) => item.path).toList();
+      var completed = 0;
+      final total = sourcePaths.length;
       
-      // Process each item in the clipboard
-      for (final item in _clipboardItems!) {
-        final String sourcePath = item.path;
-        final String itemName = item.name;
-        final String targetPath = p.join(_currentPath, itemName);
-        
-        // Check if target already exists
-        final bool destinationExists = await _fileExists(targetPath);
-        
-        if (destinationExists) {
-          // File or directory already exists, show conflict dialog
-          if (!mounted) continue; // Check if widget is still mounted
-          
-          final bool? overwrite = await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('File Exists'),
-              content: Text('$itemName already exists in this location. Overwrite?'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  child: const Text('Overwrite'),
-                ),
-              ],
-            ),
-          );
-          
-          if (overwrite != true) continue; // User canceled or closed dialog
-        }
-        
-        try {
-          if (_isItemCut) {
-            // Move operation
-            await _fileService.moveFileOrDirectory(sourcePath, _currentPath);
-          } else {
-            // Copy operation
-            await _fileService.copyFileOrDirectory(sourcePath, _currentPath);
+      // Process files asynchronously
+      await _fileService.processFilesAsync(
+        sourcePaths: sourcePaths,
+        targetDir: _currentPath,
+        isMove: _isItemCut,
+        onProgress: (progress, total) {
+          if (mounted) {
+            setState(() {
+              completed = progress;
+            });
           }
-          successCount++;
-        } catch (e) {
-          errors.add('$itemName: $e');
-        }
-      }
+        },
+      );
       
       // Clear clipboard after cut-paste
-      if (_isItemCut && successCount > 0) {
+      if (_isItemCut) {
         setState(() {
           _clipboardItems = null;
         });
       }
       
-      // Dismiss progress dialog if it was shown
-      if (_clipboardItems!.length > 1 && mounted) {
+      // Dismiss progress dialog
+      if (mounted) {
         Navigator.of(context).pop();
       }
       
-      // Show result notification
+      // Show success notification
       if (mounted) {
-        if (errors.isEmpty) {
-          // All operations succeeded
-          NotificationService.showNotification(
-            context,
-            message: _isItemCut 
-                ? 'Moved $successCount items' 
-                : 'Copied $successCount items',
-            type: NotificationType.success,
-          );
-        } else {
-          // Some operations failed
-          NotificationService.showNotification(
-            context,
-            message: 'Completed with ${errors.length} errors',
-            type: NotificationType.warning,
-          );
-          
-          // Show detailed error dialog for multiple errors
-          if (errors.length > 1 && mounted) {
-            showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: Text('Operation Errors'),
-                content: SizedBox(
-                  width: double.maxFinite,
-                  height: 200,
-                  child: ListView.builder(
-                    itemCount: errors.length,
-                    itemBuilder: (context, index) {
-                      return ListTile(
-                        leading: Icon(Icons.error, color: Colors.red),
-                        title: Text(errors[index], 
-                            style: TextStyle(fontSize: 14)),
-                      );
-                    },
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text('Close'),
-                  ),
-                ],
-              ),
-            );
-          }
-        }
+        NotificationService.showNotification(
+          context,
+          message: _isItemCut 
+              ? 'Moved $completed items' 
+              : 'Copied $completed items',
+          type: NotificationType.success,
+        );
       }
       
       // Refresh directory contents
       _loadDirectory(_currentPath);
       
     } catch (e) {
-      // Handle top-level errors
+      // Dismiss progress dialog if it's still showing
       if (mounted) {
-        // Dismiss progress dialog if it was shown
-        if (_clipboardItems!.length > 1) {
-          Navigator.of(context).pop();
-        }
-        
+        Navigator.of(context).pop();
         NotificationService.showNotification(
           context,
-          message: 'Error: $e',
+          message: 'Error during operation: $e',
           type: NotificationType.error,
         );
       }
