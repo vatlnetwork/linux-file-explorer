@@ -33,6 +33,7 @@ import '../widgets/folder_drop_target.dart';
 import '../services/compression_service.dart';
 import '../services/tab_manager_service.dart';
 import '../widgets/tab_bar.dart';
+import '../widgets/keyboard_shortcuts_dialog.dart';
 
 /// A file explorer screen that displays files and folders in a customizable interface.
 /// 
@@ -96,7 +97,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   Offset? _dragEndPosition;
   final Map<String, Rect> _itemPositions = {}; // Store positions of items for hit testing
   bool _mightStartDragging = false;
-  bool _showTabBar = false; // Changed from true to false to hide tab bar by default
   bool _showHiddenFiles = false; // Add state variable for hidden files visibility
 
   @override
@@ -1473,9 +1473,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                  HardwareKeyboard.instance.isControlPressed && 
                  HardwareKeyboard.instance.isShiftPressed) {
         // Toggle tab bar visibility
-        setState(() {
-          _showTabBar = !_showTabBar;
-        });
+        final tabManager = Provider.of<TabManagerService>(context, listen: false);
+        tabManager.setShowTabBar(!tabManager.showTabBar);
       } else if (event.logicalKey == LogicalKeyboardKey.keyH && HardwareKeyboard.instance.isControlPressed) {
         // Toggle hidden files visibility
         setState(() {
@@ -1713,6 +1712,18 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
                     ],
                   ),
                 ),
+
+                // Keyboard shortcuts
+                PopupMenuItem<String>(
+                  value: 'keyboard_shortcuts',
+                  child: Row(
+                    children: [
+                      Icon(Icons.keyboard, size: 16),
+                      SizedBox(width: 8),
+                      Text('Keyboard Shortcuts'),
+                    ],
+                  ),
+                ),
                 
                 // Divider before icon size slider
                 const PopupMenuDivider(),
@@ -1836,6 +1847,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
             break;
           case 'refresh_apps':
             appService.refreshApps();
+            break;
+          case 'keyboard_shortcuts':
+            showDialog(
+              context: context,
+              builder: (context) => const KeyboardShortcutsDialog(),
+            );
             break;
         }
       }
@@ -2740,7 +2757,7 @@ exit
       child: Scaffold(
         body: Column(
           children: [
-            if (_showTabBar) const FileExplorerTabBar(),
+            if (tabManager.showTabBar) const FileExplorerTabBar(),
             _buildAppBar(context),
             Expanded(
               child: Row(

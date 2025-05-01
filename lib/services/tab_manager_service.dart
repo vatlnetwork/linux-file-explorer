@@ -40,10 +40,12 @@ class Tab {
 class TabManagerService extends ChangeNotifier {
   final List<Tab> _tabs = [];
   int _currentTabIndex = 0;
+  bool _showTabBar = false;
 
   List<Tab> get tabs => List.unmodifiable(_tabs);
   int get currentTabIndex => _currentTabIndex;
   Tab? get currentTab => _tabs.isNotEmpty ? _tabs[_currentTabIndex] : null;
+  bool get showTabBar => _showTabBar;
 
   void addTab(String path, {String? title}) {
     final newTab = Tab(
@@ -53,6 +55,7 @@ class TabManagerService extends ChangeNotifier {
     );
     _tabs.add(newTab);
     _currentTabIndex = _tabs.length - 1;
+    _showTabBar = true;
     notifyListeners();
   }
 
@@ -115,5 +118,12 @@ class TabManagerService extends ChangeNotifier {
       errorMessage: errorMessage,
     );
     notifyListeners();
+  }
+
+  void setShowTabBar(bool show) {
+    if (_showTabBar != show) {
+      _showTabBar = show;
+      notifyListeners();
+    }
   }
 } 
