@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../models/file_item.dart';
 
 class TabService extends ChangeNotifier {
   final List<String> _paths = [];

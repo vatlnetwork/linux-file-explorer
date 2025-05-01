@@ -1490,14 +1490,14 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   }
 
   // Handle key events for the file explorer
-  void _handleKeyEvent(RawKeyEvent event) {
+  void _handleKeyEvent(KeyEvent event) {
     // If we're searching, don't interfere with normal text input
     if (_isSearchActive && _searchFocusNode.hasFocus) {
       return;
     }
 
     // Handle quick look with space bar
-    if (event is RawKeyDownEvent && 
+    if (event is KeyDownEvent && 
         event.logicalKey == LogicalKeyboardKey.space && 
         _selectedItemsPaths.isNotEmpty) {
       // Get the first selected item for quick look
@@ -1517,7 +1517,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     }
 
     // Navigation with arrow keys
-    if (event is RawKeyDownEvent) {
+    if (event is KeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.backspace || 
           (event.logicalKey == LogicalKeyboardKey.arrowUp && HardwareKeyboard.instance.isAltPressed)) {
         // Navigate up one directory
@@ -2813,7 +2813,7 @@ exit
     return Focus(
       focusNode: _focusNode,
       autofocus: true,
-      onKey: (node, event) {
+      onKeyEvent: (node, event) {
         _handleKeyEvent(event);
         return KeyEventResult.handled;
       },

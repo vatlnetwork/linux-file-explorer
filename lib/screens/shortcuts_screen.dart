@@ -7,8 +7,6 @@ class ShortcutsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Keyboard Shortcuts'),
@@ -58,15 +56,13 @@ class ShortcutsScreen extends StatelessWidget {
   }
 
   Widget _buildShortcutSection(BuildContext context, String title, List<Widget> shortcuts) {
-    final theme = Theme.of(context);
-    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: theme.textTheme.titleLarge?.copyWith(
-            color: theme.colorScheme.primary,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
         const SizedBox(height: 8),
