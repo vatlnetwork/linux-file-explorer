@@ -66,7 +66,7 @@ class _FileExplorerTabBarState extends State<FileExplorerTabBar> with WindowList
                         child: Text(
                           'No tabs open',
                           style: TextStyle(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            color: theme.colorScheme.onSurface.withAlpha(153),
                             fontStyle: FontStyle.italic,
                           ),
                         ),

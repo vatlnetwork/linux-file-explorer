@@ -58,7 +58,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   late TextEditingController _searchController;
   late FocusNode _searchFocusNode;
   final _logger = Logger('FileExplorerScreen');
-  bool _isSearchActive = false;
+  final bool _isSearchActive = false;
   // Setup animation controller for bookmarks sidebar
   late AnimationController _bookmarkSidebarAnimation;
   // Animation controller for preview panel

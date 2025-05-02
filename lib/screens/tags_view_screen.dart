@@ -87,14 +87,6 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
             ).toList();
           }
 
-          if (tags.isEmpty) {
-            return const EmptyState(
-              icon: Icons.local_offer_outlined,
-              title: 'No Tags Found',
-              message: 'You haven\'t created any tags yet or no tags match your search.',
-            );
-          }
-
           return Column(
             children: [
               // Tags and files view
@@ -106,45 +98,55 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
                       flex: 1,
                       child: Material(
                         elevation: 1,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                          itemCount: tags.length,
-                          itemBuilder: (context, index) {
-                            final tag = tags[index];
-                            final count = tagUsageCounts[tag.id] ?? 0;
-                            
-                            return ListTile(
-                              visualDensity: VisualDensity.compact,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 2.0),
-                              leading: Icon(
-                                Icons.local_offer,
-                                color: tag.color,
-                                size: 20,
+                        child: tags.isEmpty
+                            ? Center(
+                                child: Text(
+                                  'No available tags',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface.withAlpha(153),
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                itemCount: tags.length,
+                                itemBuilder: (context, index) {
+                                  final tag = tags[index];
+                                  final count = tagUsageCounts[tag.id] ?? 0;
+                                  
+                                  return ListTile(
+                                    visualDensity: VisualDensity.compact,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 2.0),
+                                    leading: Icon(
+                                      Icons.local_offer,
+                                      color: tag.color,
+                                      size: 20,
+                                    ),
+                                    title: Text(
+                                      tag.name,
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                    subtitle: Text(
+                                      '$count ${count == 1 ? 'file' : 'files'}',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    selected: _selectedTagId == tag.id,
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedTagId = tag.id;
+                                      });
+                                    },
+                                    trailing: IconButton(
+                                      icon: const Icon(Icons.delete_outline, size: 18),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      onPressed: count > 0 ? null : () => _confirmDeleteTag(context, tagsService, tag),
+                                      tooltip: count > 0 ? 'Cannot delete tag in use' : 'Delete tag',
+                                    ),
+                                  );
+                                },
                               ),
-                              title: Text(
-                                tag.name,
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                              subtitle: Text(
-                                '$count ${count == 1 ? 'file' : 'files'}',
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                              selected: _selectedTagId == tag.id,
-                              onTap: () {
-                                setState(() {
-                                  _selectedTagId = tag.id;
-                                });
-                              },
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete_outline, size: 18),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                onPressed: count > 0 ? null : () => _confirmDeleteTag(context, tagsService, tag),
-                                tooltip: count > 0 ? 'Cannot delete tag in use' : 'Delete tag',
-                              ),
-                            );
-                          },
-                        ),
                       ),
                     ),
 
