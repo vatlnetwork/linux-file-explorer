@@ -44,6 +44,14 @@ class KeyboardShortcutsDialog extends StatelessWidget {
             ),
             SizedBox(height: 16),
             _buildShortcutSection(
+              'Search',
+              [
+                _buildShortcutItem('Alt+S', 'Open search dialog'),
+              ],
+              isDarkMode,
+            ),
+            SizedBox(height: 16),
+            _buildShortcutSection(
               'Tabs',
               [
                 _buildShortcutItem('Ctrl+T', 'New tab'),

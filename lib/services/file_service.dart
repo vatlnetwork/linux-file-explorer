@@ -6,6 +6,13 @@ import '../models/file_item.dart';
 /// Service for handling file system operations
 class FileService {
   final _logger = Logger('FileService');
+  String _currentDirectory = '/';
+  
+  String get currentDirectory => _currentDirectory;
+  
+  void setCurrentDirectory(String path) {
+    _currentDirectory = path;
+  }
   
   /// Get the home directory path
   Future<String> getHomeDirectory() async {
@@ -47,6 +54,123 @@ class FileService {
       return items;
     } catch (e) {
       throw Exception('Error listing directory: $e');
+    }
+  }
+  
+  /// Search for files in a directory
+  Future<List<FileItem>> searchInDirectory(String directory, String query) async {
+    try {
+      final dir = Directory(directory);
+      final items = <FileItem>[];
+      
+      await for (final entity in dir.list(recursive: false)) {
+        try {
+          final item = await FileItem.fromEntity(entity);
+          if (item.name.toLowerCase().contains(query.toLowerCase())) {
+            items.add(item);
+          }
+        } catch (e) {
+          _logger.warning('Error processing file ${entity.path}: $e');
+        }
+      }
+      
+      return items;
+    } catch (e) {
+      _logger.warning('Error searching directory: $e');
+      return [];
+    }
+  }
+  
+  /// Search for files in a directory and its subdirectories
+  Future<List<FileItem>> searchInDirectoryAndSubdirectories(String directory, String query) async {
+    try {
+      final dir = Directory(directory);
+      final items = <FileItem>[];
+      
+      // Skip system directories that typically require root access
+      if (directory.startsWith('/sys') || 
+          directory.startsWith('/proc') || 
+          directory.startsWith('/boot') ||
+          directory.startsWith('/lost+found')) {
+        return [];
+      }
+      
+      try {
+        await for (final entity in dir.list(recursive: true)) {
+          try {
+            // Skip system directories during traversal
+            if (entity.path.startsWith('/sys') || 
+                entity.path.startsWith('/proc') || 
+                entity.path.startsWith('/boot') ||
+                entity.path.startsWith('/lost+found')) {
+              continue;
+            }
+            
+            final item = await FileItem.fromEntity(entity);
+            if (item.name.toLowerCase().contains(query.toLowerCase())) {
+              items.add(item);
+            }
+          } catch (e) {
+            // Skip files that can't be accessed
+            _logger.fine('Skipping inaccessible file ${entity.path}: $e');
+          }
+        }
+      } catch (e) {
+        // Skip directories that can't be accessed
+        _logger.fine('Skipping inaccessible directory $directory: $e');
+      }
+      
+      return items;
+    } catch (e) {
+      _logger.warning('Error searching directory and subdirectories: $e');
+      return [];
+    }
+  }
+  
+  /// Search for files in all mounted filesystems
+  Future<List<FileItem>> searchAllFiles(String query) async {
+    try {
+      final items = <FileItem>[];
+      
+      // Get list of mounted filesystems
+      final result = await Process.run('df', ['-P']);
+      if (result.exitCode != 0) {
+        throw Exception('Failed to get mounted filesystems');
+      }
+      
+      final lines = result.stdout.toString().split('\n');
+      final mountPoints = <String>[];
+      
+      // Skip header line and parse mount points
+      for (var i = 1; i < lines.length; i++) {
+        final parts = lines[i].split(RegExp(r'\s+'));
+        if (parts.length >= 6) {
+          final mountPoint = parts[5];
+          
+          // Skip system mount points
+          if (!mountPoint.startsWith('/sys') && 
+              !mountPoint.startsWith('/proc') && 
+              !mountPoint.startsWith('/boot') &&
+              !mountPoint.startsWith('/lost+found')) {
+            mountPoints.add(mountPoint);
+          }
+        }
+      }
+      
+      // Search each mount point
+      for (final mountPoint in mountPoints) {
+        try {
+          final results = await searchInDirectoryAndSubdirectories(mountPoint, query);
+          items.addAll(results);
+        } catch (e) {
+          _logger.warning('Error searching mount point $mountPoint: $e');
+        }
+      }
+      
+      return items;
+    } catch (e) {
+      _logger.warning('Error searching all files: $e');
+      return [];
     }
   }
   

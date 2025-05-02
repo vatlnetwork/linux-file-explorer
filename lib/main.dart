@@ -19,6 +19,7 @@ import 'utils/audio_init.dart';
 import 'services/drag_drop_service.dart';
 import 'theme/google_theme.dart';
 import 'services/tab_manager_service.dart';
+import 'services/file_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -101,6 +102,7 @@ void main() async {
         ChangeNotifierProvider.value(value: tagsService),
         ChangeNotifierProvider(create: (_) => DragDropService()),
         ChangeNotifierProvider(create: (_) => TabManagerService()),
+        Provider(create: (_) => FileService()),
       ],
       child: const MyApp(),
     ),

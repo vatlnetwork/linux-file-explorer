@@ -27,6 +27,7 @@ import '../widgets/status_bar.dart';
 import '../widgets/preview_panel.dart';
 import '../widgets/app_selection_dialog.dart';
 import '../widgets/column_view_widget.dart';
+import '../widgets/search_dialog.dart';
 import 'file_associations_screen.dart';
 import '../widgets/draggable_file_item.dart';
 import '../widgets/folder_drop_target.dart';
@@ -51,10 +52,11 @@ class FileExplorerScreen extends StatefulWidget {
   _FileExplorerScreenState createState() => _FileExplorerScreenState();
 }
 
-class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowListener, TickerProviderStateMixin {
+class _FileExplorerScreenState extends State<FileExplorerScreen>
+    with TickerProviderStateMixin, WindowListener {
   final FileService _fileService = FileService();
   final ScrollController _scrollController = ScrollController();
-  final FocusNode _focusNode = FocusNode(); // Add focus node for keyboard events
+  late FocusNode _focusNode; // Changed from final to late
   late TextEditingController _searchController;
   late FocusNode _searchFocusNode;
   final _logger = Logger('FileExplorerScreen');
@@ -116,6 +118,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     _initWindowState();
     _initHomeDirectory();
     
+    // Initialize focus node
+    _focusNode = FocusNode();
+    _focusNode.addListener(() {
+      _logger.info('Focus changed: ${_focusNode.hasFocus}');
+    });
+    
     // Add a post-frame callback to subscribe to preview panel changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final previewPanelService = Provider.of<PreviewPanelService>(context, listen: false);
@@ -129,6 +137,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       
       // Add listener for tab changes
       tabManager.addListener(_handleTabChange);
+      
+      // Request focus after initialization
+      _focusNode.requestFocus();
+      _logger.info('Requested focus after initialization');
     });
   }
 
@@ -1002,7 +1014,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
         
         // Dismiss progress dialog
         if (mounted) {
-          Navigator.of(context).pop();
+          Navigator.pop(context);
         }
         
         // Reload directory
@@ -1018,7 +1030,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       } catch (e) {
         // Dismiss progress dialog on error
         if (mounted) {
-          Navigator.of(context).pop();
+          Navigator.pop(context);
           NotificationService.showNotification(
             context,
             message: 'Error: $e',
@@ -1406,6 +1418,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
 
   // Handle key events for the file explorer
   void _handleKeyEvent(KeyEvent event) {
+    // Debug log for keyboard events
+    _logger.info('Key event: ${event.logicalKey}, Alt pressed: ${HardwareKeyboard.instance.isAltPressed}');
+
     // If we're searching, don't interfere with normal text input
     if (_isSearchActive && _searchFocusNode.hasFocus) {
       return;
@@ -1429,6 +1444,14 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
       if (selectedItem.type != FileItemType.unknown) {
         _showQuickLook(selectedItem);
       }
+    }
+
+    // Handle search dialog with Alt+S
+    if (event is KeyDownEvent && 
+        event.logicalKey == LogicalKeyboardKey.keyS && 
+        HardwareKeyboard.instance.isAltPressed) {
+      _logger.info('Alt+S detected, showing search dialog');
+      _showSearchDialog();
     }
 
     // Navigation with arrow keys
@@ -1475,6 +1498,34 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
           _showHiddenFiles = !_showHiddenFiles;
         });
         _loadDirectory(_currentPath); // Reload directory with new visibility setting
+      }
+    }
+  }
+
+  void _showSearchDialog() async {
+    final fileService = Provider.of<FileService>(context, listen: false);
+    fileService.setCurrentDirectory(_currentPath);
+    
+    final result = await showDialog<FileItem>(
+      context: context,
+      builder: (context) => const SearchDialog(),
+    );
+    
+    if (result != null) {
+      if (result.type == FileItemType.directory) {
+        _navigateToDirectory(result.path);
+      } else {
+        // Open the file with default application
+        final fileAssociationService = Provider.of<FileAssociationService>(context, listen: false);
+        final defaultApp = fileAssociationService.getDefaultAppForFile(result.path);
+        
+        if (defaultApp != null) {
+          final appService = Provider.of<AppService>(context, listen: false);
+          await appService.openFileWithApp(result.path, defaultApp);
+        } else {
+          // If no default app is set, show the app selection dialog
+          _showAppSelectionDialog(result);
+        }
       }
     }
   }
@@ -2727,6 +2778,7 @@ exit
       focusNode: _focusNode,
       autofocus: true,
       onKeyEvent: (node, event) {
+        _logger.info('Focus node received key event: ${event.logicalKey}');
         _handleKeyEvent(event);
         return KeyEventResult.handled;
       },
@@ -3495,6 +3547,16 @@ exit
         _loadDirectory(currentTab.path, addToHistory: false);
       }
     }
+  }
+
+  void _showAppSelectionDialog(FileItem file) async {
+    await showDialog(
+      context: context,
+      builder: (context) => AppSelectionDialog(
+        filePath: file.path,
+        fileName: file.name,
+      ),
+    );
   }
 }
 

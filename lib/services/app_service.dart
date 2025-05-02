@@ -169,6 +169,18 @@ class AppService extends ChangeNotifier {
     }
   }
   
+  // Open a file with a specific application
+  Future<bool> openFileWithApp(String filePath, String desktopFilePath) async {
+    try {
+      final desktopFileName = desktopFilePath.split('/').last;
+      final result = await Process.run('gtk-launch', [desktopFileName, filePath]);
+      return result.exitCode == 0;
+    } catch (e) {
+      debugPrint('Error opening file with app: $e');
+      return false;
+    }
+  }
+  
   // Find the actual path for an icon by name
   Future<String?> getIconPath(String iconName) async {
     // Check if we've already resolved this icon

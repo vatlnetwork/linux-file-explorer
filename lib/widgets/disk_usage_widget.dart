@@ -225,17 +225,18 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
                         : const Color(0xFF1A73E8),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Disk Usage',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white
-                          : Colors.black87,
+                  Expanded(
+                    child: Text(
+                      'Disk Usage',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black87,
+                      ),
                     ),
                   ),
-                  const Spacer(),
                   IconButton(
                     icon: Icon(
                       Icons.info_outline,
@@ -252,14 +253,29 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
                 ],
               ),
               const SizedBox(height: 4),
-              Text(
-                '${_diskService.formatBytes(_diskSpace!.usedBytes)} used, ${_diskService.formatBytes(_diskSpace!.availableBytes)} free',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white70
-                      : Colors.black54,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${_diskService.formatBytes(_diskSpace!.usedBytes)} used',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white70
+                            : Colors.black54,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${_diskService.formatBytes(_diskSpace!.availableBytes)} free',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white70
+                          : Colors.black54,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 2),
               Text(
