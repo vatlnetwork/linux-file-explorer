@@ -74,10 +74,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   bool _showBookmarkSidebar = true;
   bool _isMaximized = false;
   
-  // Search related state variables
-  List<FileItem> _searchResults = [];
-  bool _isSearching = false;
-  
   // Replace single item selection with a set for multiple selection
   Set<String> _selectedItemsPaths = {}; // Track the currently selected items by path
   
@@ -102,8 +98,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
   @override
   void initState() {
     super.initState();
-    _searchController = TextEditingController();
-    _searchFocusNode = FocusNode();
     _selectedItemsPaths = {};
     _clipboardItems = [];
     
@@ -1571,24 +1565,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> with WindowList
     );
   }
 
-  // Perform search on the current directory
-  void _performSearch(String query) {
-    if (query.isEmpty) {
-      setState(() {
-        _isSearching = false;
-        _searchResults.clear();
-      });
-      return;
-    }
-
-    setState(() {
-      _isSearching = true;
-      _searchResults = _items.where((item) {
-        return item.name.toLowerCase().contains(query.toLowerCase());
-      }).toList();
-    });
-  }
-
   // Show app options menu
   void _showOptionsMenu(BuildContext context) {
     final viewModeService = Provider.of<ViewModeService>(context, listen: false);
@@ -2938,64 +2914,6 @@ exit
                 child: _buildBreadcrumbNavigator(),
               ),
             ),
-            // Search button and field
-            IconButton(
-              icon: Icon(_isSearchActive ? Icons.close : Icons.search),
-              onPressed: () {
-                setState(() {
-                  _isSearchActive = !_isSearchActive;
-                  if (!_isSearchActive) {
-                    _searchController.clear();
-                    _isSearching = false;
-                    _searchResults.clear();
-                  } else {
-                    // Request focus after a short delay to ensure the widget is built
-                    Future.delayed(Duration.zero, () {
-                      if (mounted) {
-                        _searchFocusNode.requestFocus();
-                      }
-                    });
-                  }
-                });
-              },
-              tooltip: _isSearchActive ? 'Close Search' : 'Search',
-              iconSize: 20,
-            ),
-            if (_isSearchActive)
-              Container(
-                width: 200,
-                height: 30,
-                margin: EdgeInsets.only(right: 8.0),
-                child: TextField(
-                  controller: _searchController,
-                  focusNode: _searchFocusNode,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-                    hintText: 'Search...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  ),
-                  onChanged: (value) {
-                    if (value.isNotEmpty) {
-                      _performSearch(value);
-                    } else {
-                      setState(() {
-                        _isSearching = false;
-                        _searchResults.clear();
-                      });
-                    }
-                  },
-                ),
-              ),
             // Bookmark toggle
             IconButton(
               icon: Icon(_showBookmarkSidebar ? Icons.bookmark : Icons.bookmark_border),
@@ -3143,10 +3061,7 @@ exit
       );
     }
 
-    // Show search results if searching
-    final items = _isSearching ? _searchResults : _items;
-
-    if (items.isEmpty) {
+    if (_items.isEmpty) {
       return GestureDetector(
         behavior: HitTestBehavior.opaque, // Important to detect gestures on the empty area
         onSecondaryTapUp: (details) => _showEmptyAreaContextMenu(details.globalPosition),
@@ -3156,13 +3071,13 @@ exit
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                _isSearching ? Icons.search_off : Icons.folder_open,
+                Icons.folder_open,
                 color: Theme.of(context).disabledColor,
                 size: 48,
               ),
               SizedBox(height: 16),
               Text(
-                _isSearching ? 'No search results found' : 'This folder is empty',
+                'This folder is empty',
                 style: TextStyle(fontSize: 18),
               ),
             ],
@@ -3174,15 +3089,15 @@ exit
     // Display files according to the selected view mode
     switch (viewModeService.viewMode) {
       case ViewMode.list:
-        return _buildListView(items, iconSizeService);
+        return _buildListView(_items, iconSizeService);
       case ViewMode.grid:
-        return _buildGridView(items, iconSizeService);
+        return _buildGridView(_items, iconSizeService);
       case ViewMode.split:
-        return _buildDetailsView(items, iconSizeService);
+        return _buildDetailsView(_items, iconSizeService);
       case ViewMode.column:
         return ColumnViewWidget(
           currentPath: _currentPath,
-          items: items,
+          items: _items,
           onNavigate: _navigateToDirectory,
           onItemTap: _selectItem,
           onItemDoubleTap: _handleItemDoubleTap,

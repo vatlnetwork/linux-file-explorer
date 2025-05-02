@@ -120,8 +120,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       home: const FileExplorerScreen(),
       routes: {
-        TagsViewScreen.routeName: (context) => const TagsViewScreen(),
-      },
+        TagsViewScreen.routeName: (context) => const TagsViewScreen(),      },
       scaffoldMessengerKey: NotificationService.messengerKey,
     );
   }
