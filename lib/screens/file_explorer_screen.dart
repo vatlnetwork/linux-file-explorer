@@ -1511,12 +1511,15 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       builder: (context) => SearchDialog(
         currentDirectory: _currentPath,
         fileService: _fileService,
-        onFileSelected: (path) => _navigateToDirectory(path),
+        onFileSelected: (path) {
+          // No need to handle navigation here, we'll do it after the dialog closes
+        },
       ),
     );
     
     if (result != null) {
       if (result.type == FileItemType.directory) {
+        // Navigate to the directory
         _navigateToDirectory(result.path);
       } else {
         // Open the file with default application

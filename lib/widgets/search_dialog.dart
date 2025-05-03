@@ -22,7 +22,6 @@ class SearchDialog extends StatefulWidget {
 class _SearchDialogState extends State<SearchDialog> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
-  SearchScope _searchScope = SearchScope.currentDirectory;
   bool _isSearching = false;
   String _searchStatus = '';
   int _searchProgress = 0;
@@ -86,44 +85,18 @@ class _SearchDialogState extends State<SearchDialog> {
     });
 
     try {
-      List<FileItem> results;
-      switch (_searchScope) {
-        case SearchScope.currentDirectory:
-          results = await widget.fileService.searchInDirectory(
-            widget.currentDirectory,
-            _searchController.text,
-          );
-          break;
-        case SearchScope.directoryAndSubdirectories:
-          results = await widget.fileService.searchInDirectoryAndSubdirectories(
-            widget.currentDirectory,
-            _searchController.text,
-            onProgress: (progress, total) {
-              if (mounted) {
-                setState(() {
-                  _searchProgress = progress;
-                  _searchTotal = total;
-                  _searchStatus = 'Searching... ($progress/$total)';
-                });
-              }
-            },
-          );
-          break;
-        case SearchScope.allFiles:
-          results = await widget.fileService.searchAllFiles(
-            _searchController.text,
-            onProgress: (progress, total) {
-              if (mounted) {
-                setState(() {
-                  _searchProgress = progress;
-                  _searchTotal = total;
-                  _searchStatus = 'Searching... ($progress/$total)';
-                });
-              }
-            },
-          );
-          break;
-      }
+      final results = await widget.fileService.searchAllFiles(
+        _searchController.text,
+        onProgress: (progress, total) {
+          if (mounted) {
+            setState(() {
+              _searchProgress = progress;
+              _searchTotal = total;
+              _searchStatus = 'Searching... ($progress/$total)';
+            });
+          }
+        },
+      );
 
       _searchTimeout?.cancel();
 
@@ -161,7 +134,7 @@ class _SearchDialogState extends State<SearchDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Search bar with icon and menu
+            // Search bar with icon
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -188,80 +161,6 @@ class _SearchDialogState extends State<SearchDialog> {
                       ),
                       onChanged: _onSearchChanged,
                     ),
-                  ),
-                  PopupMenuButton<SearchScope>(
-                    icon: const Icon(Icons.more_vert),
-                    onSelected: (scope) {
-                      setState(() {
-                        _searchScope = scope;
-                      });
-                      _performSearch();
-                    },
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: SearchScope.currentDirectory,
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.folder,
-                              size: 20,
-                              color: _searchScope == SearchScope.currentDirectory
-                                  ? colorScheme.primary
-                                  : colorScheme.onSurface,
-                            ),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'Search in current directory',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: SearchScope.directoryAndSubdirectories,
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.folder_open,
-                              size: 20,
-                              color: _searchScope == SearchScope.directoryAndSubdirectories
-                                  ? colorScheme.primary
-                                  : colorScheme.onSurface,
-                            ),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'Search in directory and subdirectories',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: SearchScope.allFiles,
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.storage,
-                              size: 20,
-                              color: _searchScope == SearchScope.allFiles
-                                  ? colorScheme.primary
-                                  : colorScheme.onSurface,
-                            ),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'Search in all files',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ),
                   if (_isSearching)
                     IconButton(
@@ -329,10 +228,4 @@ class _SearchDialogState extends State<SearchDialog> {
       ),
     );
   }
-}
-
-enum SearchScope {
-  currentDirectory,
-  directoryAndSubdirectories,
-  allFiles,
 } 
