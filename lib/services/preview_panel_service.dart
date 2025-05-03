@@ -1346,15 +1346,6 @@ class PreviewPanelService extends ChangeNotifier {
     if (_selectedItem == null) return;
     
     try {
-      // Check if feh is installed
-      final fehResult = await Process.run('which', ['feh']);
-      if (fehResult.exitCode != 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('feh is not installed. Please install it to use set wallpaper.')),
-        );
-        return;
-      }
-      
       // Show set wallpaper dialog
       await showDialog<void>(
         context: context,
@@ -1408,20 +1399,97 @@ class PreviewPanelService extends ChangeNotifier {
         ),
       );
 
-      // Set wallpaper using feh
-      final result = await Process.run('feh', ['--bg-scale', _selectedItem!.path]);
+      // Try different methods to set wallpaper based on desktop environment
+      bool success = false;
+      String errorMessage = '';
+
+      // Method 1: Try using gsettings (GNOME)
+      try {
+        final result = await Process.run('gsettings', [
+          'set',
+          'org.gnome.desktop.background',
+          'picture-uri',
+          'file://${_selectedItem!.path}'
+        ]);
+        if (result.exitCode == 0) {
+          success = true;
+        } else {
+          errorMessage = 'gsettings failed: ${result.stderr}';
+        }
+      } catch (e) {
+        errorMessage = 'gsettings not available';
+      }
+
+      // Method 2: Try using feh
+      if (!success) {
+        try {
+          final fehResult = await Process.run('which', ['feh']);
+          if (fehResult.exitCode == 0) {
+            final result = await Process.run('feh', ['--bg-scale', _selectedItem!.path]);
+            if (result.exitCode == 0) {
+              success = true;
+            } else {
+              errorMessage = 'feh failed: ${result.stderr}';
+            }
+          } else {
+            errorMessage = 'feh not installed';
+          }
+        } catch (e) {
+          errorMessage = 'feh command failed';
+        }
+      }
+
+      // Method 3: Try using xfconf-query (XFCE)
+      if (!success) {
+        try {
+          final result = await Process.run('xfconf-query', [
+            '-c', 'xfce4-desktop',
+            '-p', '/backdrop/screen0/monitor0/image-path',
+            '-s', _selectedItem!.path
+          ]);
+          if (result.exitCode == 0) {
+            success = true;
+          } else {
+            errorMessage = 'xfconf-query failed: ${result.stderr}';
+          }
+        } catch (e) {
+          errorMessage = 'xfconf-query not available';
+        }
+      }
+      
+      // Method 4: Try using pcmanfm (LXDE)
+      if (!success) {
+        try {
+          final result = await Process.run('pcmanfm', [
+            '--set-wallpaper', _selectedItem!.path,
+            '--wallpaper-mode=stretch'
+          ]);
+          if (result.exitCode == 0) {
+            success = true;
+          } else {
+            errorMessage = 'pcmanfm failed: ${result.stderr}';
+          }
+        } catch (e) {
+          errorMessage = 'pcmanfm not available';
+        }
+      }
       
       // Close loading dialog
       if (context.mounted) {
         Navigator.of(context).pop();
       }
       
-      if (result.exitCode == 0) {
+      if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Wallpaper set successfully')),
         );
       } else {
-        throw Exception(result.stderr);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to set wallpaper. $errorMessage\nPlease install a compatible wallpaper setter for your desktop environment.'),
+            duration: const Duration(seconds: 5),
+          ),
+        );
       }
     } catch (e) {
       // Close loading dialog if it's still open

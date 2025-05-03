@@ -706,18 +706,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
             ),
           ),
           
-        // Tags option
-        PopupMenuItem<String>(
-          value: 'tags',
-          child: Row(
-            children: [
-              Icon(Icons.local_offer, size: 16),
-              SizedBox(width: 8),
-              Text('Manage Tags'),
-            ],
-          ),
-        ),
-        
         PopupMenuItem<String>(
           value: 'paste',
           child: Row(
@@ -806,37 +794,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         break;
       case 'extract':
         _extractFile(item);
-        break;
-      case 'tags':
-        Navigator.pushNamed(context, '/tags').then((result) {
-          if (result != null && result is Map<String, dynamic>) {
-            // Handle navigation to a file from the tags view
-            if (result['action'] == 'navigate') {
-              final path = result['path'] as String;
-              final parentDir = p.dirname(path);
-              _navigateToDirectory(parentDir);
-              
-              // Wait for directory to load, then select the file
-              Future.delayed(const Duration(milliseconds: 300), () {
-                setState(() {
-                  _selectedItemsPaths = {path};
-                });
-              });
-            } else if (result['action'] == 'open') {
-              final path = result['path'] as String;
-              // Try to find the file item to open it
-              try {
-                final file = File(path);
-                if (file.existsSync()) {
-                  final item = FileItem.fromFile(file);
-                  _handleItemDoubleTap(item);
-                }
-              } catch (e) {
-                debugPrint('Error opening file from tags: $e');
-              }
-            }
-          }
-        });
         break;
       case 'paste':
         _pasteFromSystemClipboard();

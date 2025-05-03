@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import '../models/file_item.dart';
 import '../models/preview_options.dart';
 import '../services/preview_panel_service.dart';
-import 'file_preview_screen.dart';
 import 'preview_options_dialog.dart';
 import 'quick_look_dialog.dart';
 import 'tag_selector.dart';
@@ -1205,6 +1204,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
     
     final mediaEditingActions = [
       QuickAction.rotate,
+      QuickAction.setWallpaper,
     ];
     
     // Filter actions from each category that are available for this file
