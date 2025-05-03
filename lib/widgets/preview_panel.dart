@@ -1177,7 +1177,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
     // Group actions into categories for better organization
     final commonActions = [
       QuickAction.openWith,
-      QuickAction.preview,
       QuickAction.quickLook,
     ];
     
@@ -1326,7 +1325,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
       case QuickAction.searchablePdf:
         _createSearchablePdf(context, item);
         break;
-      // Handle new quick actions
       case QuickAction.openWith:
         _openFileWith(item.path);
         break;
@@ -1338,9 +1336,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
         break;
       case QuickAction.rename:
         _renameFile(context, item);
-        break;
-      case QuickAction.preview:
-        _previewFile(context, item);
         break;
       case QuickAction.quickLook:
         _quickLookFile(context, item);
@@ -1371,6 +1366,14 @@ class _PreviewPanelState extends State<PreviewPanel> {
         break;
       case QuickAction.extractFile:
         _extractFile(context, item);
+        break;
+      case QuickAction.setWallpaper:
+        final previewService = Provider.of<PreviewPanelService>(context, listen: false);
+        previewService.handleQuickAction(QuickAction.setWallpaper, context);
+        break;
+      case QuickAction.extractAudio:
+        final previewService = Provider.of<PreviewPanelService>(context, listen: false);
+        previewService.handleQuickAction(QuickAction.extractAudio, context);
         break;
     }
   }
@@ -1631,15 +1634,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
         );
       }
     });
-  }
-  
-  void _previewFile(BuildContext context, FileItem item) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => FilePreviewScreen(item: item),
-      ),
-    );
   }
   
   void _quickLookFile(BuildContext context, FileItem item) {

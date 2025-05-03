@@ -24,7 +24,6 @@ enum QuickAction {
   compress,
   duplicate,
   rename,
-  preview,
   quickLook,
   copyPath,
   getInfo,
@@ -34,7 +33,9 @@ enum QuickAction {
   revealInFolder,
   convertAudio,
   compressVideo,
-  extractFile
+  extractFile,
+  setWallpaper,
+  extractAudio
 }
 
 class PreviewPanelService extends ChangeNotifier {
@@ -165,19 +166,19 @@ class PreviewPanelService extends ChangeNotifier {
       actions.add(QuickAction.quickLook);
       actions.add(QuickAction.rotate);
       actions.add(QuickAction.markup);
+      actions.add(QuickAction.setWallpaper);
     }
     
     // Video files
     else if (['.mp4', '.avi', '.mov', '.mkv', '.webm'].contains(ext)) {
       actions.add(QuickAction.quickLook);
-      actions.add(QuickAction.preview);
       actions.add(QuickAction.compressVideo);
+      actions.add(QuickAction.extractAudio);
     }
     
     // Audio files
     else if (['.mp3', '.wav', '.aac', '.flac', '.ogg'].contains(ext)) {
       actions.add(QuickAction.quickLook);
-      actions.add(QuickAction.preview);
       actions.add(QuickAction.convertAudio);
     }
     
@@ -190,9 +191,7 @@ class PreviewPanelService extends ChangeNotifier {
     // Document files
     else if (['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'].contains(ext)) {
       actions.add(QuickAction.quickLook);
-      actions.add(QuickAction.preview);
       actions.add(QuickAction.createPdf);
-      actions.add(QuickAction.extractText);
     }
     
     // Text files
@@ -233,8 +232,6 @@ class PreviewPanelService extends ChangeNotifier {
         return 'Duplicate';
       case QuickAction.rename:
         return 'Rename';
-      case QuickAction.preview:
-        return 'Preview';
       case QuickAction.quickLook:
         return 'Quick Look';
       case QuickAction.copyPath:
@@ -255,6 +252,10 @@ class PreviewPanelService extends ChangeNotifier {
         return 'Compress Video';
       case QuickAction.extractFile:
         return 'Extract File';
+      case QuickAction.setWallpaper:
+        return 'Set Wallpaper';
+      case QuickAction.extractAudio:
+        return 'Extract Audio';
     }
   }
   
@@ -277,8 +278,6 @@ class PreviewPanelService extends ChangeNotifier {
         return Icons.file_copy;
       case QuickAction.rename:
         return Icons.drive_file_rename_outline;
-      case QuickAction.preview:
-        return Icons.preview;
       case QuickAction.quickLook:
         return Icons.visibility;
       case QuickAction.copyPath:
@@ -299,6 +298,10 @@ class PreviewPanelService extends ChangeNotifier {
         return Icons.video_library;
       case QuickAction.extractFile:
         return Icons.file_download;
+      case QuickAction.setWallpaper:
+        return Icons.wallpaper;
+      case QuickAction.extractAudio:
+        return Icons.audiotrack;
     }
   }
   
@@ -387,9 +390,6 @@ class PreviewPanelService extends ChangeNotifier {
       case QuickAction.quickLook:
         _handleQuickLook(context);
         break;
-      case QuickAction.preview:
-        _handleOpen(context);
-        break;
       case QuickAction.openWith:
         _handleOpenWith(context);
         break;
@@ -444,6 +444,12 @@ class PreviewPanelService extends ChangeNotifier {
       case QuickAction.extractFile:
         _handleExtractFile(context);
         break;
+      case QuickAction.setWallpaper:
+        _handleSetWallpaper(context);
+        break;
+      case QuickAction.extractAudio:
+        _handleExtractAudio(context);
+        break;
     }
   }
 
@@ -455,25 +461,6 @@ class PreviewPanelService extends ChangeNotifier {
       previewPanelService: this,
     );
     quickLookService.showQuickLook(_selectedItem!);
-  }
-
-  void _handleOpen(BuildContext context) {
-    if (_selectedItem == null) return;
-    
-    try {
-      final process = Process.run('xdg-open', [_selectedItem!.path]);
-      process.then((result) {
-        if (result.exitCode != 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to open file: ${result.stderr}')),
-          );
-        }
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error opening file: $e')),
-      );
-    }
   }
 
   void _handleOpenWith(BuildContext context) {
@@ -1352,6 +1339,136 @@ class PreviewPanelService extends ChangeNotifier {
           SnackBar(content: Text('Failed to compress video: $e')),
         );
       }
+    }
+  }
+
+  void _handleSetWallpaper(BuildContext context) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      // Check if feh is installed
+      final fehResult = await Process.run('which', ['feh']);
+      if (fehResult.exitCode != 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('feh is not installed. Please install it to use set wallpaper.')),
+        );
+        return;
+      }
+      
+      // Show set wallpaper dialog
+      await showDialog<void>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Set Wallpaper'),
+            content: SizedBox(
+              width: 300,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.wallpaper),
+                    title: const Text('Set Wallpaper'),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _setWallpaper(context);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error setting wallpaper: $e')),
+        );
+      }
+    }
+  }
+  
+  Future<void> _setWallpaper(BuildContext context) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Set wallpaper using feh
+      final result = await Process.run('feh', ['--bg-scale', _selectedItem!.path]);
+      
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+      
+      if (result.exitCode == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Wallpaper set successfully')),
+        );
+      } else {
+        throw Exception(result.stderr);
+      }
+    } catch (e) {
+      // Close loading dialog if it's still open
+      if (context.mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to set wallpaper: $e')),
+        );
+      }
+    }
+  }
+
+  void _handleExtractAudio(BuildContext context) async {
+    if (_selectedItem == null) return;
+    
+    try {
+      final result = await Process.run('which', ['ffmpeg']);
+      if (result.exitCode != 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('FFmpeg is not installed. Please install it to use audio extraction.')),
+        );
+        return;
+      }
+      
+      final outputPath = '${_selectedItem!.path.substring(0, _selectedItem!.path.lastIndexOf('.'))}.wav';
+      final extractResult = await Process.run('ffmpeg', [
+        '-i', _selectedItem!.path,
+        '-q:a', '0',
+        '-map', 'a',
+        outputPath
+      ]);
+      
+      if (extractResult.exitCode == 0) {
+        refreshSelectedItem();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Audio extracted to: ${p.basename(outputPath)}')),
+        );
+      } else {
+        throw Exception(extractResult.stderr);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to extract audio: $e')),
+      );
     }
   }
 } 

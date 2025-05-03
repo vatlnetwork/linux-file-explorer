@@ -17,11 +17,16 @@ class GetInfoDialog extends StatefulWidget {
 }
 
 class _GetInfoDialogState extends State<GetInfoDialog> with SingleTickerProviderStateMixin {
-  late FileSystemEntity _entity;
   bool _isLoading = true;
   String? _error;
   Map<String, String> _info = {};
   late TabController _tabController;
+  bool _isLocked = false;
+  final Map<String, bool> _permissionStates = {
+    'Read': true,
+    'Write': true,
+    'Execute': false,
+  };
   
   @override
   void initState() {
@@ -38,11 +43,11 @@ class _GetInfoDialogState extends State<GetInfoDialog> with SingleTickerProvider
   
   Future<void> _loadFileInfo() async {
     try {
-      _entity = widget.item.type == FileItemType.directory
+      final entity = widget.item.type == FileItemType.directory
           ? Directory(widget.item.path)
           : File(widget.item.path);
       
-      final stat = await _entity.stat();
+      final stat = await entity.stat();
       final fileSystemService = FileSystemService();
       
       final owner = await fileSystemService.getFileOwner(widget.item.path);
@@ -189,6 +194,19 @@ class _GetInfoDialogState extends State<GetInfoDialog> with SingleTickerProvider
                           _buildInfoRow('Modified', widget.item.formattedModifiedTime),
                           if (widget.item.whereFrom != null)
                             _buildInfoRow('Where from', widget.item.whereFrom!),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // Lock checkbox
+                          Row(
+                            children: [
+                              Checkbox(
+                                value: _isLocked,
+                                onChanged: (value) => setState(() => _isLocked = value ?? false),
+                              ),
+                              const Text('Locked'),
+                            ],
+                          ),
                         ],
                       ],
                     ),
@@ -213,6 +231,9 @@ class _GetInfoDialogState extends State<GetInfoDialog> with SingleTickerProvider
                           _buildInfoRow('File extension', widget.item.fileExtension),
                           _buildInfoRow('File name', p.basename(widget.item.path)),
                           _buildInfoRow('Full path', widget.item.path),
+                          _buildInfoRow('Owner', _info['Owner'] ?? 'Unknown'),
+                          _buildInfoRow('Group', _info['Group'] ?? 'Unknown'),
+                          _buildInfoRow('Permissions', _info['Permissions'] ?? 'Unknown'),
                         ],
                       ],
                     ),
@@ -237,6 +258,13 @@ class _GetInfoDialogState extends State<GetInfoDialog> with SingleTickerProvider
                           _buildInfoRow('Owner', _info['Owner'] ?? 'Unknown'),
                           _buildInfoRow('Group', _info['Group'] ?? 'Unknown'),
                           _buildInfoRow('Access', _getAccessString(_info['Permissions'] ?? '')),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // Permission checkboxes
+                          _buildPermissionCheckbox('Read', true),
+                          _buildPermissionCheckbox('Write', true),
+                          _buildPermissionCheckbox('Execute', widget.item.type == FileItemType.directory),
                         ],
                       ],
                     ),
@@ -297,6 +325,36 @@ class _GetInfoDialogState extends State<GetInfoDialog> with SingleTickerProvider
         ],
       ),
     );
+  }
+  
+  Widget _buildPermissionCheckbox(String label, bool defaultValue) {
+    return Row(
+      children: [
+        Checkbox(
+          value: _permissionStates[label] ?? defaultValue,
+          onChanged: (value) async {
+            if (value != null) {
+              setState(() => _permissionStates[label] = value);
+              try {
+                final permission = _calculatePermission();
+                await Process.run('chmod', [permission, widget.item.path]);
+              } catch (e) {
+                // Revert on error
+                setState(() => _permissionStates[label] = !value);
+              }
+            }
+          },
+        ),
+        Text(label),
+      ],
+    );
+  }
+  
+  String _calculatePermission() {
+    final read = _permissionStates['Read'] ?? false ? 'r' : '-';
+    final write = _permissionStates['Write'] ?? false ? 'w' : '-';
+    final execute = _permissionStates['Execute'] ?? false ? 'x' : '-';
+    return 'u=$read$write$execute';
   }
   
   String _getKindDescription(FileItem item) {

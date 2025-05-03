@@ -706,41 +706,29 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
             ),
           ),
           
-        // Properties always available
+        // Tags option
         PopupMenuItem<String>(
-          value: 'properties',
+          value: 'tags',
           child: Row(
             children: [
-              Icon(Icons.info_outline, size: 16),
+              Icon(Icons.local_offer, size: 16),
               SizedBox(width: 8),
-              Text('Properties'),
+              Text('Manage Tags'),
+            ],
+          ),
+        ),
+        
+        PopupMenuItem<String>(
+          value: 'paste',
+          child: Row(
+            children: [
+              Icon(Icons.paste, size: 16),
+              SizedBox(width: 8),
+              Text('Paste'),
             ],
           ),
         ),
       ],
-      
-      // Tags option
-      PopupMenuItem<String>(
-        value: 'tags',
-        child: Row(
-          children: [
-            Icon(Icons.local_offer, size: 16),
-            SizedBox(width: 8),
-            Text('Manage Tags'),
-          ],
-        ),
-      ),
-      
-      PopupMenuItem<String>(
-        value: 'paste',
-        child: Row(
-          children: [
-            Icon(Icons.paste, size: 16),
-            SizedBox(width: 8),
-            Text('Paste'),
-          ],
-        ),
-      ),
     ];
     
     // Add mounted check again
@@ -819,9 +807,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       case 'extract':
         _extractFile(item);
         break;
-      case 'properties':
-        _showPropertiesDialog(item);
-        break;
       case 'tags':
         Navigator.pushNamed(context, '/tags').then((result) {
           if (result != null && result is Map<String, dynamic>) {
@@ -866,107 +851,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     }
   }
 
-  void _extractFile(FileItem item) async {
-    if (!mounted) return;
-    
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-
-    try {
-      // Get the parent directory
-      final parentDir = p.dirname(item.path);
-      
-      // Run unzip command
-      final result = await Process.run('unzip', ['-o', item.path, '-d', parentDir]);
-      
-      if (result.exitCode != 0) {
-        throw Exception(result.stderr);
-      }
-
-      // Close loading dialog
-      if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
-
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('File extracted to ${p.basename(parentDir)}'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-
-        // Refresh the directory view
-        Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
-      }
-    } catch (e) {
-      // Close loading dialog if it's still open
-      if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
-
-        // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to extract file: $e'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
-
-  // Add methods for multi-file operations
-  void _copyMultipleItems() {
-    if (_selectedItemsPaths.isEmpty) return;
-    
-    final items = _items.where((item) => _selectedItemsPaths.contains(item.path)).toList();
-    
-    setState(() {
-      _clipboardItems = items;
-      _isItemCut = false;
-    });
-    
-    // Copy the paths to the system clipboard (joined with newlines)
-    final String clipboardText = items.map((item) => item.path).join('\n');
-    FlutterClipboard.copy(clipboardText).then((result) {
-      if (mounted) {
-        NotificationService.showNotification(
-          context,
-          message: 'Copied ${items.length} items to clipboard',
-          type: NotificationType.info,
-        );
-      }
-    });
-  }
-  
-  void _cutMultipleItems() {
-    if (_selectedItemsPaths.isEmpty) return;
-    
-    final items = _items.where((item) => _selectedItemsPaths.contains(item.path)).toList();
-    
-    setState(() {
-      _clipboardItems = items;
-      _isItemCut = true;
-    });
-    
-    // Copy the paths to the system clipboard with a prefix indicating it's a cut operation
-    final String clipboardText = "CUT:\n${items.map((item) => item.path).join('\n')}";
-    FlutterClipboard.copy(clipboardText).then((result) {
-      if (mounted) {
-        NotificationService.showNotification(
-          context,
-          message: 'Cut ${items.length} items to clipboard',
-          type: NotificationType.info,
-        );
-      }
-    });
-  }
-  
   Future<void> _showDeleteMultipleConfirmation() async {
     if (_selectedItemsPaths.isEmpty) return;
     
@@ -3580,6 +3464,107 @@ exit
         fileName: file.name,
       ),
     );
+  }
+
+  Future<void> _extractFile(FileItem item) async {
+    if (!mounted) return;
+    
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      // Get the parent directory
+      final parentDir = p.dirname(item.path);
+      
+      // Run unzip command
+      final result = await Process.run('unzip', ['-o', item.path, '-d', parentDir]);
+      
+      if (result.exitCode != 0) {
+        throw Exception(result.stderr);
+      }
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('File extracted to ${p.basename(parentDir)}'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+
+        // Refresh the directory view
+        Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
+      }
+    } catch (e) {
+      // Close loading dialog if it's still open
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to extract file: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  // Add methods for multi-file operations
+  void _copyMultipleItems() {
+    if (_selectedItemsPaths.isEmpty) return;
+    
+    final items = _items.where((item) => _selectedItemsPaths.contains(item.path)).toList();
+    
+    setState(() {
+      _clipboardItems = items;
+      _isItemCut = false;
+    });
+    
+    // Copy the paths to the system clipboard (joined with newlines)
+    final String clipboardText = items.map((item) => item.path).join('\n');
+    FlutterClipboard.copy(clipboardText).then((result) {
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Copied ${items.length} items to clipboard',
+          type: NotificationType.info,
+        );
+      }
+    });
+  }
+  
+  void _cutMultipleItems() {
+    if (_selectedItemsPaths.isEmpty) return;
+    
+    final items = _items.where((item) => _selectedItemsPaths.contains(item.path)).toList();
+    
+    setState(() {
+      _clipboardItems = items;
+      _isItemCut = true;
+    });
+    
+    // Copy the paths to the system clipboard with a prefix indicating it's a cut operation
+    final String clipboardText = "CUT:\n${items.map((item) => item.path).join('\n')}";
+    FlutterClipboard.copy(clipboardText).then((result) {
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Cut ${items.length} items to clipboard',
+          type: NotificationType.info,
+        );
+      }
+    });
   }
 }
 
