@@ -79,6 +79,10 @@ class _TagSelectorState extends State<TagSelector> {
                         ),
                         border: OutlineInputBorder(),
                       ),
+                      onSubmitted: (value) => _addNewTag(context, tagsService),
+                      onChanged: (value) {
+                        setState(() {}); // Trigger rebuild to update UI
+                      },
                     ),
                   ),
                   const SizedBox(width: 8),
