@@ -60,7 +60,7 @@ void main() async {
   WindowOptions windowOptions = const WindowOptions(
     size: Size(1000, 800),
     center: true,
-    backgroundColor: Color(0xFFFFFFFF), // Light mode background
+    backgroundColor: Color(0xFF2D2D2D), // Dark gray background
     skipTaskbar: false,
     titleBarStyle: TitleBarStyle.hidden,
     windowButtonVisibility: true,

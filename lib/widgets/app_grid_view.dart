@@ -152,7 +152,7 @@ class _AppGridViewState extends State<AppGridView> with SingleTickerProviderStat
     
     return Card(
       elevation: 2,
-      color: isDarkMode ? const Color(0xFF2D2E30) : Colors.white,
+      color: isDarkMode ? const Color(0xFF202124) : Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -171,7 +171,7 @@ class _AppGridViewState extends State<AppGridView> with SingleTickerProviderStat
                 padding: const EdgeInsets.all(8.0),
                 decoration: BoxDecoration(
                   color: isDarkMode 
-                      ? const Color(0xFF3C4043)
+                      ? const Color(0xFF202124) // Match header bar color in dark mode
                       : const Color(0xFFF1F3F4),
                   shape: BoxShape.circle,
                 ),

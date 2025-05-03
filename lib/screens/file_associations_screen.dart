@@ -72,8 +72,10 @@ class _FileAssociationsScreenState extends State<FileAssociationsScreen> with Wi
     
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFFE8F0FE), // Light blue background
+        decoration: BoxDecoration(
+          color: isDarkMode 
+              ? const Color(0xFF2D2D2D) // Dark gray background for dark mode
+              : const Color(0xFFE8F0FE), // Light blue background for light mode
         ),
         child: Column(
           children: [
