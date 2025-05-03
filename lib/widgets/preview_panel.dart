@@ -435,9 +435,17 @@ class _PreviewPanelState extends State<PreviewPanel> {
           
           // Quick Actions section
           if (options.showQuickActions) ...[
-            const Divider(),
-            Padding(
+            const SizedBox(height: 16),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16.0),
               padding: const EdgeInsets.all(16.0),
+              width: 268, // 300 (panel width) - 32 (total margin)
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? const Color(0xFF3C4043) // Dark mode background
+                    : Colors.white, // Light mode background
+                borderRadius: BorderRadius.circular(12.0),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -651,9 +659,16 @@ class _PreviewPanelState extends State<PreviewPanel> {
           
           // Quick Actions section
           if (options.showQuickActions) ...[
-            const Divider(),
-            Padding(
+            const SizedBox(height: 16),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16.0),
               padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? const Color(0xFF3C4043) // Dark mode background
+                    : Colors.white, // Light mode background
+                borderRadius: BorderRadius.circular(12.0),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -740,9 +755,16 @@ class _PreviewPanelState extends State<PreviewPanel> {
           
           // Quick Actions section
           if (options.showQuickActions) ...[
-            const Divider(),
-            Padding(
+            const SizedBox(height: 16),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16.0),
               padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? const Color(0xFF3C4043) // Dark mode background
+                    : Colors.white, // Light mode background
+                borderRadius: BorderRadius.circular(12.0),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -831,9 +853,16 @@ class _PreviewPanelState extends State<PreviewPanel> {
             
             // Quick Actions section
             if (options.showQuickActions) ...[
-              const Divider(),
-              Padding(
+              const SizedBox(height: 16),
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16.0),
                 padding: const EdgeInsets.all(16.0),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? const Color(0xFF3C4043) // Dark mode background
+                      : Colors.white, // Light mode background
+                  borderRadius: BorderRadius.circular(12.0),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -922,9 +951,16 @@ class _PreviewPanelState extends State<PreviewPanel> {
           
           // Quick Actions section
           if (options.showQuickActions) ...[
-            const Divider(),
-            Padding(
+            const SizedBox(height: 16),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16.0),
               padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? const Color(0xFF3C4043) // Dark mode background
+                    : Colors.white, // Light mode background
+                borderRadius: BorderRadius.circular(12.0),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1070,9 +1106,16 @@ class _PreviewPanelState extends State<PreviewPanel> {
           
           // Quick Actions section
           if (options.showQuickActions) ...[
-            const Divider(),
-            Padding(
+            const SizedBox(height: 16),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16.0),
               padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? const Color(0xFF3C4043) // Dark mode background
+                    : Colors.white, // Light mode background
+                borderRadius: BorderRadius.circular(12.0),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
