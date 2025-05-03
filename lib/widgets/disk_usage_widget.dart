@@ -211,6 +211,7 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
+        color: isDarkMode ? null : const Color(0xFFF5F5F5),
         child: Container(
           padding: const EdgeInsets.all(16),
           child: Column(

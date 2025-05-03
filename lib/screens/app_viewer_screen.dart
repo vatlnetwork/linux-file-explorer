@@ -103,28 +103,33 @@ class _AppViewerScreenState extends State<AppViewerScreen> with WindowListener, 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          // Title bar with animation
-          FadeTransition(
-            opacity: _titleBarOpacity,
-            child: SlideTransition(
-              position: _titleBarSlide,
-              child: _buildTitleBar(context),
-            ),
-          ),
-          
-          // Main content with animation
-          Expanded(
-            child: FadeTransition(
-              opacity: _contentOpacity,
+      body: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFFE8F0FE), // Light blue background
+        ),
+        child: Column(
+          children: [
+            // Title bar with animation
+            FadeTransition(
+              opacity: _titleBarOpacity,
               child: SlideTransition(
-                position: _contentSlide,
-                child: const AppGridView(),
+                position: _titleBarSlide,
+                child: _buildTitleBar(context),
               ),
             ),
-          ),
-        ],
+            
+            // Main content with animation
+            Expanded(
+              child: FadeTransition(
+                opacity: _contentOpacity,
+                child: SlideTransition(
+                  position: _contentSlide,
+                  child: const AppGridView(),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

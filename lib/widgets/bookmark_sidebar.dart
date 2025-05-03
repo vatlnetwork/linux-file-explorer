@@ -67,17 +67,15 @@ class BookmarkSidebarState extends State<BookmarkSidebar> with SingleTickerProvi
         final isDarkMode = Theme.of(context).brightness == Brightness.dark;
         
         return Container(
-          width: 180,
+          width: 200,
           decoration: BoxDecoration(
             color: isDarkMode 
-                ? const Color(0xFF353535) // Lighter gray for dark mode
-                : const Color(0xFFF5F5F5), // Light mode color
+                ? const Color(0xFF252525) // Dark mode background
+                : Colors.white, // White background
             border: Border(
               right: BorderSide(
-                color: isDarkMode 
-                    ? Colors.grey.shade800 
-                    : Colors.grey.shade300,
-                width: 0.5,
+                color: isDarkMode ? Colors.black : Colors.grey.shade300,
+                width: 1,
               ),
             ),
           ),

@@ -71,20 +71,25 @@ class _FileAssociationsScreenState extends State<FileAssociationsScreen> with Wi
     }
     
     return Scaffold(
-      body: Column(
-        children: [
-          // Title bar
-          _buildTitleBar(context),
-          
-          // Main content
-          Expanded(
-            child: _isLoading || appService.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : extensions.isEmpty
-                ? _buildEmptyState(isDarkMode)
-                : _buildAssociationsList(context, extensions, fileAssociationService, appService),
-          ),
-        ],
+      body: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFFE8F0FE), // Light blue background
+        ),
+        child: Column(
+          children: [
+            // Title bar
+            _buildTitleBar(context),
+            
+            // Main content
+            Expanded(
+              child: _isLoading || appService.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : extensions.isEmpty
+                  ? _buildEmptyState(isDarkMode)
+                  : _buildAssociationsList(context, extensions, fileAssociationService, appService),
+            ),
+          ],
+        ),
       ),
     );
   }

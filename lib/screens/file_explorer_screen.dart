@@ -2787,61 +2787,68 @@ exit
         return KeyEventResult.handled;
       },
       child: Scaffold(
-        body: Column(
-          children: [
-            if (tabManager.showTabBar) const FileExplorerTabBar(),
-            _buildAppBar(context),
-            Expanded(
-              child: Row(
-                children: [
-                  if (_showBookmarkSidebar)
-                    AnimatedBuilder(
-                      animation: _bookmarkSidebarAnimation,
-                      builder: (context, child) {
-                        return SizedBox(
-                          width: _bookmarkSidebarAnimation.value * 200,
-                          child: BookmarkSidebar(
-                            onNavigate: _navigateToDirectory,
-                            currentPath: _currentPath,
+        body: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark 
+                ? const Color(0xFF202124) // Dark mode background
+                : const Color(0xFFE8F0FE), // Very light blue background
+          ),
+          child: Column(
+            children: [
+              if (tabManager.showTabBar) const FileExplorerTabBar(),
+              _buildAppBar(context),
+              Expanded(
+                child: Row(
+                  children: [
+                    if (_showBookmarkSidebar)
+                      AnimatedBuilder(
+                        animation: _bookmarkSidebarAnimation,
+                        builder: (context, child) {
+                          return SizedBox(
+                            width: _bookmarkSidebarAnimation.value * 200,
+                            child: BookmarkSidebar(
+                              onNavigate: _navigateToDirectory,
+                              currentPath: _currentPath,
+                            ),
+                          );
+                        },
+                      ),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: currentTab != null && currentTab.hasError
+                                ? Center(child: Text(currentTab.errorMessage))
+                                : _isLoading
+                                    ? const Center(child: CircularProgressIndicator())
+                                    : _buildFileView(),
                           ),
-                        );
-                      },
+                        ],
+                      ),
                     ),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Expanded(
-                          child: currentTab != null && currentTab.hasError
-                              ? Center(child: Text(currentTab.errorMessage))
-                              : _isLoading
-                                  ? const Center(child: CircularProgressIndicator())
-                                  : _buildFileView(),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (previewPanelService.showPreviewPanel)
-                    AnimatedBuilder(
-                      animation: _previewPanelAnimation,
-                      builder: (context, child) {
-                        return SizedBox(
-                          width: _previewPanelAnimation.value * 300,
-                          child: PreviewPanel(
-                            onNavigate: _navigateToDirectory,
-                          ),
-                        );
-                      },
-                    ),
-                ],
+                    if (previewPanelService.showPreviewPanel)
+                      AnimatedBuilder(
+                        animation: _previewPanelAnimation,
+                        builder: (context, child) {
+                          return SizedBox(
+                            width: _previewPanelAnimation.value * 300,
+                            child: PreviewPanel(
+                              onNavigate: _navigateToDirectory,
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
               ),
-            ),
-            if (Provider.of<StatusBarService>(context).showStatusBar)
-              StatusBar(
-                items: _items,
-                selectedItemsPaths: _selectedItemsPaths,
-                currentPath: _currentPath,
-              ),
-          ],
+              if (Provider.of<StatusBarService>(context).showStatusBar)
+                StatusBar(
+                  items: _items,
+                  selectedItemsPaths: _selectedItemsPaths,
+                  currentPath: _currentPath,
+                ),
+            ],
+          ),
         ),
       ),
     );

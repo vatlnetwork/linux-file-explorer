@@ -18,7 +18,7 @@ class AppsBookmarkButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: isDarkMode 
               ? const Color(0xFF3C4043)
-              : const Color(0xFFF1F3F4),
+              : const Color(0xFFE8F0FE),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
