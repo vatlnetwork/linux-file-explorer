@@ -7,11 +7,17 @@ import '../models/file_item.dart';
 class FileService {
   final _logger = Logger('FileService');
   String _currentDirectory = '/';
+  bool _isSearchCancelled = false;
+  final Duration _searchTimeout = const Duration(seconds: 30);
   
   String get currentDirectory => _currentDirectory;
   
   void setCurrentDirectory(String path) {
     _currentDirectory = path;
+  }
+  
+  void cancelSearch() {
+    _isSearchCancelled = true;
   }
   
   /// Get the home directory path
@@ -82,63 +88,123 @@ class FileService {
   }
   
   /// Search for files in a directory and its subdirectories
-  Future<List<FileItem>> searchInDirectoryAndSubdirectories(String directory, String query) async {
+  Future<List<FileItem>> searchInDirectoryAndSubdirectories(
+    String directory, 
+    String query, {
+    void Function(int progress, int total)? onProgress,
+  }) async {
+    _isSearchCancelled = false;
+    final items = <FileItem>[];
+    int processedCount = 0;
+    int totalCount = 0;
+    
+    // Skip system directories that typically require root access
+    if (directory.startsWith('/sys') || 
+        directory.startsWith('/proc') || 
+        directory.startsWith('/boot') ||
+        directory.startsWith('/lost+found') ||
+        directory.startsWith('/dev') ||
+        directory.startsWith('/run')) {
+      return [];
+    }
+    
     try {
-      final dir = Directory(directory);
-      final items = <FileItem>[];
-      
-      // Skip system directories that typically require root access
-      if (directory.startsWith('/sys') || 
-          directory.startsWith('/proc') || 
-          directory.startsWith('/boot') ||
-          directory.startsWith('/lost+found')) {
-        return [];
+      // First count total items for progress tracking
+      await for (final _ in Directory(directory).list(recursive: true)) {
+        if (_isSearchCancelled) break;
+        totalCount++;
       }
       
-      try {
-        await for (final entity in dir.list(recursive: true)) {
-          try {
-            // Skip system directories during traversal
-            if (entity.path.startsWith('/sys') || 
-                entity.path.startsWith('/proc') || 
-                entity.path.startsWith('/boot') ||
-                entity.path.startsWith('/lost+found')) {
-              continue;
-            }
-            
-            final item = await FileItem.fromEntity(entity);
-            if (item.name.toLowerCase().contains(query.toLowerCase())) {
-              items.add(item);
-            }
-          } catch (e) {
-            // Skip files that can't be accessed
-            _logger.fine('Skipping inaccessible file ${entity.path}: $e');
-          }
-        }
-      } catch (e) {
-        // Skip directories that can't be accessed
-        _logger.fine('Skipping inaccessible directory $directory: $e');
-      }
+      // Reset for actual search
+      processedCount = 0;
       
-      return items;
+      // Start search with timeout
+      final searchFuture = _performRecursiveSearch(
+        directory,
+        query,
+        items,
+        (count) {
+          processedCount = count;
+          onProgress?.call(processedCount, totalCount);
+        },
+      );
+      
+      // Wait for search with timeout
+      final result = await searchFuture.timeout(
+        _searchTimeout,
+        onTimeout: () {
+          _logger.warning('Search timed out after $_searchTimeout');
+          return [];
+        },
+      );
+      
+      return result;
     } catch (e) {
       _logger.warning('Error searching directory and subdirectories: $e');
       return [];
     }
   }
   
-  /// Search for files in all mounted filesystems
-  Future<List<FileItem>> searchAllFiles(String query) async {
+  Future<List<FileItem>> _performRecursiveSearch(
+    String directory,
+    String query,
+    List<FileItem> items,
+    void Function(int) onProgress,
+  ) async {
     try {
-      final items = <FileItem>[];
+      final dir = Directory(directory);
+      if (!await dir.exists()) return items;
       
+      await for (final entity in dir.list(recursive: true)) {
+        if (_isSearchCancelled) break;
+        
+        // Skip system directories during traversal
+        if (entity.path.startsWith('/sys') || 
+            entity.path.startsWith('/proc') || 
+            entity.path.startsWith('/boot') ||
+            entity.path.startsWith('/lost+found') ||
+            entity.path.startsWith('/dev') ||
+            entity.path.startsWith('/run')) {
+          continue;
+        }
+        
+        try {
+          final item = await FileItem.fromEntity(entity);
+          if (item.name.toLowerCase().contains(query.toLowerCase())) {
+            items.add(item);
+          }
+          onProgress(items.length);
+        } catch (e) {
+          // Skip files that can't be accessed
+          _logger.fine('Skipping inaccessible file ${entity.path}: $e');
+        }
+      }
+    } catch (e) {
+      // Skip directories that can't be accessed
+      _logger.fine('Skipping inaccessible directory $directory: $e');
+    }
+    
+    return items;
+  }
+  
+  /// Search for files in all mounted filesystems
+  Future<List<FileItem>> searchAllFiles(
+    String query, {
+    void Function(int progress, int total)? onProgress,
+  }) async {
+    _isSearchCancelled = false;
+    final items = <FileItem>[];
+    int processedCount = 0;
+    int totalCount = 0;
+    
+    try {
       // Get list of mounted filesystems
-      final result = await Process.run('df', ['-P']);
-      if (result.exitCode != 0) {
+      final dfResult = await Process.run('df', ['-P']);
+      if (dfResult.exitCode != 0) {
         throw Exception('Failed to get mounted filesystems');
       }
       
-      final lines = result.stdout.toString().split('\n');
+      final lines = dfResult.stdout.toString().split('\n');
       final mountPoints = <String>[];
       
       // Skip header line and parse mount points
@@ -157,21 +223,79 @@ class FileService {
         }
       }
       
-      // Search each mount point
+      // Count total items for progress tracking
       for (final mountPoint in mountPoints) {
+        if (_isSearchCancelled) break;
         try {
-          final results = await searchInDirectoryAndSubdirectories(mountPoint, query);
-          items.addAll(results);
+          await for (final _ in Directory(mountPoint).list(recursive: true)) {
+            if (_isSearchCancelled) break;
+            totalCount++;
+          }
         } catch (e) {
-          _logger.warning('Error searching mount point $mountPoint: $e');
+          _logger.warning('Error counting items in $mountPoint: $e');
         }
       }
       
-      return items;
+      // Reset for actual search
+      processedCount = 0;
+      
+      // Start search with timeout
+      final searchFuture = _performAllFilesSearch(
+        mountPoints,
+        query,
+        items,
+        (count) {
+          processedCount = count;
+          onProgress?.call(processedCount, totalCount);
+        },
+      );
+      
+      // Wait for search with timeout
+      final searchResult = await searchFuture.timeout(
+        _searchTimeout,
+        onTimeout: () {
+          _logger.warning('Search timed out after $_searchTimeout');
+          return [];
+        },
+      );
+      
+      return searchResult;
     } catch (e) {
       _logger.warning('Error searching all files: $e');
       return [];
     }
+  }
+  
+  Future<List<FileItem>> _performAllFilesSearch(
+    List<String> mountPoints,
+    String query,
+    List<FileItem> items,
+    void Function(int) onProgress,
+  ) async {
+    for (final mountPoint in mountPoints) {
+      if (_isSearchCancelled) break;
+      
+      try {
+        await for (final entity in Directory(mountPoint).list(recursive: true)) {
+          if (_isSearchCancelled) break;
+          
+          try {
+            final item = await FileItem.fromEntity(entity);
+            if (item.name.toLowerCase().contains(query.toLowerCase())) {
+              items.add(item);
+            }
+            onProgress(items.length);
+          } catch (e) {
+            // Skip files that can't be accessed
+            _logger.fine('Skipping inaccessible file ${entity.path}: $e');
+          }
+        }
+      } catch (e) {
+        _logger.warning('Error searching mount point $mountPoint: $e');
+      }
+    }
+    
+    return items;
   }
   
   /// Create a new directory

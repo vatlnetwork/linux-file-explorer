@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../services/file_service.dart';
 import '../models/file_item.dart';
+import 'dart:async';
 
 class SearchDialog extends StatefulWidget {
-  const SearchDialog({super.key});
+  final String currentDirectory;
+  final FileService fileService;
+  final void Function(String) onFileSelected;
+
+  const SearchDialog({
+    super.key,
+    required this.currentDirectory,
+    required this.fileService,
+    required this.onFileSelected,
+  });
 
   @override
   State<SearchDialog> createState() => _SearchDialogState();
@@ -13,10 +22,14 @@ class SearchDialog extends StatefulWidget {
 class _SearchDialogState extends State<SearchDialog> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
-  String _searchQuery = '';
-  List<FileItem> _searchResults = [];
   SearchScope _searchScope = SearchScope.currentDirectory;
   bool _isSearching = false;
+  String _searchStatus = '';
+  int _searchProgress = 0;
+  int _searchTotal = 0;
+  Timer? _searchTimeout;
+  Timer? _debounceTimer;
+  List<FileItem> _searchResults = [];
 
   @override
   void initState() {
@@ -28,11 +41,21 @@ class _SearchDialogState extends State<SearchDialog> {
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _searchTimeout?.cancel();
+    _debounceTimer?.cancel();
+    widget.fileService.cancelSearch();
     super.dispose();
   }
 
-  void _performSearch() async {
-    if (_searchQuery.isEmpty) {
+  void _onSearchChanged(String value) {
+    if (_debounceTimer?.isActive ?? false) _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      _performSearch();
+    });
+  }
+
+  Future<void> _performSearch() async {
+    if (_searchController.text.isEmpty) {
       setState(() {
         _searchResults = [];
         _isSearching = false;
@@ -42,34 +65,82 @@ class _SearchDialogState extends State<SearchDialog> {
 
     setState(() {
       _isSearching = true;
+      _searchStatus = 'Searching...';
+      _searchProgress = 0;
+      _searchTotal = 0;
     });
 
-    final fileService = Provider.of<FileService>(context, listen: false);
-    List<FileItem> results = [];
+    // Cancel any existing search
+    widget.fileService.cancelSearch();
 
-    switch (_searchScope) {
-      case SearchScope.currentDirectory:
-        results = await fileService.searchInDirectory(
-          fileService.currentDirectory,
-          _searchQuery,
-        );
-        break;
-      case SearchScope.directoryAndSubdirectories:
-        results = await fileService.searchInDirectoryAndSubdirectories(
-          fileService.currentDirectory,
-          _searchQuery,
-        );
-        break;
-      case SearchScope.allFiles:
-        results = await fileService.searchAllFiles(_searchQuery);
-        break;
-    }
+    // Set a timeout to cancel the search if it takes too long
+    _searchTimeout?.cancel();
+    _searchTimeout = Timer(const Duration(seconds: 35), () {
+      if (mounted) {
+        setState(() {
+          _isSearching = false;
+          _searchStatus = 'Search timed out. Try a more specific search.';
+        });
+        widget.fileService.cancelSearch();
+      }
+    });
 
-    if (mounted) {
-      setState(() {
-        _searchResults = results;
-        _isSearching = false;
-      });
+    try {
+      List<FileItem> results;
+      switch (_searchScope) {
+        case SearchScope.currentDirectory:
+          results = await widget.fileService.searchInDirectory(
+            widget.currentDirectory,
+            _searchController.text,
+          );
+          break;
+        case SearchScope.directoryAndSubdirectories:
+          results = await widget.fileService.searchInDirectoryAndSubdirectories(
+            widget.currentDirectory,
+            _searchController.text,
+            onProgress: (progress, total) {
+              if (mounted) {
+                setState(() {
+                  _searchProgress = progress;
+                  _searchTotal = total;
+                  _searchStatus = 'Searching... ($progress/$total)';
+                });
+              }
+            },
+          );
+          break;
+        case SearchScope.allFiles:
+          results = await widget.fileService.searchAllFiles(
+            _searchController.text,
+            onProgress: (progress, total) {
+              if (mounted) {
+                setState(() {
+                  _searchProgress = progress;
+                  _searchTotal = total;
+                  _searchStatus = 'Searching... ($progress/$total)';
+                });
+              }
+            },
+          );
+          break;
+      }
+
+      _searchTimeout?.cancel();
+
+      if (mounted) {
+        setState(() {
+          _searchResults = results;
+          _isSearching = false;
+          _searchStatus = 'Found ${results.length} results';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSearching = false;
+          _searchStatus = 'Error: $e';
+        });
+      }
     }
   }
 
@@ -115,12 +186,7 @@ class _SearchDialogState extends State<SearchDialog> {
                         hintText: 'Search files...',
                         border: InputBorder.none,
                       ),
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value;
-                        });
-                        _performSearch();
-                      },
+                      onChanged: _onSearchChanged,
                     ),
                   ),
                   PopupMenuButton<SearchScope>(
@@ -197,9 +263,32 @@ class _SearchDialogState extends State<SearchDialog> {
                       ),
                     ],
                   ),
+                  if (_isSearching)
+                    IconButton(
+                      icon: const Icon(Icons.cancel),
+                      onPressed: () {
+                        widget.fileService.cancelSearch();
+                        setState(() {
+                          _isSearching = false;
+                          _searchStatus = 'Search cancelled';
+                        });
+                      },
+                    ),
                 ],
               ),
             ),
+            if (_searchStatus.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  _searchStatus,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            if (_searchTotal > 0)
+              LinearProgressIndicator(
+                value: _searchTotal > 0 ? _searchProgress / _searchTotal : null,
+              ),
             // Search results
             Expanded(
               child: _isSearching
@@ -207,7 +296,7 @@ class _SearchDialogState extends State<SearchDialog> {
                   : _searchResults.isEmpty
                       ? Center(
                           child: Text(
-                            _searchQuery.isEmpty
+                            _searchController.text.isEmpty
                                 ? 'Start typing to search'
                                 : 'No results found',
                             style: TextStyle(

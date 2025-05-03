@@ -1508,7 +1508,11 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     
     final result = await showDialog<FileItem>(
       context: context,
-      builder: (context) => const SearchDialog(),
+      builder: (context) => SearchDialog(
+        currentDirectory: _currentPath,
+        fileService: _fileService,
+        onFileSelected: (path) => _navigateToDirectory(path),
+      ),
     );
     
     if (result != null) {

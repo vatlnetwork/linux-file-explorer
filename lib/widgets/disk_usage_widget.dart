@@ -94,8 +94,9 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
         final Offset position = renderBox.localToGlobal(Offset.zero);
         
         final screenSize = MediaQuery.of(context).size;
-        final popupWidth = screenSize.width * 0.4;
-        final popupHeight = screenSize.height * 0.6;
+        // Reduced dimensions for a more compact popup
+        const popupWidth = 400.0;
+        const popupHeight = 500.0;
         
         // Determine if there's enough space to the right
         // If not, show it on the left
