@@ -69,6 +69,8 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
     return Dialog(
       insetPadding: const EdgeInsets.all(24),
       child: ClipRRect(
@@ -76,7 +78,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
         child: Container(
           width: MediaQuery.of(context).size.width * 0.8, 
           height: MediaQuery.of(context).size.height * 0.8,
-          color: Theme.of(context).scaffoldBackgroundColor,
+          color: isDarkMode ? const Color(0xFF2A2A2A) : const Color(0xFFF5F5F5),
           child: Column(
             children: [
               _buildHeader(),

@@ -111,6 +111,9 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
     final progressBackgroundColor = widget.darkMode ? Colors.grey[800] : Colors.grey[300];
     final progressColor = widget.darkMode ? Colors.blue[300] : Colors.blue;
     final containerColor = widget.darkMode ? Colors.grey[900] : Colors.grey[100];
+    final albumArtColor = widget.darkMode ? Colors.grey[850] : Colors.grey[200];
+    final controlsBackgroundColor = widget.darkMode ? Colors.grey[850] : Colors.grey[200];
+    final timeIndicatorColor = widget.darkMode ? Colors.grey[500] : Colors.grey[600];
     
     if (widget.compact) {
       return _buildCompactPlayer(textColor, secondaryColor, progressBackgroundColor, progressColor);
@@ -139,7 +142,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
             width: 180,
             height: 180,
             decoration: BoxDecoration(
-              color: widget.darkMode ? Colors.black : Colors.grey[200],
+              color: albumArtColor,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -176,38 +179,45 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
           const SizedBox(height: 32),
           
           // Playback controls
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.skip_previous),
-                color: textColor,
-                iconSize: 36,
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Previous track')),
-                  );
-                },
-              ),
-              const SizedBox(width: 16),
-              IconButton(
-                icon: Icon(_isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled),
-                color: textColor,
-                iconSize: 48,
-                onPressed: _togglePlayPause,
-              ),
-              const SizedBox(width: 16),
-              IconButton(
-                icon: const Icon(Icons.skip_next),
-                color: textColor,
-                iconSize: 36,
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Next track')),
-                  );
-                },
-              ),
-            ],
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: controlsBackgroundColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.skip_previous),
+                  color: textColor,
+                  iconSize: 36,
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Previous track')),
+                    );
+                  },
+                ),
+                const SizedBox(width: 16),
+                IconButton(
+                  icon: Icon(_isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled),
+                  color: textColor,
+                  iconSize: 48,
+                  onPressed: _togglePlayPause,
+                ),
+                const SizedBox(width: 16),
+                IconButton(
+                  icon: const Icon(Icons.skip_next),
+                  color: textColor,
+                  iconSize: 36,
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Next track')),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
           
@@ -236,8 +246,8 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(_currentTime, style: TextStyle(color: secondaryColor, fontSize: 12)),
-                Text(_totalTime, style: TextStyle(color: secondaryColor, fontSize: 12)),
+                Text(_currentTime, style: TextStyle(color: timeIndicatorColor, fontSize: 12)),
+                Text(_totalTime, style: TextStyle(color: timeIndicatorColor, fontSize: 12)),
               ],
             ),
           ),
