@@ -61,7 +61,7 @@ class FileListTile extends StatelessWidget {
                 child: Wrap(
                   spacing: 4,
                   runSpacing: 4,
-                  children: fileTags.map((tag) => _buildTagChip(tag)).toList(),
+                  children: fileTags.map((tag) => _buildTagChip(context, tag)).toList(),
                 ),
               ),
           ],
@@ -71,14 +71,16 @@ class FileListTile extends StatelessWidget {
     );
   }
   
-  Widget _buildTagChip(Tag tag) {
+  Widget _buildTagChip(BuildContext context, Tag tag) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: tag.color.withAlpha(50),
         borderRadius: BorderRadius.circular(4),
         border: Border.all(
-          color: tag.color.withAlpha(100),
+          color: Theme.of(context).brightness == Brightness.dark 
+              ? tag.color.withAlpha(100)
+              : Colors.transparent,
           width: 0.5,
         ),
       ),

@@ -229,9 +229,25 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       final tabManager = Provider.of<TabManagerService>(context, listen: false);
       tabManager.updateCurrentTabPath(path);
     } catch (e) {
-      _handleError('Failed to load directory: $e');
-      final tabManager = Provider.of<TabManagerService>(context, listen: false);
-      tabManager.updateCurrentTabError(true, 'Failed to load directory: $e');
+      // Show error notification
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Failed to load directory: $e',
+          type: NotificationType.error,
+        );
+      }
+
+      // Navigate back to previous directory if available
+      if (_navigationHistory.isNotEmpty) {
+        final previousPath = _navigationHistory.removeLast();
+        _loadDirectory(previousPath, addToHistory: false);
+      } else {
+        // If no history, just show error state
+        _handleError('Failed to load directory: $e');
+        final tabManager = Provider.of<TabManagerService>(context, listen: false);
+        tabManager.updateCurrentTabError(true, 'Failed to load directory: $e');
+      }
     }
   }
 
@@ -2884,13 +2900,6 @@ exit
             },
           ),
         ),
-        // Status bar at the bottom
-        if (statusBarService.showStatusBar)
-          StatusBar(
-            items: _items,
-            selectedItemsPaths: _selectedItemsPaths,
-            currentPath: _currentPath,
-          ),
       ],
     );
   }

@@ -33,8 +33,10 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFFE8F0FE), // Light blue background
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark 
+              ? const Color(0xFF202124) // Dark mode background
+              : const Color(0xFFE8F0FE), // Light blue background
         ),
         child: Column(
           children: [
@@ -100,7 +102,9 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
                         flex: 1,
                         child: Material(
                           elevation: 1,
-                          color: const Color(0xFFE8F0FE), // Light blue background
+                          color: Theme.of(context).brightness == Brightness.dark 
+                              ? const Color(0xFF3C4043) // Lighter gray for dark mode
+                              : Colors.white, // White for light mode
                           child: tags.isEmpty
                               ? Center(
                                   child: Text(
@@ -153,60 +157,70 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
                         ),
                       ),
                       
-                      const VerticalDivider(width: 1, thickness: 1),
-                      
                       Expanded(
                         flex: 2,
-                        child: Column(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
-                              child: Container(
-                                constraints: const BoxConstraints(maxHeight: 36),
-                                child: TextField(
-                                  controller: _searchController,
-                                  decoration: InputDecoration(
-                                    hintText: 'Search tags...',
-                                    hintStyle: const TextStyle(fontSize: 13),
-                                    prefixIcon: const Icon(Icons.search, size: 18),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8.0),
-                                      borderSide: BorderSide(width: 0.5, color: Colors.grey.shade400),
+                        child: Material(
+                          color: Theme.of(context).brightness == Brightness.dark 
+                              ? const Color(0xFF202124) // Dark mode background
+                              : const Color(0xFFE8F0FE), // Light blue background
+                          child: Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+                                child: Container(
+                                  constraints: const BoxConstraints(maxHeight: 36),
+                                  child: TextField(
+                                    controller: _searchController,
+                                    decoration: InputDecoration(
+                                      hintText: 'Search tags...',
+                                      hintStyle: const TextStyle(fontSize: 13),
+                                      prefixIcon: const Icon(Icons.search, size: 18),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8.0),
+                                        borderSide: BorderSide(width: 0.5, color: Colors.grey.shade400),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8.0),
+                                        borderSide: BorderSide(width: 0.5, color: Colors.grey.shade400),
+                                      ),
+                                      contentPadding: EdgeInsets.zero,
+                                      isDense: true,
+                                      filled: true,
+                                      fillColor: Theme.of(context).brightness == Brightness.dark
+                                          ? Colors.grey[800]
+                                          : Colors.grey[200],
                                     ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8.0),
-                                      borderSide: BorderSide(width: 0.5, color: Colors.grey.shade400),
-                                    ),
-                                    contentPadding: EdgeInsets.zero,
-                                    isDense: true,
-                                    filled: true,
-                                    fillColor: Theme.of(context).brightness == Brightness.dark
-                                        ? Colors.grey[800]
-                                        : Colors.grey[200],
+                                    style: const TextStyle(fontSize: 13),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _searchQuery = value;
+                                        // Clear selection if the selected tag is filtered out
+                                        if (_selectedTagId != null && 
+                                            !tags.any((tag) => tag.id == _selectedTagId)) {
+                                          _selectedTagId = null;
+                                        }
+                                      });
+                                    },
                                   ),
-                                  style: const TextStyle(fontSize: 13),
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _searchQuery = value;
-                                      // Clear selection if the selected tag is filtered out
-                                      if (_selectedTagId != null && 
-                                          !tags.any((tag) => tag.id == _selectedTagId)) {
-                                        _selectedTagId = null;
-                                      }
-                                    });
-                                  },
                                 ),
                               ),
-                            ),
-                            
-                            Expanded(
-                              child: _selectedTagId == null
-                                  ? const Center(
-                                      child: Text('Select a tag to view associated files'),
-                                    )
-                                  : _buildFilesForTag(tagsService, _selectedTagId!),
-                            ),
-                          ],
+                              
+                              Expanded(
+                                child: _selectedTagId == null
+                                    ? const Center(
+                                        child: Text('Select a tag to view associated files'),
+                                      )
+                                    : Column(
+                                        children: [
+                                          _buildTagInfoWidget(tagsService, _selectedTagId!),
+                                          Expanded(
+                                            child: _buildFilesForTag(tagsService, _selectedTagId!),
+                                          ),
+                                        ],
+                                      ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -386,8 +400,17 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
               }
               
               return Card(
-                elevation: 0.5,
+                elevation: 0,
                 margin: const EdgeInsets.symmetric(vertical: 4.0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4.0),
+                  side: BorderSide(
+                    color: Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.grey.shade800 
+                        : Colors.transparent,
+                    width: 0.5,
+                  ),
+                ),
                 child: FileListTile(
                   file: file,
                   onTap: () {
@@ -410,6 +433,50 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildTagInfoWidget(TagsService tagsService, String tagId) {
+    final tag = tagsService.availableTags.firstWhere((t) => t.id == tagId);
+    final files = tagsService.getFilesWithTag(tagId);
+    
+    return Container(
+      margin: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark 
+            ? const Color(0xFF3C4043)
+            : Colors.white,
+        borderRadius: BorderRadius.circular(12.0),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.local_offer, color: tag.color, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                tag.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '${files.length} ${files.length == 1 ? 'file' : 'files'} tagged',
+            style: TextStyle(
+              fontSize: 14,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey.shade400
+                  : Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 } 

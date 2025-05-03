@@ -34,89 +34,99 @@ class _TagSelectorState extends State<TagSelector> {
         final fileTags = tagsService.getTagsForFile(widget.filePath);
         final availableTags = tagsService.availableTags;
         
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Selected tags
-            if (fileTags.isNotEmpty) ...[
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 1.0),
+          padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark 
+                ? const Color(0xFF3C4043) // Dark mode background
+                : Colors.white, // Light mode background
+            borderRadius: BorderRadius.circular(12.0),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Selected tags
+              if (fileTags.isNotEmpty) ...[
+                const Text(
+                  'Tags',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: fileTags
+                      .map((tag) => _buildTagChip(context, tag, tagsService))
+                      .toList(),
+                ),
+                const SizedBox(height: 16),
+              ],
+              
+              // Add new tag
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _tagController,
+                      decoration: const InputDecoration(
+                        hintText: 'Add a tag...',
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: () => _selectColor(context),
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: _selectedColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () => _addNewTag(context, tagsService),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 0,
+                      ),
+                      minimumSize: const Size(0, 36),
+                    ),
+                    child: const Text('Add'),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Available tags
               const Text(
-                'Tags',
+                'Available Tags',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: fileTags
-                    .map((tag) => _buildTagChip(context, tag, tagsService))
+                children: availableTags
+                    .where((tag) => !fileTags.contains(tag))
+                    .map((tag) => _buildAvailableTagChip(context, tag, tagsService))
                     .toList(),
               ),
-              const SizedBox(height: 16),
             ],
-            
-            // Add new tag
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _tagController,
-                    decoration: const InputDecoration(
-                      hintText: 'Add a tag...',
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: () => _selectColor(context),
-                  child: Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: _selectedColor,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: () => _addNewTag(context, tagsService),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 0,
-                    ),
-                    minimumSize: const Size(0, 36),
-                  ),
-                  child: const Text('Add'),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Available tags
-            const Text(
-              'Available Tags',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: availableTags
-                  .where((tag) => !fileTags.contains(tag))
-                  .map((tag) => _buildAvailableTagChip(context, tag, tagsService))
-                  .toList(),
-            ),
-          ],
+          ),
         );
       },
     );

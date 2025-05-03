@@ -72,20 +72,9 @@ class _SearchDialogState extends State<SearchDialog> {
     // Cancel any existing search
     widget.fileService.cancelSearch();
 
-    // Set a timeout to cancel the search if it takes too long
-    _searchTimeout?.cancel();
-    _searchTimeout = Timer(const Duration(seconds: 35), () {
-      if (mounted) {
-        setState(() {
-          _isSearching = false;
-          _searchStatus = 'Search timed out. Try a more specific search.';
-        });
-        widget.fileService.cancelSearch();
-      }
-    });
-
     try {
-      final results = await widget.fileService.searchAllFiles(
+      final results = await widget.fileService.searchInDirectoryAndSubdirectories(
+        widget.currentDirectory,
         _searchController.text,
         onProgress: (progress, total) {
           if (mounted) {
@@ -97,8 +86,6 @@ class _SearchDialogState extends State<SearchDialog> {
           }
         },
       );
-
-      _searchTimeout?.cancel();
 
       if (mounted) {
         setState(() {
