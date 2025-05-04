@@ -332,8 +332,14 @@ class _PreviewPanelState extends State<PreviewPanel> {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+            child: GridView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 2.5,
+                crossAxisSpacing: 8.0,
+                mainAxisSpacing: 8.0,
+              ),
               itemCount: folders.length,
               itemBuilder: (context, index) {
                 final dirItem = folders[index];
@@ -341,22 +347,32 @@ class _PreviewPanelState extends State<PreviewPanel> {
                   onDoubleTap: () {
                     widget.onNavigate(dirItem.path);
                   },
-                  child: ListTile(
-                    leading: const Icon(Icons.folder, color: Colors.amber),
-                    title: Text(
-                      dirItem.name,
-                      overflow: TextOverflow.ellipsis,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark 
+                          ? const Color(0xFF3C4043)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(8.0),
                     ),
-                    subtitle: const Text(
-                      'Directory',
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
+                    child: ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.folder, color: Colors.amber, size: 20),
+                      title: Text(
+                        dirItem.name,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12),
                       ),
+                      subtitle: const Text(
+                        'Directory',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 10,
+                        ),
+                      ),
+                      onTap: () {
+                        // Just select the item but don't navigate
+                      },
                     ),
-                    onTap: () {
-                      // Just select the item but don't navigate
-                    },
                   ),
                 );
               },
@@ -375,22 +391,38 @@ class _PreviewPanelState extends State<PreviewPanel> {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+            child: GridView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 2.5,
+                crossAxisSpacing: 8.0,
+                mainAxisSpacing: 8.0,
+              ),
               itemCount: files.length,
               itemBuilder: (context, index) {
                 final fileItem = files[index];
-                return ListTile(
-                  leading: const Icon(Icons.insert_drive_file, color: Colors.blue),
-                  title: Text(
-                    fileItem.name,
-                    overflow: TextOverflow.ellipsis,
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark 
+                        ? const Color(0xFF3C4043)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(8.0),
                   ),
-                  subtitle: Text(
-                    fileItem.formattedSize,
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 12,
+                  child: ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.insert_drive_file, color: Colors.blue, size: 20),
+                    title: Text(
+                      fileItem.name,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    subtitle: Text(
+                      fileItem.formattedSize,
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 10,
+                      ),
                     ),
                   ),
                 );
