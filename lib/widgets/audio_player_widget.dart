@@ -2,6 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../models/file_item.dart';
+import '../services/file_service.dart';
+import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
 
 class AudioPlayerWidget extends StatefulWidget {
   final FileItem audioFile;
@@ -25,17 +28,43 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   double _progress = 0.0;
   String _currentTime = '0:00';
   String _totalTime = '0:00';
+  List<FileItem>? _audioFiles;
+  int _currentIndex = 0;
+  
+  FileItem get _currentFile => _audioFiles?[_currentIndex] ?? widget.audioFile;
   
   @override
   void initState() {
     super.initState();
     _initAudioPlayer();
+    _loadAudioFiles();
   }
   
   @override
   void dispose() {
     _audioPlayer.dispose();
     super.dispose();
+  }
+  
+  Future<void> _loadAudioFiles() async {
+    final parentDir = p.dirname(widget.audioFile.path);
+    final fileService = Provider.of<FileService>(context, listen: false);
+    final files = await fileService.listDirectory(parentDir);
+    
+    // Filter for audio files and sort them
+    final audioFiles = files.where((file) {
+      final ext = file.fileExtension.toLowerCase();
+      return file.type == FileItemType.file && 
+             ['.mp3', '.wav', '.aac', '.flac', '.ogg'].contains(ext);
+    }).toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+    
+    if (mounted) {
+      setState(() {
+        _audioFiles = audioFiles;
+        _currentIndex = audioFiles.indexWhere((file) => file.path == widget.audioFile.path);
+      });
+    }
   }
   
   Future<void> _initAudioPlayer() async {
@@ -72,6 +101,13 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
       }
     });
 
+    // Listen to completion
+    _audioPlayer.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed) {
+        _playNextTrack();
+      }
+    });
+
     try {
       debugPrint('AudioPlayerWidget: Setting file path: ${widget.audioFile.path}');
       await _audioPlayer.setFilePath(widget.audioFile.path);
@@ -102,6 +138,46 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
     final minutes = twoDigits(duration.inMinutes.remainder(60));
     final seconds = twoDigits(duration.inSeconds.remainder(60));
     return '$minutes:$seconds';
+  }
+  
+  Future<void> _playNextTrack() async {
+    if (_audioFiles == null || _audioFiles!.isEmpty) return;
+    
+    final nextIndex = (_currentIndex + 1) % _audioFiles!.length;
+    final nextFile = _audioFiles![nextIndex];
+    
+    try {
+      await _audioPlayer.setFilePath(nextFile.path);
+      await _audioPlayer.play();
+      
+      if (mounted) {
+        setState(() {
+          _currentIndex = nextIndex;
+        });
+      }
+    } catch (e) {
+      debugPrint('AudioPlayerWidget: Error playing next track: $e');
+    }
+  }
+  
+  Future<void> _playPreviousTrack() async {
+    if (_audioFiles == null || _audioFiles!.isEmpty) return;
+    
+    final prevIndex = (_currentIndex - 1 + _audioFiles!.length) % _audioFiles!.length;
+    final prevFile = _audioFiles![prevIndex];
+    
+    try {
+      await _audioPlayer.setFilePath(prevFile.path);
+      await _audioPlayer.play();
+      
+      if (mounted) {
+        setState(() {
+          _currentIndex = prevIndex;
+        });
+      }
+    } catch (e) {
+      debugPrint('AudioPlayerWidget: Error playing previous track: $e');
+    }
   }
   
   @override
@@ -155,7 +231,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
           
           // Title
           Text(
-            widget.audioFile.name,
+            _currentFile.name,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -192,11 +268,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                   icon: const Icon(Icons.skip_previous),
                   color: textColor,
                   iconSize: 36,
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Previous track')),
-                    );
-                  },
+                  onPressed: _playPreviousTrack,
                 ),
                 const SizedBox(width: 16),
                 IconButton(
@@ -210,11 +282,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                   icon: const Icon(Icons.skip_next),
                   color: textColor,
                   iconSize: 36,
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Next track')),
-                    );
-                  },
+                  onPressed: _playNextTrack,
                 ),
               ],
             ),
@@ -280,7 +348,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.audioFile.name,
+                      _currentFile.name,
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
