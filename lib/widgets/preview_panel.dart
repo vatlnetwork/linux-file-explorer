@@ -295,39 +295,110 @@ class _PreviewPanelState extends State<PreviewPanel> {
       );
     }
     
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: _directoryContent!.length,
-      itemBuilder: (context, index) {
-        final dirItem = _directoryContent![index];
-        return GestureDetector(
-          onDoubleTap: () {
-            // Navigate on double tap
-            widget.onNavigate(dirItem.path);
-          },
-          child: ListTile(
-            leading: dirItem.type == FileItemType.directory
-                ? const Icon(Icons.folder, color: Colors.amber)
-                : const Icon(Icons.insert_drive_file, color: Colors.blue),
-            title: Text(
-              dirItem.name,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              dirItem.type == FileItemType.directory
-                  ? 'Directory'
-                  : dirItem.formattedSize,
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 12,
-              ),
-            ),
-            onTap: () {
-              // Just select the item but don't navigate
-            },
+    // Separate folders and files
+    final folders = _directoryContent!.where((item) => item.type == FileItemType.directory).toList();
+    final files = _directoryContent!.where((item) => item.type == FileItemType.file).toList();
+    
+    return Column(
+      children: [
+        // Tags section at the top
+        Container(
+          margin: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark 
+                ? const Color(0xFF3C4043)
+                : Colors.white,
+            borderRadius: BorderRadius.circular(12.0),
           ),
-        );
-      },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Tags', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              TagSelector(filePath: item.path),
+            ],
+          ),
+        ),
+        
+        // Folders section
+        if (folders.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Text(
+              'Folders (${folders.length})',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: folders.length,
+              itemBuilder: (context, index) {
+                final dirItem = folders[index];
+                return GestureDetector(
+                  onDoubleTap: () {
+                    widget.onNavigate(dirItem.path);
+                  },
+                  child: ListTile(
+                    leading: const Icon(Icons.folder, color: Colors.amber),
+                    title: Text(
+                      dirItem.name,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: const Text(
+                      'Directory',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 12,
+                      ),
+                    ),
+                    onTap: () {
+                      // Just select the item but don't navigate
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+        
+        // Files section
+        if (files.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Text(
+              'Files (${files.length})',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: files.length,
+              itemBuilder: (context, index) {
+                final fileItem = files[index];
+                return ListTile(
+                  leading: const Icon(Icons.insert_drive_file, color: Colors.blue),
+                  title: Text(
+                    fileItem.name,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    fileItem.formattedSize,
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 12,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ],
     );
   }
   
