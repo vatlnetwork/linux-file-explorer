@@ -18,24 +18,32 @@ class QuickLookDialog extends StatefulWidget {
 class _QuickLookDialogState extends State<QuickLookDialog> {
   bool _isLoading = true;
   String? _textContent;
+  late FileItem _currentItem;
   
   @override
   void initState() {
     super.initState();
-    debugPrint('QuickLookDialog: Initializing for file ${widget.item.path}');
-    debugPrint('QuickLookDialog: File extension: ${widget.item.fileExtension}');
-    debugPrint('QuickLookDialog: File type: ${widget.item.type}');
+    _currentItem = widget.item;
+    debugPrint('QuickLookDialog: Initializing for file ${_currentItem.path}');
+    debugPrint('QuickLookDialog: File extension: ${_currentItem.fileExtension}');
+    debugPrint('QuickLookDialog: File type: ${_currentItem.type}');
     _loadPreview();
   }
   
+  void _handleFileChanged(FileItem newFile) {
+    setState(() {
+      _currentItem = newFile;
+    });
+  }
+  
   Future<void> _loadPreview() async {
-    if (widget.item.type == FileItemType.file) {
-      final ext = widget.item.fileExtension.toLowerCase();
+    if (_currentItem.type == FileItemType.file) {
+      final ext = _currentItem.fileExtension.toLowerCase();
       
       // Load text content for text files
       if (['.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.html', '.css', '.js'].contains(ext)) {
         try {
-          final file = File(widget.item.path);
+          final file = File(_currentItem.path);
           if (await file.exists()) {
             final content = await file.readAsString();
             setState(() {
@@ -107,7 +115,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
         children: [
           Expanded(
             child: Text(
-              widget.item.name,
+              _currentItem.name,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
@@ -131,7 +139,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
       return const Center(child: CircularProgressIndicator());
     }
     
-    final ext = widget.item.fileExtension.toLowerCase();
+    final ext = _currentItem.fileExtension.toLowerCase();
     debugPrint('QuickLookDialog: File extension detected: $ext');
     
     // Image preview
@@ -175,7 +183,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
         minScale: 0.5,
         maxScale: 4.0,
         child: Image.file(
-          File(widget.item.path),
+          File(_currentItem.path),
           fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
             return Column(
@@ -229,7 +237,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
           ),
           const SizedBox(height: 16),
           Text(
-            widget.item.path,
+            _currentItem.path,
             style: TextStyle(fontSize: 14, color: Colors.grey[500]),
             textAlign: TextAlign.center,
           ),
@@ -241,7 +249,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
               try {
                 // For Linux, attempt to open with xdg-open
                 if (Platform.isLinux) {
-                  final result = await Process.run('xdg-open', [widget.item.path]);
+                  final result = await Process.run('xdg-open', [_currentItem.path]);
                   if (result.exitCode != 0) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -252,11 +260,11 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
                 } 
                 // For Windows
                 else if (Platform.isWindows) {
-                  await Process.run('start', [widget.item.path], runInShell: true);
+                  await Process.run('start', [_currentItem.path], runInShell: true);
                 } 
                 // For macOS
                 else if (Platform.isMacOS) {
-                  await Process.run('open', [widget.item.path]);
+                  await Process.run('open', [_currentItem.path]);
                 } 
                 else {
                   if (mounted) {
@@ -293,7 +301,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
           ),
           const SizedBox(height: 16),
           Text(
-            widget.item.path,
+            _currentItem.path,
             style: TextStyle(fontSize: 14, color: Colors.grey[500]),
             textAlign: TextAlign.center,
           ),
@@ -305,7 +313,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
               try {
                 // For Linux, attempt to open with xdg-open
                 if (Platform.isLinux) {
-                  final result = await Process.run('xdg-open', [widget.item.path]);
+                  final result = await Process.run('xdg-open', [_currentItem.path]);
                   if (result.exitCode != 0) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -316,11 +324,11 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
                 } 
                 // For Windows
                 else if (Platform.isWindows) {
-                  await Process.run('start', [widget.item.path], runInShell: true);
+                  await Process.run('start', [_currentItem.path], runInShell: true);
                 } 
                 // For macOS
                 else if (Platform.isMacOS) {
-                  await Process.run('open', [widget.item.path]);
+                  await Process.run('open', [_currentItem.path]);
                 } 
                 else {
                   if (mounted) {
@@ -344,11 +352,12 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
   }
   
   Widget _buildAudioPreview() {
-    debugPrint('QuickLookDialog: Building audio preview for ${widget.item.path}');
+    debugPrint('QuickLookDialog: Building audio preview for ${_currentItem.path}');
     return Center(
       child: AudioPlayerWidget(
-        audioFile: widget.item,
+        audioFile: _currentItem,
         darkMode: Theme.of(context).brightness == Brightness.dark,
+        onFileChanged: _handleFileChanged,
       ),
     );
   }
@@ -357,7 +366,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
     IconData iconData;
     Color iconColor;
     
-    final ext = widget.item.fileExtension.toLowerCase();
+    final ext = _currentItem.fileExtension.toLowerCase();
     if (['.doc', '.docx'].contains(ext)) {
       iconData = Icons.description;
       iconColor = Colors.blue;
@@ -382,22 +391,22 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
           Icon(iconData, size: 100, color: iconColor),
           const SizedBox(height: 24),
           Text(
-            widget.item.name, 
+            _currentItem.name, 
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           Text(
-            'Type: ${widget.item.fileExtension.toUpperCase().replaceAll('.', '')} File',
+            'Type: ${_currentItem.fileExtension.toUpperCase().replaceAll('.', '')} File',
             style: TextStyle(color: Colors.grey[600]),
           ),
           const SizedBox(height: 8),
           Text(
-            'Size: ${widget.item.formattedSize}',
+            'Size: ${_currentItem.formattedSize}',
             style: TextStyle(color: Colors.grey[600]),
           ),
           const SizedBox(height: 8),
           Text(
-            'Modified: ${widget.item.formattedModifiedTime}',
+            'Modified: ${_currentItem.formattedModifiedTime}',
             style: TextStyle(color: Colors.grey[600]),
           ),
         ],

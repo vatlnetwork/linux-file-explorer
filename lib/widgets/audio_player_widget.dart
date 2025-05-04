@@ -10,12 +10,14 @@ class AudioPlayerWidget extends StatefulWidget {
   final FileItem audioFile;
   final bool darkMode;
   final bool compact;
+  final Function(FileItem)? onFileChanged;
   
   const AudioPlayerWidget({
     super.key,
     required this.audioFile,
     this.darkMode = false,
     this.compact = false,
+    this.onFileChanged,
   });
 
   @override
@@ -94,8 +96,12 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
     _audioPlayer.positionStream.listen((newPosition) {
       if (mounted) {
         setState(() {
-          _progress = _audioPlayer.duration != null ? 
-            newPosition.inSeconds.toDouble() / _audioPlayer.duration!.inSeconds.toDouble() : 0.0;
+          final duration = _audioPlayer.duration;
+          if (duration != null && duration.inSeconds > 0) {
+            _progress = newPosition.inSeconds.toDouble() / duration.inSeconds.toDouble();
+          } else {
+            _progress = 0.0;
+          }
           _currentTime = _formatDuration(newPosition);
         });
       }
@@ -154,6 +160,8 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
         setState(() {
           _currentIndex = nextIndex;
         });
+        // Notify parent widget about file change
+        widget.onFileChanged?.call(nextFile);
       }
     } catch (e) {
       debugPrint('AudioPlayerWidget: Error playing next track: $e');
@@ -174,6 +182,8 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
         setState(() {
           _currentIndex = prevIndex;
         });
+        // Notify parent widget about file change
+        widget.onFileChanged?.call(prevFile);
       }
     } catch (e) {
       debugPrint('AudioPlayerWidget: Error playing previous track: $e');

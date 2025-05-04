@@ -624,6 +624,16 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
           ],
         ),
       ),
+      PopupMenuItem<String>(
+        value: 'properties',
+        child: Row(
+          children: [
+            Icon(Icons.info_outline, size: 16),
+            SizedBox(width: 8),
+            Text('Properties'),
+          ],
+        ),
+      ),
       
       // Single item specific options
       if (!hasMultipleSelection) ...[
@@ -804,6 +814,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         } else {
           _compressItem(context, item);
         }
+        break;
+      case 'properties':
+        _showPropertiesDialog(item);
         break;
     }
   }
@@ -2716,7 +2729,6 @@ exit
 
   Widget _buildFileView() {
     final viewModeService = Provider.of<ViewModeService>(context);
-    final statusBarService = Provider.of<StatusBarService>(context);
     final iconSizeService = Provider.of<IconSizeService>(context);
     final previewPanelService = Provider.of<PreviewPanelService>(context);
 
