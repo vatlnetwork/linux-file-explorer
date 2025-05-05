@@ -667,9 +667,23 @@ class _PreviewPanelState extends State<PreviewPanel> {
                         // Quick Actions
                         if (options.showQuickActions) ...[
                           const SizedBox(height: 12),
-                          const Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          _buildQuickActions(context, item),
+                          Container(
+                            padding: const EdgeInsets.all(16.0),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).brightness == Brightness.dark 
+                                  ? const Color(0xFF3C4043) // Dark mode background
+                                  : Colors.white, // Light mode background
+                              borderRadius: BorderRadius.circular(12.0),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 12),
+                                _buildQuickActions(context, item),
+                              ],
+                            ),
+                          ),
                         ],
                       ],
                     ),
