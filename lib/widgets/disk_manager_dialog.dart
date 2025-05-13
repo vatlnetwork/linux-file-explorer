@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/disk_service.dart';
 import 'dart:developer' as developer;
+import 'dart:io';
 
 class DiskManagerDialog extends StatefulWidget {
   final String path;
@@ -198,47 +199,131 @@ class _DiskManagerDialogState extends State<DiskManagerDialog> {
     try {
       switch (action) {
         case 'cleanup':
-          await Future.delayed(const Duration(seconds: 2));
+          // Find and delete temporary files
+          final tempFiles = await _diskService.getLargestFiles(widget.path, limit: 50);
+          int cleanedSize = 0;
+          for (var file in tempFiles) {
+            if (file.name.endsWith('.tmp') || file.name.endsWith('.temp')) {
+              try {
+                await File(file.path).delete();
+                cleanedSize += file.sizeBytes ?? 0;
+              } catch (e) {
+                developer.log('Error deleting temp file: $e');
+              }
+            }
+          }
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Cleanup completed successfully'),
+              SnackBar(
+                content: Text('Cleaned up ${_diskService.formatBytes(cleanedSize)} of temporary files'),
                 backgroundColor: Colors.green,
               ),
             );
           }
           break;
+
         case 'analyze':
-          await Future.delayed(const Duration(seconds: 2));
+          // Analyze disk usage and show largest files
+          final largestFiles = await _diskService.getLargestFiles(widget.path, limit: 10);
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Analysis completed successfully'),
-                backgroundColor: Colors.green,
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Disk Analysis'),
+                content: SizedBox(
+                  width: 400,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Top 10 Largest Files:'),
+                      const SizedBox(height: 8),
+                      ...largestFiles.map((file) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                file.name,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Text(file.sizeFormatted),
+                          ],
+                        ),
+                      )),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Close'),
+                  ),
+                ],
               ),
             );
           }
           break;
+
         case 'health':
-          await Future.delayed(const Duration(seconds: 2));
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Health check completed successfully'),
-                backgroundColor: Colors.green,
-              ),
-            );
+          // Check disk health using smartctl if available
+          try {
+            final result = await Process.run('smartctl', ['-H', widget.path]);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(result.exitCode == 0 
+                    ? 'Disk health check passed'
+                    : 'Disk health check failed: ${result.stderr}'),
+                  backgroundColor: result.exitCode == 0 ? Colors.green : Colors.red,
+                ),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Disk health check not available (smartctl not installed)'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
           }
           break;
+
         case 'backup':
-          await Future.delayed(const Duration(seconds: 2));
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Backup completed successfully'),
-                backgroundColor: Colors.green,
-              ),
-            );
+          // Create a backup directory and copy files
+          final backupDir = '${widget.path}/backup_${DateTime.now().millisecondsSinceEpoch}';
+          try {
+            await Directory(backupDir).create();
+            final files = await _diskService.getLargestFiles(widget.path);
+            int backedUpSize = 0;
+            for (var file in files) {
+              try {
+                await File(file.path).copy('$backupDir/${file.name}');
+                backedUpSize += file.sizeBytes ?? 0;
+              } catch (e) {
+                developer.log('Error backing up file: $e');
+              }
+            }
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Backed up ${_diskService.formatBytes(backedUpSize)} to $backupDir'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Backup failed: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
           }
           break;
       }
