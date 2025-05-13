@@ -118,10 +118,26 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     _initWindowState();
     _initHomeDirectory();
     
-    // Initialize focus node
+    // Initialize focus nodes
     _focusNode = FocusNode();
+    _searchFocusNode = FocusNode();
+    _searchController = TextEditingController();
+    
+    // Add focus listeners
     _focusNode.addListener(() {
-      _logger.info('Focus changed: ${_focusNode.hasFocus}');
+      _logger.info('Main focus changed: ${_focusNode.hasFocus}');
+      if (_focusNode.hasFocus) {
+        // Ensure the current tab is visible when focus is gained
+        final tabManager = Provider.of<TabManagerService>(context, listen: false);
+        if (tabManager.currentTab != null) {
+          _currentPath = tabManager.currentTab!.path;
+          _loadDirectory(_currentPath);
+        }
+      }
+    });
+    
+    _searchFocusNode.addListener(() {
+      _logger.info('Search focus changed: ${_searchFocusNode.hasFocus}');
     });
     
     // Add a post-frame callback to subscribe to preview panel changes
@@ -157,7 +173,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     _previewPanelAnimation.dispose();
     windowManager.removeListener(this);
     _scrollController.dispose();
-    _focusNode.dispose(); // Dispose the focus node
+    _focusNode.dispose();
     
     // Remove preview panel listener
     final previewPanelService = Provider.of<PreviewPanelService>(context, listen: false);
@@ -1324,6 +1340,26 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       _showSearchDialog();
     }
 
+    // Handle focus management
+    if (event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        // Clear selection and return focus to main view
+        setState(() {
+          _selectedItemsPaths.clear();
+        });
+        _focusNode.requestFocus();
+      } else if (event.logicalKey == LogicalKeyboardKey.tab) {
+        // Handle tab navigation between focusable elements
+        if (HardwareKeyboard.instance.isShiftPressed) {
+          // Shift+Tab: Move focus backward
+          _focusNode.previousFocus();
+        } else {
+          // Tab: Move focus forward
+          _focusNode.nextFocus();
+        }
+      }
+    }
+
     // Navigation with arrow keys
     if (event is KeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.backspace || 
@@ -1362,7 +1398,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         // Toggle tab bar visibility
         final tabManager = Provider.of<TabManagerService>(context, listen: false);
         tabManager.setShowTabBar(!tabManager.showTabBar);
-      } else if (event.logicalKey == LogicalKeyboardKey.keyH && HardwareKeyboard.instance.isControlPressed) {
+      
         // Toggle hidden files visibility
         setState(() {
           _showHiddenFiles = !_showHiddenFiles;

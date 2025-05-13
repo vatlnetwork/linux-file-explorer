@@ -211,6 +211,9 @@ class AppService extends ChangeNotifier {
           'oxygen',
           'breeze',
           'Papirus',
+          'elementary',
+          'ubuntu-mono-dark',
+          'ubuntu-mono-light',
         ];
         
         final List<String> sizes = [
@@ -219,6 +222,8 @@ class AppService extends ChangeNotifier {
           '32x32',
           '128x128',
           'scalable',
+          '96x96',
+          '72x72',
         ];
         
         // Common file extensions
@@ -246,7 +251,7 @@ class AppService extends ChangeNotifier {
             for (final size in sizes) {
               // For most themes, icons are in {theme}/{size}/{category}
               // Common categories
-              for (final category in ['apps', 'actions', 'mimetypes', 'places']) {
+              for (final category in ['apps', 'actions', 'mimetypes', 'places', 'devices', 'emblems']) {
                 for (final ext in extensions) {
                   final String testPath = '$iconPath/$theme/$size/$category/$iconName$ext';
                   if (File(testPath).existsSync()) {
@@ -265,6 +270,29 @@ class AppService extends ChangeNotifier {
           }
           
           if (resolvedPath != null) break;
+        }
+        
+        // If still not found, try to find a similar icon name
+        if (resolvedPath == null) {
+          for (final iconPath in iconPaths) {
+            if (iconPath.contains('pixmaps')) {
+              final directory = Directory(iconPath);
+              if (directory.existsSync()) {
+                final files = directory.listSync();
+                for (final file in files) {
+                  if (file is File) {
+                    final fileName = file.path.split('/').last;
+                    if (fileName.startsWith(iconName) || fileName.contains(iconName)) {
+                      resolvedPath = file.path;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+            
+            if (resolvedPath != null) break;
+          }
         }
       }
     } catch (e) {

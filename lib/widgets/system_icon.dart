@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import '../models/app_item.dart';
 import '../services/app_service.dart';
 
@@ -46,7 +47,7 @@ class _SystemIconState extends State<SystemIcon> {
     });
     
     try {
-      final appService = AppService(); // Not ideal, would be better to use Provider
+      final appService = Provider.of<AppService>(context, listen: false);
       _iconPath = await appService.getIconPath(widget.app.icon);
       
       if (_iconPath == null) {
@@ -108,7 +109,7 @@ class _SystemIconState extends State<SystemIcon> {
     
     // Display different types of icons
     if (_iconPath!.endsWith('.svg')) {
-      // Use flutter_svg for SVG icons
+      // Use flutter_svg for SVG icons with better error handling
       return SvgPicture.file(
         file,
         width: widget.size,
@@ -118,6 +119,20 @@ class _SystemIconState extends State<SystemIcon> {
           size: widget.size,
           color: fallbackColor,
         ),
+        colorFilter: ColorFilter.mode(
+          fallbackColor,
+          BlendMode.srcIn,
+        ),
+        semanticsLabel: '${widget.app.name} icon',
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          debugPrint('Error loading SVG icon for ${widget.app.name}: $error');
+          return Icon(
+            Icons.apps,
+            size: widget.size,
+            color: fallbackColor,
+          );
+        },
       );
     } else if (_iconPath!.endsWith('.png') || _iconPath!.endsWith('.xpm')) {
       return Image.file(

@@ -167,16 +167,20 @@ class _ColumnViewWidgetState extends State<ColumnViewWidget> with AutomaticKeepA
   }
   
   Widget _buildColumnsView() {
-    return ListView.separated(
-      scrollDirection: Axis.horizontal,
-      itemCount: _columns.length,
-      separatorBuilder: (context, index) => const VerticalDivider(width: 1),
-      itemBuilder: (context, index) {
-        return SizedBox(
-          width: 280,
-          child: _buildColumn(index),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: _columns.length,
+          separatorBuilder: (context, index) => const VerticalDivider(width: 1),
+          itemBuilder: (context, index) {
+            return SizedBox(
+              width: constraints.maxWidth.clamp(200.0, 280.0),
+              child: _buildColumn(index),
+            );
+          },
         );
-      },
+      }
     );
   }
   
@@ -198,6 +202,7 @@ class _ColumnViewWidgetState extends State<ColumnViewWidget> with AutomaticKeepA
               fontSize: 13,
             ),
             overflow: TextOverflow.ellipsis,
+            maxLines: 1,
           ),
         ),
         // Column content

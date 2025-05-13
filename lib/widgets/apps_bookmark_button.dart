@@ -14,6 +14,7 @@ class AppsBookmarkButton extends StatelessWidget {
       onTap: () => _openAppViewer(context),
       child: Container(
         height: 36,
+        width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isDarkMode 
@@ -22,6 +23,7 @@ class AppsBookmarkButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               Icons.apps,
@@ -29,12 +31,15 @@ class AppsBookmarkButton extends StatelessWidget {
               color: isDarkMode ? const Color(0xFF8AB4F8) : const Color(0xFF1A73E8),
             ),
             const SizedBox(width: 8),
-            Text(
-              'Apps',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: isDarkMode ? Colors.white : Colors.black87,
+            Flexible(
+              child: Text(
+                'Apps',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

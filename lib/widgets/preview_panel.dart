@@ -2,22 +2,12 @@
 
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/file_item.dart';
 import '../models/preview_options.dart';
 import '../services/preview_panel_service.dart';
 import 'preview_options_dialog.dart';
-import 'quick_look_dialog.dart';
 import 'tag_selector.dart';
-import 'package:path/path.dart' as p;
-import '../services/notification_service.dart';
-import 'app_selection_dialog.dart';
-import 'rename_file_dialog.dart';
-import 'markup_editor.dart';
-import 'package:syncfusion_flutter_pdf/pdf.dart';
-import 'get_info_dialog.dart';
-import '../services/compression_service.dart';
 
 class PreviewPanel extends StatefulWidget {
   final Function(String) onNavigate;
@@ -141,6 +131,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
         ),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.max,
         children: [
           Icon(
             Icons.preview,
@@ -148,7 +139,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
             color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
           ),
           const SizedBox(width: 8),
-          Expanded(
+          Flexible(
             child: Text(
               'Preview',
               style: TextStyle(
@@ -156,6 +147,8 @@ class _PreviewPanelState extends State<PreviewPanel> {
                 fontSize: 16,
                 color: isDarkMode ? Colors.grey.shade200 : Colors.grey.shade800,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           if (selectedItem != null)
@@ -1282,660 +1275,48 @@ class _PreviewPanelState extends State<PreviewPanel> {
   
   Widget _buildQuickActions(BuildContext context, FileItem item) {
     final previewService = Provider.of<PreviewPanelService>(context);
-    final quickActions = previewService.getQuickActionsFor(item);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
-    if (quickActions.isEmpty) {
-      return const Text('No quick actions available for this file type',
-          style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic));
-    }
-    
-    // Group actions into categories for better organization
-    final commonActions = [
-      QuickAction.openWith,
-      QuickAction.quickLook,
-    ];
-    
-    final editingActions = [
-      QuickAction.markup,
-      QuickAction.rename,
-      QuickAction.extractText,
-    ];
-    
-    final conversionActions = [
-      QuickAction.createPdf,
-      QuickAction.convertAudio,
-      QuickAction.searchablePdf,
-    ];
-    
-    final fileManagementActions = [
-      QuickAction.duplicate,
-      QuickAction.compress,
-      QuickAction.compressVideo,
-      QuickAction.createAlias,
-      QuickAction.copyPath,
-      QuickAction.getInfo,
-      QuickAction.addToFavorites,
-      QuickAction.revealInFolder,
-    ];
-    
-    final mediaEditingActions = [
-      QuickAction.rotate,
-      QuickAction.setWallpaper,
-    ];
-    
-    // Filter actions from each category that are available for this file
-    // Exclude markup action for PDF files
-    final availableCommonActions = quickActions.where((action) => commonActions.contains(action)).toList();
-    final availableEditingActions = quickActions.where((action) => 
-      editingActions.contains(action) && 
-      !(action == QuickAction.markup && item.fileExtension.toLowerCase() == '.pdf')
-    ).toList();
-    final availableConversionActions = quickActions.where((action) => conversionActions.contains(action)).toList();
-    final availableFileManagementActions = quickActions.where((action) => fileManagementActions.contains(action)).toList();
-    final availableMediaEditingActions = quickActions.where((action) => mediaEditingActions.contains(action)).toList();
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (availableCommonActions.isNotEmpty) ...[
-          _buildActionCategory('Common Actions', availableCommonActions, previewService, item, isDarkMode),
-          const SizedBox(height: 16),
-        ],
-        
-        if (availableEditingActions.isNotEmpty) ...[
-          _buildActionCategory('Editing', availableEditingActions, previewService, item, isDarkMode),
-          const SizedBox(height: 16),
-        ],
-        
-        if (availableConversionActions.isNotEmpty) ...[
-          _buildActionCategory('Convert & Create', availableConversionActions, previewService, item, isDarkMode),
-          const SizedBox(height: 16),
-        ],
-        
-        if (availableFileManagementActions.isNotEmpty) ...[
-          _buildActionCategory('File Management', availableFileManagementActions, previewService, item, isDarkMode),
-          const SizedBox(height: 16),
-        ],
-        
-        if (availableMediaEditingActions.isNotEmpty) ...[
-          _buildActionCategory('Media Actions', availableMediaEditingActions, previewService, item, isDarkMode),
-        ],
-      ],
-    );
-  }
-  
-  Widget _buildActionCategory(String title, List<QuickAction> actions, PreviewPanelService previewService, FileItem item, bool isDarkMode) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Category title
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
-          ),
-        ),
-        const SizedBox(height: 8),
-        
-        // Actions for this category
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: actions.map((action) {
-            return InkWell(
-              onTap: () {
-                _handleQuickAction(context, action, item);
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
-                  border: Border.all(
-                    color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      previewService.getQuickActionIcon(action),
-                      size: 16,
-                      color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        previewService.getQuickActionName(action),
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
+    return Wrap(
+      spacing: 8.0,
+      runSpacing: 8.0,
+      children: previewService.getQuickActionsFor(item).map((action) {
+        return GestureDetector(
+          onTap: () => previewService.handleQuickAction(action, context),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
+              border: Border.all(
+                color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
               ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-  
-  void _handleQuickAction(BuildContext context, QuickAction action, FileItem item) {
-    switch (action) {
-      case QuickAction.rotate:
-        _rotateImage(context, item);
-        break;
-      case QuickAction.markup:
-        _openMarkupEditor(context, item);
-        break;
-      case QuickAction.createPdf:
-        _createPdfFromFile(context, item);
-        break;
-      case QuickAction.searchablePdf:
-        _createSearchablePdf(context, item);
-        break;
-      case QuickAction.openWith:
-        _openFileWith(item.path);
-        break;
-      case QuickAction.compress:
-        _compressFile(context, item);
-        break;
-      case QuickAction.duplicate:
-        _duplicateFile(context, item);
-        break;
-      case QuickAction.rename:
-        _renameFile(context, item);
-        break;
-      case QuickAction.quickLook:
-        _quickLookFile(context, item);
-        break;
-      case QuickAction.copyPath:
-        _copyFilePath(context, item);
-        break;
-      case QuickAction.getInfo:
-        _showFileInfo(context, item);
-        break;
-      case QuickAction.createAlias:
-        _createAlias(context, item);
-        break;
-      case QuickAction.addToFavorites:
-        _addToFavorites(context, item);
-        break;
-      case QuickAction.extractText:
-        _extractText(context, item);
-        break;
-      case QuickAction.revealInFolder:
-        _revealInFolder(context, item);
-        break;
-      case QuickAction.convertAudio:
-        _convertAudio(context, item);
-        break;
-      case QuickAction.compressVideo:
-        _compressVideo(context, item);
-        break;
-      case QuickAction.extractFile:
-        _extractFile(context, item);
-        break;
-      case QuickAction.setWallpaper:
-        final previewService = Provider.of<PreviewPanelService>(context, listen: false);
-        previewService.handleQuickAction(QuickAction.setWallpaper, context);
-        break;
-      case QuickAction.extractAudio:
-        final previewService = Provider.of<PreviewPanelService>(context, listen: false);
-        previewService.handleQuickAction(QuickAction.extractAudio, context);
-        break;
-    }
-  }
-  
-  void _rotateImage(BuildContext context, FileItem item) {
-    final previewService = Provider.of<PreviewPanelService>(context, listen: false);
-    previewService.handleRotate(context);
-  }
-  
-  void _openMarkupEditor(BuildContext context, FileItem item) async {
-    // Only support markup for image files
-    final ext = item.fileExtension.toLowerCase();
-    if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].contains(ext)) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => MarkupEditor(fileItem: item),
-        ),
-      ).then((success) {
-        if (!mounted) return;
-        if (success == true) {
-          // Refresh the directory view if a new file was created
-          Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
-        }
-      });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Markup editor only supports image files'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-  
-  void _createPdfFromFile(BuildContext context, FileItem item) async {
-    final ext = item.fileExtension.toLowerCase();
-    
-    if (['.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.html', '.css', '.js'].contains(ext)) {
-      try {
-        // Read the text file content
-        final file = File(item.path);
-        final content = await file.readAsString();
-        
-        // Create a new PDF document
-        final PdfDocument document = PdfDocument();
-        
-        // Add a new page
-        final PdfPage page = document.pages.add();
-        
-        // Create a PDF font
-        final PdfFont font = PdfStandardFont(PdfFontFamily.helvetica, 12);
-        
-        // Create a PDF brush
-        final PdfBrush brush = PdfSolidBrush(PdfColor(0, 0, 0));
-        
-        // Create a PDF string format
-        final PdfStringFormat format = PdfStringFormat(
-          wordWrap: PdfWordWrapType.word,
-          lineSpacing: 20,
-        );
-        
-        // Draw the text on the page
-        page.graphics.drawString(
-          content,
-          font,
-          brush: brush,
-          format: format,
-          bounds: Rect.fromLTWH(50, 50, page.getClientSize().width - 100, page.getClientSize().height - 100),
-        );
-        
-        // Generate the output file path
-        final outputPath = '${item.path.substring(0, item.path.lastIndexOf('.'))}.pdf';
-        
-        // Save the document
-        final List<int> bytes = await document.save();
-        await File(outputPath).writeAsBytes(bytes);
-        
-        // Dispose the document
-        document.dispose();
-        
-        if (!mounted) return;
-        
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('PDF created successfully at $outputPath'),
-            duration: const Duration(seconds: 3),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  previewService.getQuickActionIcon(action),
+                  size: 16,
+                  color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    previewService.getQuickActionName(action),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+              ],
+            ),
           ),
         );
-        
-        // Refresh the preview panel to show the new PDF
-        Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
-        
-      } catch (e) {
-        if (!mounted) return;
-        
-        // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error creating PDF: $e'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('PDF creation is currently only supported for text files'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-  
-  void _createSearchablePdf(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Create searchable PDF feature coming soon!'),
-        duration: const Duration(seconds: 2),
-      ),
+      }).toList(),
     );
-  }
-  
-  // New action handlers
-  void _openFileWith(String filePath) {
-    try {
-      // Extract filename from the path
-      final fileName = p.basename(filePath);
-      
-      // Show app selection dialog
-      showDialog(
-        context: context,
-        builder: (context) => AppSelectionDialog(
-          filePath: filePath,
-          fileName: fileName,
-        ),
-      );
-    } catch (e) {
-      if (mounted) {
-        NotificationService.showNotification(
-          context,
-          message: 'Failed to show open with dialog: $e',
-          type: NotificationType.error,
-        );
-      }
-    }
-  }
-  
-  void _compressFile(BuildContext context, FileItem item) async {
-    if (!mounted) return;
-    
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-
-    try {
-      // Compress the file
-      final compressionService = CompressionService();
-      final outputPath = await compressionService.compressToZip(item.path);
-
-      // Close loading dialog
-      if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
-
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('File compressed to ${p.basename(outputPath)}'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-
-        // Refresh the directory view
-        Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
-      }
-    } catch (e) {
-      // Close loading dialog if it's still open
-      if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
-
-        // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to compress file: $e'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
-  
-  void _duplicateFile(BuildContext context, FileItem item) async {
-    try {
-      final parentDir = p.dirname(item.path);
-      final fileName = item.name;
-      final baseName = p.basenameWithoutExtension(fileName);
-      final extension = p.extension(fileName);
-      
-      // Generate a new filename with "_copy" suffix
-      String newPath = p.join(parentDir, '${baseName}_copy$extension');
-      
-      // Check if file already exists and find a unique name
-      int counter = 1;
-      while (await File(newPath).exists()) {
-        newPath = p.join(parentDir, '${baseName}_copy($counter)$extension');
-        counter++;
-      }
-      
-      // Copy the file
-      await File(item.path).copy(newPath);
-      
-      if (!mounted) return;
-      
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('File duplicated: ${p.basename(newPath)}'),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-      
-      // Refresh the preview panel to show the new file
-      Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
-      
-    } catch (e) {
-      if (!mounted) return;
-      
-      // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error duplicating file: $e'),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-  }
-  
-  void _renameFile(BuildContext context, FileItem item) {
-    showDialog(
-      context: context,
-      builder: (context) => RenameFileDialog(fileItem: item),
-    ).then((success) {
-      if (!mounted) return;
-      if (success == true) {
-        // Refresh the file list if rename was successful
-        Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
-        
-        NotificationService.showNotification(
-          context,
-          message: 'File renamed successfully',
-          type: NotificationType.success,
-        );
-      }
-    });
-  }
-  
-  void _quickLookFile(BuildContext context, FileItem item) {
-    debugPrint('PreviewPanel: Triggering QuickLook for ${item.path}');
-    showDialog(
-      context: context,
-      barrierColor: Colors.black87,
-      builder: (context) => QuickLookDialog(item: item),
-    );
-  }
-  
-  void _copyFilePath(BuildContext context, FileItem item) {
-    // Using the Clipboard class to copy the path to clipboard
-    Clipboard.setData(ClipboardData(text: item.path)).then((_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Path copied to clipboard'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    });
-  }
-  
-  void _showFileInfo(BuildContext context, FileItem item) {
-    showDialog(
-      context: context,
-      builder: (context) => GetInfoDialog(item: item),
-    );
-  }
-  
-  void _createAlias(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Create Alias feature coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-  
-  void _addToFavorites(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Add to Favorites feature coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-  
-  void _extractText(BuildContext context, FileItem item) async {
-    final ext = item.fileExtension.toLowerCase();
-    if (!['.pdf'].contains(ext)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Text extraction is only supported for PDF files'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-
-    try {
-      // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-
-      // Create output file path
-      final outputPath = '${item.path.substring(0, item.path.lastIndexOf('.'))}.txt';
-      final outputFile = File(outputPath);
-
-      // Extract text from PDF
-      final document = PdfDocument(inputBytes: File(item.path).readAsBytesSync());
-      final text = StringBuffer();
-
-      // Extract text from each page
-      for (var i = 0; i < document.pages.count; i++) {
-        text.writeln(PdfTextExtractor(document).extractText(startPageIndex: i, endPageIndex: i));
-      }
-
-      // Write text to file
-      await outputFile.writeAsString(text.toString());
-
-      // Close loading dialog
-      if (context.mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
-
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Text extracted to ${outputFile.path}'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      // Close loading dialog
-      if (context.mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
-
-        // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error extracting text: $e'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    }
-  }
-  
-  void _revealInFolder(BuildContext context, FileItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Reveal in Folder feature coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-  
-  void _convertAudio(BuildContext context, FileItem item) {
-    final previewService = Provider.of<PreviewPanelService>(context, listen: false);
-    previewService.handleConvertAudio(context);
-  }
-  
-  void _compressVideo(BuildContext context, FileItem item) {
-    final previewService = Provider.of<PreviewPanelService>(context, listen: false);
-    previewService.handleCompressVideo(context);
-  }
-  
-  void _extractFile(BuildContext context, FileItem item) async {
-    if (!mounted) return;
-    
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-
-    try {
-      // Get the parent directory
-      final parentDir = p.dirname(item.path);
-      
-      // Run unzip command
-      final result = await Process.run('unzip', ['-o', item.path, '-d', parentDir]);
-      
-      if (result.exitCode != 0) {
-        throw Exception(result.stderr);
-      }
-
-      // Close loading dialog
-      if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
-
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('File extracted to ${p.basename(parentDir)}'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-
-        // Refresh the directory view
-        Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
-      }
-    } catch (e) {
-      // Close loading dialog if it's still open
-      if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
-
-        // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to extract file: $e'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
   }
 } 

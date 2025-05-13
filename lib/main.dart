@@ -58,7 +58,8 @@ void main() async {
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   
   WindowOptions windowOptions = const WindowOptions(
-    size: Size(1000, 800),
+    size: Size(1024, 768),
+    minimumSize: Size(800, 600),
     center: true,
     backgroundColor: Color(0xFF2D2D2D), // Dark gray background
     skipTaskbar: false,
