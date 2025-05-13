@@ -269,23 +269,48 @@ class _DiskManagerDialogState extends State<DiskManagerDialog> {
         case 'health':
           // Check disk health using smartctl if available
           try {
-            final result = await Process.run('smartctl', ['-H', widget.path]);
+            // First get the device path from the mount point
+            final mountResult = await Process.run('df', ['--output=source', widget.path]);
+            if (mountResult.exitCode != 0) {
+              throw Exception('Failed to get device information');
+            }
+
+            // Parse the output to get the device path
+            final devicePath = mountResult.stdout.toString().split('\n')[1].trim();
+            
+            // Run smartctl on the device
+            final result = await Process.run('smartctl', ['-H', devicePath]);
+            
+            if (mounted) {
+              if (result.exitCode == 0) {
+                // Parse the smartctl output to get the health status
+                final output = result.stdout.toString();
+                final isHealthy = output.toLowerCase().contains('passed');
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(isHealthy 
+                      ? 'Disk health check passed'
+                      : 'Disk health check failed: ${result.stdout}'),
+                    backgroundColor: isHealthy ? Colors.green : Colors.red,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Disk health check failed: ${result.stderr}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+          } catch (e) {
+            developer.log('Error checking disk health: $e');
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(result.exitCode == 0 
-                    ? 'Disk health check passed'
-                    : 'Disk health check failed: ${result.stderr}'),
-                  backgroundColor: result.exitCode == 0 ? Colors.green : Colors.red,
-                ),
-              );
-            }
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Disk health check not available (smartctl not installed)'),
-                  backgroundColor: Colors.orange,
+                  content: Text('Disk health check failed: ${e.toString()}'),
+                  backgroundColor: Colors.red,
                 ),
               );
             }

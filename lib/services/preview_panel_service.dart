@@ -13,6 +13,7 @@ import '../widgets/markup_editor.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:flutter/services.dart';
 import '../services/compression_service.dart';
+import 'dart:developer' as developer;
 
 enum QuickAction {
   rotate,
@@ -636,12 +637,42 @@ class PreviewPanelService extends ChangeNotifier {
   void handleRotate(BuildContext context) async {
     if (_selectedItem == null) return;
     
+    // Check if the file is an image
+    final ext = _selectedItem!.fileExtension.toLowerCase();
+    if (!['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].contains(ext)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Rotation is only supported for image files')),
+      );
+      return;
+    }
+    
     try {
       // Check if ImageMagick is installed
       final result = await Process.run('which', ['convert']);
       if (result.exitCode != 0) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ImageMagick is not installed. Please install it to use image rotation.')),
+          SnackBar(
+            content: const Text('ImageMagick is not installed. Please install it to use image rotation.'),
+            action: SnackBarAction(
+              label: 'Install',
+              onPressed: () async {
+                try {
+                  await Process.run('sudo', ['dnf', 'install', '-y', 'ImageMagick']);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('ImageMagick installed successfully')),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to install ImageMagick: $e')),
+                    );
+                  }
+                }
+              },
+            ),
+          ),
         );
         return;
       }
@@ -683,9 +714,12 @@ class PreviewPanelService extends ChangeNotifier {
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error rotating image: $e')),
-      );
+      developer.log('Error in handleRotate: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error rotating image: $e')),
+        );
+      }
     }
   }
   
@@ -693,17 +727,25 @@ class PreviewPanelService extends ChangeNotifier {
     if (_selectedItem == null) return;
     
     try {
-      // Show loading dialog
+      // Show loading dialog with progress
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
+        builder: (context) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text('Rotating image ${degrees > 0 ? 'right' : 'left'} ${degrees.abs()}°...'),
+            ],
+          ),
         ),
       );
 
-      // Create a temporary file for the rotated image
-      final tempFile = File('${_selectedItem!.path}.rotated');
+      // Create a temporary file in the system temp directory
+      final tempDir = Directory.systemTemp.createTempSync();
+      final tempFile = File('${tempDir.path}/rotated_${_selectedItem!.name}');
       
       // Use ImageMagick to rotate the image
       final result = await Process.run('convert', [
@@ -719,22 +761,61 @@ class PreviewPanelService extends ChangeNotifier {
       }
       
       if (result.exitCode == 0) {
-        // Replace the original file with the rotated one
-        await tempFile.copy(_selectedItem!.path);
-        await tempFile.delete();
+        // Create a backup of the original file
+        final backupFile = File('${_selectedItem!.path}.bak');
+        await File(_selectedItem!.path).copy(backupFile.path);
         
-        // Refresh the preview
-        refreshSelectedItem();
-        
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Image rotated $degrees°')),
-          );
+        try {
+          // Replace the original file with the rotated one
+          await tempFile.copy(_selectedItem!.path);
+          
+          // Delete the temporary files
+          await tempFile.delete();
+          await tempDir.delete(recursive: true);
+          
+          // Refresh the preview
+          refreshSelectedItem();
+          
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Image rotated ${degrees > 0 ? 'right' : 'left'} ${degrees.abs()}°'),
+                action: SnackBarAction(
+                  label: 'Undo',
+                  onPressed: () async {
+                    try {
+                      await backupFile.copy(_selectedItem!.path);
+                      await backupFile.delete();
+                      refreshSelectedItem();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Rotation undone')),
+                        );
+                      }
+                    } catch (e) {
+                      developer.log('Error undoing rotation: $e');
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Failed to undo rotation: $e')),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ),
+            );
+          }
+        } catch (e) {
+          // If something goes wrong, restore from backup
+          await backupFile.copy(_selectedItem!.path);
+          await backupFile.delete();
+          rethrow;
         }
       } else {
-        throw Exception(result.stderr);
+        throw Exception('ImageMagick error: ${result.stderr}');
       }
     } catch (e) {
+      developer.log('Error in _rotateImage: $e');
       // Close loading dialog if it's still open
       if (context.mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
