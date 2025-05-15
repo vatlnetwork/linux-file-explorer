@@ -269,7 +269,13 @@ class _DiskManagerDialogState extends State<DiskManagerDialog> {
         case 'health':
           // Check disk health using smartctl if available
           try {
-            // First get the device path from the mount point
+            // First check if smartctl is installed
+            final smartctlCheck = await Process.run('which', ['smartctl']);
+            if (smartctlCheck.exitCode != 0) {
+              throw Exception('smartctl is not installed. Please install smartmontools package.');
+            }
+
+            // Get the device path from the mount point
             final mountResult = await Process.run('df', ['--output=source', widget.path]);
             if (mountResult.exitCode != 0) {
               throw Exception('Failed to get device information');
@@ -277,8 +283,17 @@ class _DiskManagerDialogState extends State<DiskManagerDialog> {
 
             // Parse the output to get the device path
             final devicePath = mountResult.stdout.toString().split('\n')[1].trim();
-            
-            // Run smartctl on the device
+            if (devicePath.isEmpty) {
+              throw Exception('Could not determine device path');
+            }
+
+            // Check if the device supports SMART
+            final smartInfo = await Process.run('smartctl', ['-i', devicePath]);
+            if (smartInfo.exitCode != 0) {
+              throw Exception('Device does not support SMART monitoring or access denied');
+            }
+
+            // Run smartctl health check with more detailed output
             final result = await Process.run('smartctl', ['-H', devicePath]);
             
             if (mounted) {
@@ -287,12 +302,25 @@ class _DiskManagerDialogState extends State<DiskManagerDialog> {
                 final output = result.stdout.toString();
                 final isHealthy = output.toLowerCase().contains('passed');
                 
+                // Get more detailed information if available
+                String details = '';
+                if (output.toLowerCase().contains('self-assessment')) {
+                  final lines = output.split('\n');
+                  for (var line in lines) {
+                    if (line.toLowerCase().contains('self-assessment')) {
+                      details = line.trim();
+                      break;
+                    }
+                  }
+                }
+                
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(isHealthy 
-                      ? 'Disk health check passed'
-                      : 'Disk health check failed: ${result.stdout}'),
+                      ? 'Disk health check passed${details.isNotEmpty ? ': $details' : ''}'
+                      : 'Disk health check failed: ${details.isNotEmpty ? details : result.stdout}'),
                     backgroundColor: isHealthy ? Colors.green : Colors.red,
+                    duration: const Duration(seconds: 5),
                   ),
                 );
               } else {
@@ -300,6 +328,7 @@ class _DiskManagerDialogState extends State<DiskManagerDialog> {
                   SnackBar(
                     content: Text('Disk health check failed: ${result.stderr}'),
                     backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 5),
                   ),
                 );
               }
@@ -311,6 +340,7 @@ class _DiskManagerDialogState extends State<DiskManagerDialog> {
                 SnackBar(
                   content: Text('Disk health check failed: ${e.toString()}'),
                   backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 5),
                 ),
               );
             }
