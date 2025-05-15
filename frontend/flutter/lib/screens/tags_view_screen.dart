@@ -98,8 +98,8 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
                   
                   return Row(
                     children: [
-                      Expanded(
-                        flex: 1,
+                      SizedBox(
+                        width: 300.0,
                         child: Material(
                           elevation: 1,
                           color: Theme.of(context).brightness == Brightness.dark 

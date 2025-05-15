@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:logging/logging.dart';
+import 'dart:io';
 import 'screens/file_explorer_screen.dart';
 import 'screens/tags_view_screen.dart';
 import 'services/theme_service.dart';
@@ -25,89 +26,138 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize logging with more detailed configuration
-  Logger.root.level = Level.ALL; // Enable all log levels in debug mode
+  Logger.root.level = Level.ALL;
   Logger.root.onRecord.listen((record) {
-    // Format log message with timestamp, level, and source
     final message = '${record.time}: ${record.level.name}: ${record.loggerName}: ${record.message}';
     
-    // In debug mode, print to console
     if (record.level >= Level.WARNING) {
-      debugPrint('\x1B[31m$message\x1B[0m'); // Red for warnings and higher
+      debugPrint('\x1B[31m$message\x1B[0m');
     } else if (record.level >= Level.INFO) {
-      debugPrint('\x1B[34m$message\x1B[0m'); // Blue for info
+      debugPrint('\x1B[34m$message\x1B[0m');
     } else {
-      debugPrint(message); // Normal for debug and trace
+      debugPrint(message);
     }
-    
-    // For production, you can implement file logging or service reporting here
   });
   
-  // Create a logger for the main app
   final appLogger = Logger('App');
   appLogger.info('Application starting...');
   
-  // Initialize audio support for Linux
-  await initializeAudioSupport();
-  appLogger.info('Audio support initialized');
-  
-  // Initialize window_manager for custom window controls
-  await windowManager.ensureInitialized();
-  appLogger.fine('Window manager initialized');
-  
-  // Use solid background instead of transparent window
-  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  
-  WindowOptions windowOptions = const WindowOptions(
-    size: Size(1024, 768),
-    minimumSize: Size(800, 600),
-    center: true,
-    backgroundColor: Color(0xFF2D2D2D), // Dark gray background
-    skipTaskbar: false,
-    titleBarStyle: TitleBarStyle.hidden,
-    windowButtonVisibility: true,
-    fullScreen: false,
-    alwaysOnTop: false,
-  );
-  
-  await windowManager.waitUntilReadyToShow(windowOptions, () async {
-    await windowManager.show();
-    await windowManager.focus();
-  });
-  
-  // Initialize bookmark service
-  final bookmarkService = BookmarkService();
-  await bookmarkService.init();
+  try {
+    // Initialize audio support for Linux
+    await initializeAudioSupport();
+    appLogger.info('Audio support initialized');
+    
+    // Initialize window_manager for custom window controls
+    await windowManager.ensureInitialized();
+    appLogger.fine('Window manager initialized');
+    
+    // Use solid background instead of transparent window
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarContrastEnforced: false,
+      ),
+    );
+    
+    WindowOptions windowOptions = const WindowOptions(
+      size: Size(1024, 768),
+      minimumSize: Size(800, 600),
+      center: true,
+      backgroundColor: Color(0xFF2D2D2D),
+      skipTaskbar: false,
+      titleBarStyle: TitleBarStyle.hidden,
+      windowButtonVisibility: true,
+      fullScreen: false,
+      alwaysOnTop: false,
+    );
+    
+    await windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.show();
+      await windowManager.focus();
+    });
+    
+    // Initialize services with proper error handling
+    final bookmarkService = BookmarkService();
+    await bookmarkService.init().timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {
+        appLogger.warning('Bookmark service initialization timed out');
+        return;
+      },
+    );
 
-  // Initialize app service
-  final appService = AppService();
-  await appService.init();
-  
-  // Initialize file association service
-  final fileAssociationService = FileAssociationService();
-  await fileAssociationService.init();
-  
-  // Initialize tags service
-  final tagsService = TagsService();
-  
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => ThemeService()),
-        ChangeNotifierProvider(create: (_) => ViewModeService()),
-        ChangeNotifierProvider.value(value: bookmarkService),
-        ChangeNotifierProvider(create: (_) => IconSizeService()),
-        ChangeNotifierProvider(create: (_) => StatusBarService()),
-        ChangeNotifierProvider(create: (_) => PreviewPanelService()),
-        ChangeNotifierProvider.value(value: appService),
-        ChangeNotifierProvider.value(value: fileAssociationService),
-        ChangeNotifierProvider.value(value: tagsService),
-        ChangeNotifierProvider(create: (_) => DragDropService()),
-        ChangeNotifierProvider(create: (_) => TabManagerService()),
-        Provider(create: (_) => FileService()),
-      ],
-      child: const MyApp(),
-    ),
-  );
+    final appService = AppService();
+    await appService.init().timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {
+        appLogger.warning('App service initialization timed out');
+        return;
+      },
+    );
+    
+    final fileAssociationService = FileAssociationService();
+    await fileAssociationService.init().timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {
+        appLogger.warning('File association service initialization timed out');
+        return;
+      },
+    );
+    
+    final tagsService = TagsService();
+    
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ThemeService()),
+          ChangeNotifierProvider(create: (_) => ViewModeService()),
+          ChangeNotifierProvider.value(value: bookmarkService),
+          ChangeNotifierProvider(create: (_) => IconSizeService()),
+          ChangeNotifierProvider(create: (_) => StatusBarService()),
+          ChangeNotifierProvider(create: (_) => PreviewPanelService()),
+          ChangeNotifierProvider.value(value: appService),
+          ChangeNotifierProvider.value(value: fileAssociationService),
+          ChangeNotifierProvider.value(value: tagsService),
+          ChangeNotifierProvider(create: (_) => DragDropService()),
+          ChangeNotifierProvider(create: (_) => TabManagerService()),
+          Provider(create: (_) => FileService()),
+        ],
+        child: const MyApp(),
+      ),
+    );
+  } catch (e, stackTrace) {
+    appLogger.severe('Failed to initialize application', e, stackTrace);
+    // Show error dialog to user
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'Failed to initialize application',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                Text('Error: $e'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => exit(1),
+                  child: const Text('Exit'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {

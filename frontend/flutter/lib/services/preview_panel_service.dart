@@ -386,6 +386,24 @@ class PreviewPanelService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Gets the appropriate options for a given file item
+  PreviewOptions getOptionsForFileItem(FileItem item) {
+    if (item.type == FileItemType.directory) {
+      return _optionsManager.folderOptions;
+    }
+    return _optionsManager.getOptionsForFileExtension(item.fileExtension);
+  }
+
+  /// Saves preview options for a given file item
+  Future<void> savePreviewOptionsForItem(PreviewOptions options, FileItem item) async {
+    if (item.type == FileItemType.directory) {
+      await _optionsManager.saveFolderOptions(options);
+    } else {
+      await savePreviewOptions(options, item.fileExtension);
+    }
+    notifyListeners();
+  }
+
   void handleQuickAction(QuickAction action, BuildContext context) {
     switch (action) {
       case QuickAction.quickLook:

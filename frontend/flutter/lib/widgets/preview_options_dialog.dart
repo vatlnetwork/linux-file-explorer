@@ -38,9 +38,13 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
     final isMedia = ['.mp4', '.avi', '.mov', '.mkv', '.webm', '.mp3', '.wav', '.aac', '.flac'].contains(
       widget.fileItem.fileExtension.toLowerCase()
     );
+
+    final isFolder = widget.fileItem.type == FileItemType.directory;
     
     String title;
-    if (isImage) {
+    if (isFolder) {
+      title = 'Folder Preview Options';
+    } else if (isImage) {
       title = 'Image Preview Options';
     } else if (isDocument) {
       title = 'Document Preview Options';
@@ -100,6 +104,34 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
               _currentOptions.showQuickActions,
               (value) => setState(() => _currentOptions = _currentOptions.copyWith(showQuickActions: value)),
             ),
+            
+            if (isFolder) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Folder Information',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              _buildSwitchTile(
+                'Show Contents',
+                _currentOptions.showFolderContents,
+                (value) => setState(() => _currentOptions = _currentOptions.copyWith(showFolderContents: value)),
+              ),
+              _buildSwitchTile(
+                'Show Folder Size',
+                _currentOptions.showFolderSize,
+                (value) => setState(() => _currentOptions = _currentOptions.copyWith(showFolderSize: value)),
+              ),
+              _buildSwitchTile(
+                'Show Item Count',
+                _currentOptions.showItemCount,
+                (value) => setState(() => _currentOptions = _currentOptions.copyWith(showItemCount: value)),
+              ),
+              _buildSwitchTile(
+                'Show Hidden Items',
+                _currentOptions.showHiddenItems,
+                (value) => setState(() => _currentOptions = _currentOptions.copyWith(showHiddenItems: value)),
+              ),
+            ],
             
             if (isImage) ...[
               const SizedBox(height: 8),

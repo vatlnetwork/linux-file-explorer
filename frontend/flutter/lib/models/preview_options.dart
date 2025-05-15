@@ -25,6 +25,12 @@ class PreviewOptions {
   bool showDuration;
   bool showCodecs;
   bool showBitrate;
+
+  // Folder specific options
+  bool showFolderContents;
+  bool showFolderSize;
+  bool showItemCount;
+  bool showHiddenItems;
   
   PreviewOptions({
     this.showTags = true,
@@ -45,6 +51,11 @@ class PreviewOptions {
     this.showDuration = true,
     this.showCodecs = false,
     this.showBitrate = false,
+
+    this.showFolderContents = true,
+    this.showFolderSize = true,
+    this.showItemCount = true,
+    this.showHiddenItems = false,
   });
   
   /// Creates a copy of this PreviewOptions with specified properties replaced
@@ -64,6 +75,10 @@ class PreviewOptions {
     bool? showDuration,
     bool? showCodecs,
     bool? showBitrate,
+    bool? showFolderContents,
+    bool? showFolderSize,
+    bool? showItemCount,
+    bool? showHiddenItems,
   }) {
     return PreviewOptions(
       showTags: showTags ?? this.showTags,
@@ -84,6 +99,11 @@ class PreviewOptions {
       showDuration: showDuration ?? this.showDuration,
       showCodecs: showCodecs ?? this.showCodecs,
       showBitrate: showBitrate ?? this.showBitrate,
+
+      showFolderContents: showFolderContents ?? this.showFolderContents,
+      showFolderSize: showFolderSize ?? this.showFolderSize,
+      showItemCount: showItemCount ?? this.showItemCount,
+      showHiddenItems: showHiddenItems ?? this.showHiddenItems,
     );
   }
   
@@ -108,6 +128,11 @@ class PreviewOptions {
       'showDuration': showDuration,
       'showCodecs': showCodecs,
       'showBitrate': showBitrate,
+
+      'showFolderContents': showFolderContents,
+      'showFolderSize': showFolderSize,
+      'showItemCount': showItemCount,
+      'showHiddenItems': showHiddenItems,
     };
   }
   
@@ -137,6 +162,11 @@ class PreviewOptions {
       showDuration: map['showDuration'] ?? true,
       showCodecs: map['showCodecs'] ?? false,
       showBitrate: map['showBitrate'] ?? false,
+
+      showFolderContents: map['showFolderContents'] ?? true,
+      showFolderSize: map['showFolderSize'] ?? true,
+      showItemCount: map['showItemCount'] ?? true,
+      showHiddenItems: map['showHiddenItems'] ?? false,
     );
   }
   
@@ -162,6 +192,7 @@ class PreviewOptionsManager {
   static const String _documentOptionsKey = 'preview_options_document';
   static const String _mediaOptionsKey = 'preview_options_media';
   static const String _defaultOptionsKey = 'preview_options_default';
+  static const String _folderOptionsKey = 'preview_options_folder';
   
   // Initialize with default values to prevent LateInitializationError
   PreviewOptions _imageOptions = PreviewOptions(
@@ -182,12 +213,20 @@ class PreviewOptionsManager {
   );
   
   PreviewOptions _defaultOptions = PreviewOptions();
+  PreviewOptions _folderOptions = PreviewOptions(
+    showFolderContents: true,
+    showFolderSize: true,
+    showItemCount: true,
+    showHiddenItems: false,
+  );
+  
   bool _loaded = false;
   
   PreviewOptions get imageOptions => _imageOptions;
   PreviewOptions get documentOptions => _documentOptions;
   PreviewOptions get mediaOptions => _mediaOptions;
   PreviewOptions get defaultOptions => _defaultOptions;
+  PreviewOptions get folderOptions => _folderOptions;
   
   Future<void> loadOptions() async {
     if (_loaded) return;
@@ -217,6 +256,12 @@ class PreviewOptionsManager {
     if (defaultOptionsJson != null) {
       _defaultOptions = PreviewOptions.fromJson(defaultOptionsJson);
     }
+
+    // Load folder options
+    final folderOptionsJson = prefs.getString(_folderOptionsKey);
+    if (folderOptionsJson != null) {
+      _folderOptions = PreviewOptions.fromJson(folderOptionsJson);
+    }
     
     _loaded = true;
   }
@@ -243,6 +288,12 @@ class PreviewOptionsManager {
     _defaultOptions = options;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_defaultOptionsKey, options.toJson());
+  }
+
+  Future<void> saveFolderOptions(PreviewOptions options) async {
+    _folderOptions = options;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_folderOptionsKey, options.toJson());
   }
   
   /// Gets the appropriate options for a given file extension
