@@ -318,36 +318,62 @@ class _DiskManagerDialogState extends State<DiskManagerDialog> {
           break;
 
         case 'backup':
-          // Create a backup directory and copy files
-          final backupDir = '${widget.path}/backup_${DateTime.now().millisecondsSinceEpoch}';
-          try {
-            await Directory(backupDir).create();
-            final files = await _diskService.getLargestFiles(widget.path);
-            int backedUpSize = 0;
-            for (var file in files) {
-              try {
-                await File(file.path).copy('$backupDir/${file.name}');
-                backedUpSize += file.sizeBytes ?? 0;
-              } catch (e) {
-                developer.log('Error backing up file: $e');
+          // Show backup selection dialog
+          final selectedItems = await showDialog<List<String>>(
+            context: context,
+            builder: (context) => BackupSelectionDialog(
+              path: widget.path,
+              diskService: _diskService,
+            ),
+          );
+
+          if (selectedItems != null && selectedItems.isNotEmpty) {
+            // Create backup directory in Downloads
+            final downloadsPath = '${Platform.environment['HOME']}/Downloads';
+            final backupDir = '$downloadsPath/backup_${DateTime.now().millisecondsSinceEpoch}';
+            
+            try {
+              await Directory(backupDir).create();
+              int backedUpSize = 0;
+
+              for (final itemPath in selectedItems) {
+                final item = FileSystemEntity.typeSync(itemPath) == FileSystemEntityType.directory
+                    ? Directory(itemPath)
+                    : File(itemPath);
+                final itemName = itemPath.split('/').last;
+                final targetPath = '$backupDir/$itemName';
+
+                if (item is File) {
+                  await File(itemPath).copy(targetPath);
+                  backedUpSize += await File(itemPath).length();
+                } else if (item is Directory) {
+                  await _copyDirectory(itemPath, targetPath);
+                  // Calculate directory size
+                  final sizeResult = await Process.run('du', ['-sb', itemPath]);
+                  if (sizeResult.exitCode == 0) {
+                    final sizeStr = sizeResult.stdout.toString().split('\t')[0];
+                    backedUpSize += int.tryParse(sizeStr) ?? 0;
+                  }
+                }
               }
-            }
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Backed up ${_diskService.formatBytes(backedUpSize)} to $backupDir'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            }
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Backup failed: $e'),
-                  backgroundColor: Colors.red,
-                ),
-              );
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Backed up ${_diskService.formatBytes(backedUpSize)} to $backupDir'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Backup failed: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             }
           }
           break;
@@ -369,5 +395,150 @@ class _DiskManagerDialogState extends State<DiskManagerDialog> {
         });
       }
     }
+  }
+
+  Future<void> _copyDirectory(String sourcePath, String targetPath) async {
+    final sourceDir = Directory(sourcePath);
+    final targetDir = Directory(targetPath);
+    
+    if (!await targetDir.exists()) {
+      await targetDir.create(recursive: true);
+    }
+
+    await for (final entity in sourceDir.list(recursive: false)) {
+      final targetEntity = '${targetDir.path}/${entity.path.split('/').last}';
+      
+      if (entity is File) {
+        await File(entity.path).copy(targetEntity);
+      } else if (entity is Directory) {
+        await _copyDirectory(entity.path, targetEntity);
+      }
+    }
+  }
+}
+
+class BackupSelectionDialog extends StatefulWidget {
+  final String path;
+  final DiskService diskService;
+
+  const BackupSelectionDialog({
+    super.key,
+    required this.path,
+    required this.diskService,
+  });
+
+  @override
+  State<BackupSelectionDialog> createState() => _BackupSelectionDialogState();
+}
+
+class _BackupSelectionDialogState extends State<BackupSelectionDialog> {
+  final List<String> _selectedItems = [];
+  bool _isLoading = true;
+  List<FileSystemEntity> _items = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadItems();
+  }
+
+  Future<void> _loadItems() async {
+    try {
+      final directory = Directory(widget.path);
+      final items = await directory.list().toList();
+      setState(() {
+        _items = items;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Container(
+        width: 600,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Select Items to Backup',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: isDarkMode ? Colors.white : Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _items.length,
+                  itemBuilder: (context, index) {
+                    final item = _items[index];
+                    final isSelected = _selectedItems.contains(item.path);
+                    final isDirectory = item is Directory;
+
+                    return ListTile(
+                      leading: Icon(
+                        isDirectory ? Icons.folder : Icons.insert_drive_file,
+                        color: isDirectory ? Colors.blue : Colors.grey,
+                      ),
+                      title: Text(
+                        item.path.split('/').last,
+                        style: TextStyle(
+                          color: isDarkMode ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      trailing: Checkbox(
+                        value: isSelected,
+                        onChanged: (value) {
+                          setState(() {
+                            if (value == true) {
+                              _selectedItems.add(item.path);
+                            } else {
+                              _selectedItems.remove(item.path);
+                            }
+                          });
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _selectedItems.isEmpty
+                      ? null
+                      : () => Navigator.of(context).pop(_selectedItems),
+                  child: const Text('Backup Selected'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 } 
