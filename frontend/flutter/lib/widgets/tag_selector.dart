@@ -41,7 +41,7 @@ class _TagSelectorState extends State<TagSelector> {
             color: Theme.of(context).brightness == Brightness.dark 
                 ? const Color(0xFF3C4043) // Dark mode background
                 : Colors.white, // Light mode background
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(8.0),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

@@ -585,7 +585,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                 const SizedBox(height: 8),
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 8.0),
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
                   decoration: BoxDecoration(
                     color: Theme.of(context).brightness == Brightness.dark 
                         ? const Color(0xFF3C4043)
@@ -739,7 +739,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                           if (options.showQuickActions) ...[
                             const SizedBox(height: 8),
                             Container(
-                              padding: const EdgeInsets.all(8.0),
+                              padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
                               decoration: BoxDecoration(
                                 color: Theme.of(context).brightness == Brightness.dark 
                                     ? const Color(0xFF3C4043)
@@ -858,7 +858,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                 const SizedBox(height: 8),
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 8.0),
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
                   decoration: BoxDecoration(
                     color: Theme.of(context).brightness == Brightness.dark 
                         ? const Color(0xFF3C4043)
@@ -960,7 +960,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                 const SizedBox(height: 8),
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 8.0),
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
                   decoration: BoxDecoration(
                     color: Theme.of(context).brightness == Brightness.dark 
                         ? const Color(0xFF3C4043)
@@ -1068,7 +1068,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                 const SizedBox(height: 8),
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 8.0),
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
                   decoration: BoxDecoration(
                     color: Theme.of(context).brightness == Brightness.dark 
                         ? const Color(0xFF3C4043)
@@ -1215,45 +1215,119 @@ class _PreviewPanelState extends State<PreviewPanel> {
   Widget _buildQuickActions(BuildContext context, FileItem item) {
     final previewService = Provider.of<PreviewPanelService>(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final actions = previewService.getQuickActionsFor(item);
     
-    return Wrap(
-      spacing: 8.0,
-      runSpacing: 8.0,
-      children: previewService.getQuickActionsFor(item).map((action) {
-        return GestureDetector(
-          onTap: () => previewService.handleQuickAction(action, context),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(
-              color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
-              border: Border.all(
-                color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+    // Group actions by category
+    final Map<String, List<QuickAction>> groupedActions = {
+      'View & Preview': [],
+      'File Operations': [],
+      'Edit & Convert': [],
+      'Location & Organization': [],
+    };
+    
+    // Categorize actions
+    for (final action in actions) {
+      switch (action) {
+        // View & Preview
+        case QuickAction.quickLook:
+        case QuickAction.getInfo:
+        case QuickAction.copyPath:
+          groupedActions['View & Preview']!.add(action);
+          break;
+          
+        // File Operations
+        case QuickAction.rename:
+        case QuickAction.duplicate:
+        case QuickAction.compress:
+        case QuickAction.extractFile:
+        case QuickAction.createAlias:
+          groupedActions['File Operations']!.add(action);
+          break;
+          
+        // Edit & Convert
+        case QuickAction.rotate:
+        case QuickAction.markup:
+        case QuickAction.createPdf:
+        case QuickAction.searchablePdf:
+        case QuickAction.convertAudio:
+        case QuickAction.compressVideo:
+        case QuickAction.extractAudio:
+        case QuickAction.extractText:
+        case QuickAction.setWallpaper:
+          groupedActions['Edit & Convert']!.add(action);
+          break;
+          
+        // Location & Organization
+        case QuickAction.openWith:
+        case QuickAction.addToFavorites:
+        case QuickAction.revealInFolder:
+          groupedActions['Location & Organization']!.add(action);
+          break;
+      }
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: groupedActions.entries.map((entry) {
+        if (entry.value.isEmpty) return const SizedBox.shrink();
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Text(
+                entry.key,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                ),
               ),
-              borderRadius: BorderRadius.circular(8),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  previewService.getQuickActionIcon(action),
-                  size: 16,
-                  color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    previewService.getQuickActionName(action),
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800,
+            Wrap(
+              spacing: 8.0,
+              runSpacing: 8.0,
+              children: entry.value.map((action) {
+                return GestureDetector(
+                  onTap: () => previewService.handleQuickAction(action, context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
+                      border: Border.all(
+                        color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          previewService.getQuickActionIcon(action),
+                          size: 16,
+                          color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            previewService.getQuickActionName(action),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                );
+              }).toList(),
             ),
-          ),
+            const SizedBox(height: 16),
+          ],
         );
       }).toList(),
     );
