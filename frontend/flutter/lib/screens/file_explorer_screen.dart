@@ -2705,7 +2705,6 @@ exit
           child: Column(
             children: [
               _buildAppBar(context),
-              if (tabManager.showTabBar) const FileExplorerTabBar(),
               Expanded(
                 child: Row(
                   children: [
@@ -2725,6 +2724,7 @@ exit
                     Expanded(
                       child: Column(
                         children: [
+                          if (tabManager.showTabBar) const FileExplorerTabBar(),
                           Expanded(
                             child: currentTab != null && currentTab.hasError
                                 ? Center(child: Text(currentTab.errorMessage))
