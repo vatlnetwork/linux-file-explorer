@@ -2704,8 +2704,8 @@ exit
           ),
           child: Column(
             children: [
-              if (tabManager.showTabBar) const FileExplorerTabBar(),
               _buildAppBar(context),
+              if (tabManager.showTabBar) const FileExplorerTabBar(),
               Expanded(
                 child: Row(
                   children: [
