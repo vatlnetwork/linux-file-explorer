@@ -117,16 +117,6 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
                 (value) => setState(() => _currentOptions = _currentOptions.copyWith(showFolderContents: value)),
               ),
               _buildSwitchTile(
-                'Show Folder Size',
-                _currentOptions.showFolderSize,
-                (value) => setState(() => _currentOptions = _currentOptions.copyWith(showFolderSize: value)),
-              ),
-              _buildSwitchTile(
-                'Show Item Count',
-                _currentOptions.showItemCount,
-                (value) => setState(() => _currentOptions = _currentOptions.copyWith(showItemCount: value)),
-              ),
-              _buildSwitchTile(
                 'Show Hidden Items',
                 _currentOptions.showHiddenItems,
                 (value) => setState(() => _currentOptions = _currentOptions.copyWith(showHiddenItems: value)),

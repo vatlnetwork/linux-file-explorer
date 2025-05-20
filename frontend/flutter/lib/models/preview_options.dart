@@ -28,8 +28,6 @@ class PreviewOptions {
 
   // Folder specific options
   bool showFolderContents;
-  bool showFolderSize;
-  bool showItemCount;
   bool showHiddenItems;
   
   PreviewOptions({
@@ -53,8 +51,6 @@ class PreviewOptions {
     this.showBitrate = false,
 
     this.showFolderContents = true,
-    this.showFolderSize = true,
-    this.showItemCount = true,
     this.showHiddenItems = false,
   });
   
@@ -76,8 +72,6 @@ class PreviewOptions {
     bool? showCodecs,
     bool? showBitrate,
     bool? showFolderContents,
-    bool? showFolderSize,
-    bool? showItemCount,
     bool? showHiddenItems,
   }) {
     return PreviewOptions(
@@ -101,8 +95,6 @@ class PreviewOptions {
       showBitrate: showBitrate ?? this.showBitrate,
 
       showFolderContents: showFolderContents ?? this.showFolderContents,
-      showFolderSize: showFolderSize ?? this.showFolderSize,
-      showItemCount: showItemCount ?? this.showItemCount,
       showHiddenItems: showHiddenItems ?? this.showHiddenItems,
     );
   }
@@ -130,8 +122,6 @@ class PreviewOptions {
       'showBitrate': showBitrate,
 
       'showFolderContents': showFolderContents,
-      'showFolderSize': showFolderSize,
-      'showItemCount': showItemCount,
       'showHiddenItems': showHiddenItems,
     };
   }
@@ -164,8 +154,6 @@ class PreviewOptions {
       showBitrate: map['showBitrate'] ?? false,
 
       showFolderContents: map['showFolderContents'] ?? true,
-      showFolderSize: map['showFolderSize'] ?? true,
-      showItemCount: map['showItemCount'] ?? true,
       showHiddenItems: map['showHiddenItems'] ?? false,
     );
   }
@@ -215,8 +203,6 @@ class PreviewOptionsManager {
   PreviewOptions _defaultOptions = PreviewOptions();
   PreviewOptions _folderOptions = PreviewOptions(
     showFolderContents: true,
-    showFolderSize: true,
-    showItemCount: true,
     showHiddenItems: false,
   );
   

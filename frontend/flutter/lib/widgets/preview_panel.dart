@@ -336,7 +336,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
           ],
           
           // Folder info section
-          if (options.showFolderSize || options.showItemCount) ...[
+          if (options.showFolderContents) ...[
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 8.0),
               padding: const EdgeInsets.all(8.0),
@@ -351,10 +351,8 @@ class _PreviewPanelState extends State<PreviewPanel> {
                 children: [
                   const Text('Folder Information', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   const SizedBox(height: 8),
-                  if (options.showFolderSize)
-                    _buildCompactInfoRow('Size', item.formattedSize),
-                  if (options.showItemCount)
-                    _buildCompactInfoRow('Items', '${folders.length} folders, ${files.length} files'),
+                  _buildCompactInfoRow('Size', item.formattedSize),
+                  _buildCompactInfoRow('Items', '${folders.length} folders, ${files.length} files'),
                 ],
               ),
             ),
