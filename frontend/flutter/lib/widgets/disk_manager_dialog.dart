@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import '../services/disk_service.dart';
+import 'package:logging/logging.dart';
 
 class DiskManagerDialog extends StatefulWidget {
   final String? path;
@@ -15,6 +16,7 @@ class DiskManagerDialog extends StatefulWidget {
 
 class _DiskManagerDialogState extends State<DiskManagerDialog>
     with SingleTickerProviderStateMixin {
+  final _logger = Logger('DiskManagerDialog');
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
@@ -253,7 +255,7 @@ class _DiskManagerDialogState extends State<DiskManagerDialog>
           try {
             await File(file).delete();
           } catch (e) {
-            print('Error deleting $file: $e');
+            _logger.warning('Error deleting $file: $e');
           }
         }
 
@@ -281,7 +283,7 @@ class _DiskManagerDialogState extends State<DiskManagerDialog>
       final devicePath = disk.filesystem;
 
       // Run SMART test
-      final result = await Process.run('smartctl', ['-H', devicePath]);
+      final result = await Process.run('smartctl', ['-h', devicePath]);
 
       if (mounted) {
         showDialog(
@@ -331,6 +333,9 @@ class _DiskManagerDialogState extends State<DiskManagerDialog>
     final backupPath =
         '$downloadsPath/backup_${p.basename(disk.mountPoint)}_$timestamp';
 
+    _logger.info('Creating backup at: $backupPath');
+    _logger.info('Selected paths: $selectedPaths');
+
     // Show progress dialog
     showDialog(
       context: context,
@@ -351,7 +356,21 @@ class _DiskManagerDialogState extends State<DiskManagerDialog>
 
     try {
       // Create backup using tar with relative paths
-      final workingDir = disk.mountPoint;
+      String workingDir = disk.mountPoint;
+      // Expand home directory if path contains ~
+      if (workingDir.contains('~')) {
+        final home = Platform.environment['HOME'];
+        workingDir = workingDir.replaceAll('~', home ?? '');
+      }
+
+      _logger.info('Working directory: $workingDir');
+
+      // Verify working directory exists
+      final workingDirObj = Directory(workingDir);
+      if (!await workingDirObj.exists()) {
+        throw Exception('Working directory does not exist: $workingDir');
+      }
+
       final List<String> tarArgs = [
         '-czf',
         '$backupPath.tar.gz',
@@ -361,13 +380,31 @@ class _DiskManagerDialogState extends State<DiskManagerDialog>
 
       // Add relative paths to tar arguments
       for (final path in selectedPaths) {
-        final relativePath = p.relative(path, from: workingDir);
+        String expandedPath = path;
+        if (path.contains('~')) {
+          final home = Platform.environment['HOME'];
+          expandedPath = path.replaceAll('~', home ?? '');
+        }
+
+        // Verify file exists
+        final fileObj = File(expandedPath);
+        if (!await fileObj.exists()) {
+          _logger.warning('File does not exist: $expandedPath');
+          continue;
+        }
+
+        final relativePath = p.relative(expandedPath, from: workingDir);
+        _logger.info(
+          'Adding to backup: $expandedPath (relative: $relativePath)',
+        );
         tarArgs.add(relativePath);
       }
 
+      _logger.info('Running tar command with args: $tarArgs');
       final result = await Process.run('tar', tarArgs);
 
       if (result.exitCode != 0) {
+        _logger.severe('Tar command failed: ${result.stderr}');
         throw Exception(result.stderr);
       }
 
@@ -382,6 +419,7 @@ class _DiskManagerDialogState extends State<DiskManagerDialog>
         );
       }
     } catch (e) {
+      _logger.severe('Error creating backup: $e');
       // Close progress dialog on error
       if (mounted) {
         Navigator.pop(context);
@@ -488,7 +526,19 @@ class _DiskManagerDialogState extends State<DiskManagerDialog>
                                           vertical: 4,
                                           horizontal: 8,
                                         ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        color:
+                                            isDarkMode
+                                                ? const Color(0xFF3C3C3C)
+                                                : const Color(0xFFF5F5F5),
                                         child: InkWell(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                           onTap: () {
                                             setState(() {
                                               _selectedDisk = disk;
@@ -695,8 +745,8 @@ class _DiskManagerDialogState extends State<DiskManagerDialog>
       icon: Icon(icon, size: 18),
       label: Text(label),
       style: ElevatedButton.styleFrom(
-        backgroundColor: color.withOpacity(0.1),
-        foregroundColor: color,
+        backgroundColor: color,
+        foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
@@ -732,6 +782,7 @@ class BackupSelectionDialog extends StatefulWidget {
 }
 
 class _BackupSelectionDialogState extends State<BackupSelectionDialog> {
+  final _logger = Logger('BackupSelectionDialog');
   final List<String> _selectedItems = [];
   bool _isLoading = true;
   List<FileSystemEntity> _items = [];
@@ -749,13 +800,27 @@ class _BackupSelectionDialogState extends State<BackupSelectionDialog> {
     setState(() => _isLoading = true);
 
     try {
-      final directory = Directory(_currentPath);
+      // Expand home directory if path contains ~
+      String expandedPath = _currentPath;
+      if (_currentPath.contains('~')) {
+        final home = Platform.environment['HOME'];
+        expandedPath = _currentPath.replaceAll('~', home ?? '');
+      }
+
+      _logger.info('Loading items from path: $expandedPath');
+
+      final directory = Directory(expandedPath);
+      if (!await directory.exists()) {
+        throw Exception('Directory does not exist: $expandedPath');
+      }
+
       final items = await directory.list().toList();
       setState(() {
         _items = items;
         _isLoading = false;
       });
     } catch (e) {
+      _logger.warning('Error loading directory: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,

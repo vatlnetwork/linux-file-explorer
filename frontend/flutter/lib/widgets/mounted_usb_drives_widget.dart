@@ -253,8 +253,18 @@ class _MountedUsbDrivesWidgetState extends State<MountedUsbDrivesWidget> {
                       BoxShadow(
                         color:
                             isDarkMode
-                                ? Colors.black.withOpacity(0.3)
-                                : Colors.black.withOpacity(0.1),
+                                ? Colors.black.withValues(
+                                  red: 0,
+                                  green: 0,
+                                  blue: 0,
+                                  alpha: 76.5,
+                                )
+                                : Colors.black.withValues(
+                                  red: 0,
+                                  green: 0,
+                                  blue: 0,
+                                  alpha: 25.5,
+                                ),
                         blurRadius: 2,
                         offset: const Offset(0, 1),
                       ),
