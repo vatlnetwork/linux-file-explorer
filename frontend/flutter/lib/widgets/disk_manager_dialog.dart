@@ -280,10 +280,12 @@ class _DiskManagerDialogState extends State<DiskManagerDialog>
         throw Exception('smartctl not found. Please install smartmontools.');
       }
 
-      // Show password dialog
+      // Store context before async gap
+      final dialogContext = context;
       final passwordController = TextEditingController();
       final password = await showDialog<String>(
-        context: context,
+        // ignore: use_build_context_synchronously
+        context: dialogContext,
         barrierDismissible: false,
         builder:
             (context) => AlertDialog(
@@ -353,7 +355,7 @@ class _DiskManagerDialogState extends State<DiskManagerDialog>
       ]);
 
       // Write password to stdin
-      result.stdin.write(password + '\n');
+      result.stdin.write('$password\n');
       await result.stdin.close();
 
       // Collect output
