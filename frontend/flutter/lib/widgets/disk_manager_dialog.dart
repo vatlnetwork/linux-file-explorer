@@ -1,461 +1,730 @@
 import 'package:flutter/material.dart';
-import '../services/disk_service.dart';
-import 'dart:developer' as developer;
 import 'dart:io';
+import 'package:path/path.dart' as p;
+import '../services/disk_service.dart';
 
 class DiskManagerDialog extends StatefulWidget {
-  final String path;
-  final DiskSpace diskSpace;
+  final String? path;
+  final DiskSpace? diskSpace;
 
-  const DiskManagerDialog({
-    super.key,
-    required this.path,
-    required this.diskSpace,
-  });
+  const DiskManagerDialog({super.key, this.path, this.diskSpace});
 
   @override
   State<DiskManagerDialog> createState() => _DiskManagerDialogState();
 }
 
-class _DiskManagerDialogState extends State<DiskManagerDialog> {
-  final DiskService _diskService = DiskService();
-  bool _isLoading = false;
+class _DiskManagerDialogState extends State<DiskManagerDialog>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _opacityAnimation;
+  List<DiskInfo> _disks = [];
+  bool _isLoading = true;
+  DiskInfo? _selectedDisk;
+  bool _showActions = false;
 
   @override
-  Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Container(
-        width: 600,
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.storage,
-                  size: 24,
-                  color: isDarkMode ? const Color(0xFF8AB4F8) : const Color(0xFF1A73E8),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Disk Manager',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: isDarkMode ? Colors.white : Colors.black87,
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(context).pop(),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            _buildDiskInfoSection(),
-            const SizedBox(height: 24),
-            _buildActionButtons(),
-            if (_isLoading) ...[
-              const SizedBox(height: 24),
-              const Center(
-                child: CircularProgressIndicator(),
-              ),
-            ],
-          ],
-        ),
-      ),
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
     );
+
+    _scaleAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutBack,
+    );
+
+    _opacityAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeIn,
+    );
+
+    _loadDisks();
+    _controller.forward();
   }
 
-  Widget _buildDiskInfoSection() {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Disk Information',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: isDarkMode ? Colors.white : Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildInfoRow('Total Space', _diskService.formatBytes(widget.diskSpace.totalBytes)),
-          const SizedBox(height: 8),
-          _buildInfoRow('Used Space', _diskService.formatBytes(widget.diskSpace.usedBytes)),
-          const SizedBox(height: 8),
-          _buildInfoRow('Free Space', _diskService.formatBytes(widget.diskSpace.availableBytes)),
-          const SizedBox(height: 8),
-          _buildInfoRow('Usage', '${widget.diskSpace.usagePercentage.toStringAsFixed(1)}%'),
-        ],
-      ),
-    );
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    return Row(
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
-          ),
-        ),
-        const Spacer(),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: isDarkMode ? Colors.white : Colors.black87,
-          ),
-        ),
-      ],
-    );
+  Future<void> _loadDisks() async {
+    try {
+      // Run df command to get disk information
+      final result = await Process.run('df', ['-h']);
+      if (result.exitCode == 0) {
+        final lines = result.stdout.toString().split('\n');
+        // Skip header line
+        lines.removeAt(0);
+
+        setState(() {
+          _disks =
+              lines
+                  .where((line) => line.trim().isNotEmpty)
+                  .map((line) {
+                    final parts =
+                        line
+                            .split(RegExp(r'\s+'))
+                            .where((s) => s.isNotEmpty)
+                            .toList();
+                    if (parts.length >= 6) {
+                      return DiskInfo(
+                        filesystem: parts[0],
+                        size: parts[1],
+                        used: parts[2],
+                        available: parts[3],
+                        usePercentage: parts[4],
+                        mountPoint: parts.sublist(5).join(' '),
+                      );
+                    }
+                    return null;
+                  })
+                  .where((disk) => disk != null)
+                  .cast<DiskInfo>()
+                  .toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading disk information: $e')),
+        );
+      }
+    }
   }
 
-  Widget _buildActionButtons() {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-        _buildActionButton(
-          icon: Icons.cleaning_services,
-          label: 'Clean Up',
-          onPressed: () => _handleAction('cleanup'),
-          color: Colors.blue,
-        ),
-        _buildActionButton(
-          icon: Icons.analytics,
-          label: 'Analyze',
-          onPressed: () => _handleAction('analyze'),
-          color: Colors.green,
-        ),
-        _buildActionButton(
-          icon: Icons.security,
-          label: 'Check Health',
-          onPressed: () => _handleAction('health'),
-          color: Colors.orange,
-        ),
-        _buildActionButton(
-          icon: Icons.backup,
-          label: 'Backup',
-          onPressed: () => _handleAction('backup'),
-          color: Colors.purple,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onPressed,
-    required Color color,
-  }) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 18),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isDarkMode ? color.withAlpha(51) : color.withAlpha(26),
-        foregroundColor: color,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _handleAction(String action) async {
-    setState(() {
-      _isLoading = true;
-    });
+  Future<void> _handleDiskAction(String action, DiskInfo disk) async {
+    setState(() => _isLoading = true);
 
     try {
       switch (action) {
-        case 'cleanup':
-          // Find and delete temporary files
-          final tempFiles = await _diskService.getLargestFiles(widget.path, limit: 50);
-          int cleanedSize = 0;
-          for (var file in tempFiles) {
-            if (file.name.endsWith('.tmp') || file.name.endsWith('.temp')) {
-              try {
-                await File(file.path).delete();
-                cleanedSize += file.sizeBytes ?? 0;
-              } catch (e) {
-                developer.log('Error deleting temp file: $e');
-              }
-            }
-          }
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Cleaned up ${_diskService.formatBytes(cleanedSize)} of temporary files'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-          break;
-
         case 'analyze':
-          // Analyze disk usage and show largest files
-          final largestFiles = await _diskService.getLargestFiles(widget.path, limit: 10);
-          if (mounted) {
-            showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Disk Analysis'),
-                content: SizedBox(
-                  width: 400,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Top 10 Largest Files:'),
-                      const SizedBox(height: 8),
-                      ...largestFiles.map((file) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                file.name,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Text(file.sizeFormatted),
-                          ],
-                        ),
-                      )),
-                    ],
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Close'),
-                  ),
-                ],
-              ),
-            );
-          }
+          await _analyzeDisk(disk);
           break;
-
+        case 'cleanup':
+          await _cleanupDisk(disk);
+          break;
         case 'health':
-          // Check disk health using smartctl if available
-          try {
-            // First check if smartctl is installed
-            final smartctlCheck = await Process.run('which', ['smartctl']);
-            if (smartctlCheck.exitCode != 0) {
-              throw Exception('smartctl is not installed. Please install smartmontools package.');
-            }
-
-            // Get the device path from the mount point
-            final mountResult = await Process.run('df', ['--output=source', widget.path]);
-            if (mountResult.exitCode != 0) {
-              throw Exception('Failed to get device information');
-            }
-
-            // Parse the output to get the device path
-            final devicePath = mountResult.stdout.toString().split('\n')[1].trim();
-            if (devicePath.isEmpty) {
-              throw Exception('Could not determine device path');
-            }
-
-            // Check if the device supports SMART
-            final smartInfo = await Process.run('smartctl', ['-i', devicePath]);
-            if (smartInfo.exitCode != 0) {
-              throw Exception('Device does not support SMART monitoring or access denied');
-            }
-
-            // Run smartctl health check with more detailed output
-            final result = await Process.run('smartctl', ['-H', devicePath]);
-            
-            if (mounted) {
-              if (result.exitCode == 0) {
-                // Parse the smartctl output to get the health status
-                final output = result.stdout.toString();
-                final isHealthy = output.toLowerCase().contains('passed');
-                
-                // Get more detailed information if available
-                String details = '';
-                if (output.toLowerCase().contains('self-assessment')) {
-                  final lines = output.split('\n');
-                  for (var line in lines) {
-                    if (line.toLowerCase().contains('self-assessment')) {
-                      details = line.trim();
-                      break;
-                    }
-                  }
-                }
-                
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(isHealthy 
-                      ? 'Disk health check passed${details.isNotEmpty ? ': $details' : ''}'
-                      : 'Disk health check failed: ${details.isNotEmpty ? details : result.stdout}'),
-                    backgroundColor: isHealthy ? Colors.green : Colors.red,
-                    duration: const Duration(seconds: 5),
-                  ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Disk health check failed: ${result.stderr}'),
-                    backgroundColor: Colors.red,
-                    duration: const Duration(seconds: 5),
-                  ),
-                );
-              }
-            }
-          } catch (e) {
-            developer.log('Error checking disk health: $e');
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Disk health check failed: ${e.toString()}'),
-                  backgroundColor: Colors.red,
-                  duration: const Duration(seconds: 5),
-                ),
-              );
-            }
-          }
+          await _checkDiskHealth(disk);
           break;
-
         case 'backup':
-          // Show backup selection dialog
-          final selectedItems = await showDialog<List<String>>(
-            context: context,
-            builder: (context) => BackupSelectionDialog(
-              path: widget.path,
-              diskService: _diskService,
-            ),
-          );
-
-          if (selectedItems != null && selectedItems.isNotEmpty) {
-            // Create backup directory in Downloads
-            final downloadsPath = '${Platform.environment['HOME']}/Downloads';
-            final backupDir = '$downloadsPath/backup_${DateTime.now().millisecondsSinceEpoch}';
-            
-            try {
-              await Directory(backupDir).create();
-              int backedUpSize = 0;
-
-              for (final itemPath in selectedItems) {
-                final item = FileSystemEntity.typeSync(itemPath) == FileSystemEntityType.directory
-                    ? Directory(itemPath)
-                    : File(itemPath);
-                final itemName = itemPath.split('/').last;
-                final targetPath = '$backupDir/$itemName';
-
-                if (item is File) {
-                  await File(itemPath).copy(targetPath);
-                  backedUpSize += await File(itemPath).length();
-                } else if (item is Directory) {
-                  await _copyDirectory(itemPath, targetPath);
-                  // Calculate directory size
-                  final sizeResult = await Process.run('du', ['-sb', itemPath]);
-                  if (sizeResult.exitCode == 0) {
-                    final sizeStr = sizeResult.stdout.toString().split('\t')[0];
-                    backedUpSize += int.tryParse(sizeStr) ?? 0;
-                  }
-                }
-              }
-
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Backed up ${_diskService.formatBytes(backedUpSize)} to $backupDir'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
-            } catch (e) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Backup failed: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            }
-          }
+          await _backupDisk(disk);
           break;
       }
     } catch (e) {
-      developer.log('Error performing disk action: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error performing $action: ${e.toString()}'),
+            content: Text('Error performing action: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
 
-  Future<void> _copyDirectory(String sourcePath, String targetPath) async {
-    final sourceDir = Directory(sourcePath);
-    final targetDir = Directory(targetPath);
-    
-    if (!await targetDir.exists()) {
-      await targetDir.create(recursive: true);
-    }
+  Future<void> _analyzeDisk(DiskInfo disk) async {
+    // Get the largest files in the disk
+    final result = await Process.run('du', [
+      '-ah',
+      disk.mountPoint,
+      '|',
+      'sort',
+      '-rh',
+      '|',
+      'head',
+      '-n',
+      '10',
+    ]);
 
-    await for (final entity in sourceDir.list(recursive: false)) {
-      final targetEntity = '${targetDir.path}/${entity.path.split('/').last}';
-      
-      if (entity is File) {
-        await File(entity.path).copy(targetEntity);
-      } else if (entity is Directory) {
-        await _copyDirectory(entity.path, targetEntity);
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: Text('Disk Analysis: ${disk.mountPoint}'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Largest Files/Directories:'),
+                  const SizedBox(height: 8),
+                  ...result.stdout
+                      .toString()
+                      .split('\n')
+                      .where((line) => line.trim().isNotEmpty)
+                      .map(
+                        (line) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Text(line),
+                        ),
+                      ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+      );
+    }
+  }
+
+  Future<void> _cleanupDisk(DiskInfo disk) async {
+    // Find and list temporary files
+    final tempFiles = await Process.run('find', [
+      disk.mountPoint,
+      '-type',
+      'f',
+      '(',
+      '-name',
+      '*.tmp',
+      '-o',
+      '-name',
+      '*.temp',
+      '-o',
+      '-name',
+      '*~',
+      ')',
+    ]);
+
+    final files =
+        tempFiles.stdout
+            .toString()
+            .split('\n')
+            .where((f) => f.trim().isNotEmpty)
+            .toList();
+
+    if (mounted) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: Text('Clean Temporary Files'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Found ${files.length} temporary files. Delete them?'),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 200,
+                    width: 400,
+                    child: ListView.builder(
+                      itemCount: files.length,
+                      itemBuilder:
+                          (context, index) => Text(
+                            p.basename(files[index]),
+                            style: TextStyle(fontSize: 12),
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  child: const Text('Delete'),
+                ),
+              ],
+            ),
+      );
+
+      if (confirmed == true) {
+        for (final file in files) {
+          try {
+            await File(file).delete();
+          } catch (e) {
+            print('Error deleting $file: $e');
+          }
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Deleted ${files.length} temporary files'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     }
   }
+
+  Future<void> _checkDiskHealth(DiskInfo disk) async {
+    try {
+      // Check if smartctl is available
+      final smartctlCheck = await Process.run('which', ['smartctl']);
+      if (smartctlCheck.exitCode != 0) {
+        throw Exception('smartctl not found. Please install smartmontools.');
+      }
+
+      // Get the device path
+      final devicePath = disk.filesystem;
+
+      // Run SMART test
+      final result = await Process.run('smartctl', ['-H', devicePath]);
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: Text('Disk Health Check'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Results for ${disk.mountPoint}:'),
+                    const SizedBox(height: 8),
+                    Text(result.stdout.toString()),
+                    if (result.stderr.toString().isNotEmpty)
+                      Text(
+                        result.stderr.toString(),
+                        style: TextStyle(color: Colors.red),
+                      ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Close'),
+                  ),
+                ],
+              ),
+        );
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> _backupDisk(DiskInfo disk) async {
+    final downloadsPath = '${Platform.environment['HOME']}/Downloads';
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final backupPath =
+        '$downloadsPath/backup_${p.basename(disk.mountPoint)}_$timestamp';
+
+    if (mounted) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: Text('Backup ${disk.mountPoint}'),
+              content: Text(
+                'This will create a backup in:\n$backupPath\n\nContinue?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Backup'),
+                ),
+              ],
+            ),
+      );
+
+      if (confirmed == true) {
+        // Show progress dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder:
+              (context) => AlertDialog(
+                title: Text('Creating Backup'),
+                content: Row(
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(width: 16),
+                    Text('Creating backup...'),
+                  ],
+                ),
+              ),
+        );
+
+        try {
+          // Create backup using tar
+          await Process.run('tar', [
+            '-czf',
+            '$backupPath.tar.gz',
+            '-C',
+            p.dirname(disk.mountPoint),
+            p.basename(disk.mountPoint),
+          ]);
+
+          // Close progress dialog
+          if (mounted) {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Backup created at $backupPath.tar.gz'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } catch (e) {
+          // Close progress dialog on error
+          if (mounted) {
+            Navigator.pop(context);
+          }
+          rethrow;
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return FadeTransition(
+          opacity: _opacityAnimation,
+          child: ScaleTransition(
+            scale: _scaleAnimation,
+            child: Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              backgroundColor:
+                  isDarkMode ? const Color(0xFF2D2E30) : Colors.white,
+              child: Container(
+                constraints: const BoxConstraints(
+                  maxWidth: 600,
+                  maxHeight: 500,
+                ),
+                child: Stack(
+                  children: [
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Dialog header
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color:
+                                isDarkMode
+                                    ? const Color(0xFF3C3C3C)
+                                    : Colors.grey[100],
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(16),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.storage,
+                                size: 24,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Disk Manager',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const Spacer(),
+                              IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: () {
+                                  _controller.reverse().then((_) {
+                                    Navigator.of(context).pop();
+                                  });
+                                },
+                                tooltip: 'Close',
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Dialog content
+                        Flexible(
+                          child:
+                              _isLoading
+                                  ? const Center(
+                                    child: CircularProgressIndicator(),
+                                  )
+                                  : ListView.builder(
+                                    padding: const EdgeInsets.all(8),
+                                    itemCount: _disks.length,
+                                    itemBuilder: (context, index) {
+                                      final disk = _disks[index];
+                                      final usePercentage =
+                                          double.tryParse(
+                                            disk.usePercentage.replaceAll(
+                                              '%',
+                                              '',
+                                            ),
+                                          ) ??
+                                          0.0;
+
+                                      return Card(
+                                        margin: const EdgeInsets.symmetric(
+                                          vertical: 4,
+                                          horizontal: 8,
+                                        ),
+                                        child: InkWell(
+                                          onTap: () {
+                                            setState(() {
+                                              _selectedDisk = disk;
+                                              _showActions = true;
+                                            });
+                                          },
+                                          child: ListTile(
+                                            title: Text(
+                                              disk.mountPoint,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            subtitle: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                const SizedBox(height: 8),
+                                                LinearProgressIndicator(
+                                                  value: usePercentage / 100,
+                                                  backgroundColor:
+                                                      Colors.grey[300],
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation<
+                                                        Color
+                                                      >(
+                                                        usePercentage > 90
+                                                            ? Colors.red
+                                                            : usePercentage > 75
+                                                            ? Colors.orange
+                                                            : Colors.green,
+                                                      ),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  'Used: ${disk.used} of ${disk.size} (${disk.usePercentage} used, ${disk.available} available)',
+                                                  style: TextStyle(
+                                                    color:
+                                                        isDarkMode
+                                                            ? Colors.grey[300]
+                                                            : Colors.grey[600],
+                                                  ),
+                                                ),
+                                                Text(
+                                                  'Filesystem: ${disk.filesystem}',
+                                                  style: TextStyle(
+                                                    color:
+                                                        isDarkMode
+                                                            ? Colors.grey[300]
+                                                            : Colors.grey[600],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            leading: Icon(
+                                              disk.mountPoint == '/'
+                                                  ? Icons.storage
+                                                  : Icons.folder,
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).primaryColor,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                        ),
+                        // Dialog footer
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color:
+                                isDarkMode
+                                    ? const Color(0xFF3C3C3C)
+                                    : Colors.grey[100],
+                            borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(16),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton(
+                                onPressed: () {
+                                  _controller.reverse().then((_) {
+                                    Navigator.of(context).pop();
+                                  });
+                                },
+                                child: const Text('Close'),
+                              ),
+                              const SizedBox(width: 8),
+                              ElevatedButton.icon(
+                                onPressed: _loadDisks,
+                                icon: const Icon(Icons.refresh, size: 18),
+                                label: const Text('Refresh'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Action panel
+                    if (_showActions && _selectedDisk != null)
+                      Positioned.fill(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _showActions = false),
+                          child: Container(
+                            color: Colors.black54,
+                            child: Center(
+                              child: Container(
+                                margin: const EdgeInsets.all(32),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color:
+                                      isDarkMode
+                                          ? const Color(0xFF2D2E30)
+                                          : Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Manage ${_selectedDisk!.mountPoint}',
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        _buildActionButton(
+                                          icon: Icons.analytics,
+                                          label: 'Analyze',
+                                          color: Colors.blue,
+                                          onPressed:
+                                              () => _handleDiskAction(
+                                                'analyze',
+                                                _selectedDisk!,
+                                              ),
+                                        ),
+                                        _buildActionButton(
+                                          icon: Icons.cleaning_services,
+                                          label: 'Clean Up',
+                                          color: Colors.green,
+                                          onPressed:
+                                              () => _handleDiskAction(
+                                                'cleanup',
+                                                _selectedDisk!,
+                                              ),
+                                        ),
+                                        _buildActionButton(
+                                          icon: Icons.health_and_safety,
+                                          label: 'Check Health',
+                                          color: Colors.orange,
+                                          onPressed:
+                                              () => _handleDiskAction(
+                                                'health',
+                                                _selectedDisk!,
+                                              ),
+                                        ),
+                                        _buildActionButton(
+                                          icon: Icons.backup,
+                                          label: 'Backup',
+                                          color: Colors.purple,
+                                          onPressed:
+                                              () => _handleDiskAction(
+                                                'backup',
+                                                _selectedDisk!,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color.withOpacity(0.1),
+        foregroundColor: color,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+}
+
+class DiskInfo {
+  final String filesystem;
+  final String size;
+  final String used;
+  final String available;
+  final String usePercentage;
+  final String mountPoint;
+
+  DiskInfo({
+    required this.filesystem,
+    required this.size,
+    required this.used,
+    required this.available,
+    required this.usePercentage,
+    required this.mountPoint,
+  });
 }
 
 class BackupSelectionDialog extends StatefulWidget {
   final String path;
-  final DiskService diskService;
 
-  const BackupSelectionDialog({
-    super.key,
-    required this.path,
-    required this.diskService,
-  });
+  const BackupSelectionDialog({super.key, required this.path});
 
   @override
   State<BackupSelectionDialog> createState() => _BackupSelectionDialogState();
@@ -492,9 +761,7 @@ class _BackupSelectionDialogState extends State<BackupSelectionDialog> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         width: 600,
         padding: const EdgeInsets.all(16),
@@ -559,9 +826,10 @@ class _BackupSelectionDialogState extends State<BackupSelectionDialog> {
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: _selectedItems.isEmpty
-                      ? null
-                      : () => Navigator.of(context).pop(_selectedItems),
+                  onPressed:
+                      _selectedItems.isEmpty
+                          ? null
+                          : () => Navigator.of(context).pop(_selectedItems),
                   child: const Text('Backup Selected'),
                 ),
               ],
@@ -571,4 +839,4 @@ class _BackupSelectionDialogState extends State<BackupSelectionDialog> {
       ),
     );
   }
-} 
+}

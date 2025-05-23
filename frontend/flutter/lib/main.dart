@@ -24,12 +24,13 @@ import 'services/file_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize logging with more detailed configuration
   Logger.root.level = Level.ALL;
   Logger.root.onRecord.listen((record) {
-    final message = '${record.time}: ${record.level.name}: ${record.loggerName}: ${record.message}';
-    
+    final message =
+        '${record.time}: ${record.level.name}: ${record.loggerName}: ${record.message}';
+
     if (record.level >= Level.WARNING) {
       debugPrint('\x1B[31m$message\x1B[0m');
     } else if (record.level >= Level.INFO) {
@@ -38,19 +39,19 @@ void main() async {
       debugPrint(message);
     }
   });
-  
+
   final appLogger = Logger('App');
   appLogger.info('Application starting...');
-  
+
   try {
     // Initialize audio support for Linux
     await initializeAudioSupport();
     appLogger.info('Audio support initialized');
-    
+
     // Initialize window_manager for custom window controls
     await windowManager.ensureInitialized();
     appLogger.fine('Window manager initialized');
-    
+
     // Use solid background instead of transparent window
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setSystemUIOverlayStyle(
@@ -63,24 +64,24 @@ void main() async {
         systemNavigationBarContrastEnforced: false,
       ),
     );
-    
+
     WindowOptions windowOptions = const WindowOptions(
       size: Size(1024, 768),
       minimumSize: Size(800, 600),
       center: true,
       backgroundColor: Color(0xFF2D2D2D),
       skipTaskbar: false,
-      titleBarStyle: TitleBarStyle.normal,
+      titleBarStyle: TitleBarStyle.hidden,
       windowButtonVisibility: false,
       fullScreen: false,
       alwaysOnTop: false,
     );
-    
+
     await windowManager.waitUntilReadyToShow(windowOptions, () async {
       await windowManager.show();
       await windowManager.focus();
     });
-    
+
     // Initialize services with proper error handling
     final bookmarkService = BookmarkService();
     await bookmarkService.init().timeout(
@@ -99,7 +100,7 @@ void main() async {
         return;
       },
     );
-    
+
     final fileAssociationService = FileAssociationService();
     await fileAssociationService.init().timeout(
       const Duration(seconds: 5),
@@ -108,9 +109,9 @@ void main() async {
         return;
       },
     );
-    
+
     final tagsService = TagsService();
-    
+
     runApp(
       MultiProvider(
         providers: [
@@ -172,8 +173,7 @@ class MyApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       debugShowCheckedModeBanner: false,
       home: const FileExplorerScreen(),
-      routes: {
-        TagsViewScreen.routeName: (context) => const TagsViewScreen(),      },
+      routes: {TagsViewScreen.routeName: (context) => const TagsViewScreen()},
       scaffoldMessengerKey: NotificationService.messengerKey,
     );
   }

@@ -35,9 +35,10 @@ import '../services/compression_service.dart';
 import '../services/tab_manager_service.dart';
 import '../widgets/tab_bar.dart';
 import '../widgets/keyboard_shortcuts_dialog.dart';
+import '../widgets/disk_manager_dialog.dart';
 
 /// A file explorer screen that displays files and folders in a customizable interface.
-/// 
+///
 /// Key interactions:
 /// - Single click: Selects files and folders
 /// - Double click: Opens files with default applications or navigates into folders
@@ -65,7 +66,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   late AnimationController _bookmarkSidebarAnimation;
   // Animation controller for preview panel
   late AnimationController _previewPanelAnimation;
-  
+
   String _currentPath = '';
   List<FileItem> _items = [];
   bool _isLoading = true;
@@ -75,10 +76,11 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   final List<String> _forwardHistory = []; // Add forward history
   bool _showBookmarkSidebar = true;
   bool _isMaximized = false;
-  
+
   // Replace single item selection with a set for multiple selection
-  Set<String> _selectedItemsPaths = {}; // Track the currently selected items by path
-  
+  Set<String> _selectedItemsPaths =
+      {}; // Track the currently selected items by path
+
   // Replace clipboard and clipboard state variables
   List<FileItem>? _clipboardItems;
   bool _isItemCut = false; // false for copy, true for cut
@@ -93,67 +95,75 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   // State variables for drag selection
   Offset? _dragStartPosition;
   Offset? _dragEndPosition;
-  final Map<String, Rect> _itemPositions = {}; // Store positions of items for hit testing
+  final Map<String, Rect> _itemPositions =
+      {}; // Store positions of items for hit testing
   bool _mightStartDragging = false;
-  bool _showHiddenFiles = false; // Add state variable for hidden files visibility
+  bool _showHiddenFiles =
+      false; // Add state variable for hidden files visibility
 
   @override
   void initState() {
     super.initState();
     _selectedItemsPaths = {};
     _clipboardItems = [];
-    
+
     // Initialize animation controllers
     _bookmarkSidebarAnimation = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
-    
+
     _previewPanelAnimation = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
-    
+
     windowManager.addListener(this);
     _initWindowState();
     _initHomeDirectory();
-    
+
     // Initialize focus nodes
     _focusNode = FocusNode();
     _searchFocusNode = FocusNode();
     _searchController = TextEditingController();
-    
+
     // Add focus listeners
     _focusNode.addListener(() {
       _logger.info('Main focus changed: ${_focusNode.hasFocus}');
       if (_focusNode.hasFocus) {
         // Ensure the current tab is visible when focus is gained
-        final tabManager = Provider.of<TabManagerService>(context, listen: false);
+        final tabManager = Provider.of<TabManagerService>(
+          context,
+          listen: false,
+        );
         if (tabManager.currentTab != null) {
           _currentPath = tabManager.currentTab!.path;
           _loadDirectory(_currentPath);
         }
       }
     });
-    
+
     _searchFocusNode.addListener(() {
       _logger.info('Search focus changed: ${_searchFocusNode.hasFocus}');
     });
-    
+
     // Add a post-frame callback to subscribe to preview panel changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final previewPanelService = Provider.of<PreviewPanelService>(context, listen: false);
+      final previewPanelService = Provider.of<PreviewPanelService>(
+        context,
+        listen: false,
+      );
       previewPanelService.addListener(_handlePreviewPanelChange);
-      
+
       // Initialize first tab
       final tabManager = Provider.of<TabManagerService>(context, listen: false);
       if (tabManager.tabs.isEmpty) {
         tabManager.addTab(_currentPath);
       }
-      
+
       // Add listener for tab changes
       tabManager.addListener(_handleTabChange);
-      
+
       // Request focus after initialization
       _focusNode.requestFocus();
       _logger.info('Requested focus after initialization');
@@ -174,18 +184,21 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     windowManager.removeListener(this);
     _scrollController.dispose();
     _focusNode.dispose();
-    
+
     // Remove preview panel listener
-    final previewPanelService = Provider.of<PreviewPanelService>(context, listen: false);
+    final previewPanelService = Provider.of<PreviewPanelService>(
+      context,
+      listen: false,
+    );
     previewPanelService.removeListener(_handlePreviewPanelChange);
-    
+
     // Remove tab manager listener
     final tabManager = Provider.of<TabManagerService>(context, listen: false);
     tabManager.removeListener(_handleTabChange);
-    
+
     super.dispose();
   }
-  
+
   @override
   void onWindowMaximize() {
     setState(() => _isMaximized = true);
@@ -214,7 +227,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     // Record current path in history if different
     if (addToHistory && _currentPath != path && _currentPath.isNotEmpty) {
       _navigationHistory.add(_currentPath);
-      _forwardHistory.clear(); // Clear forward history when navigating to a new path
+      _forwardHistory
+          .clear(); // Clear forward history when navigating to a new path
     }
 
     setState(() {
@@ -222,7 +236,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       _hasError = false;
       _errorMessage = '';
       _currentPath = path;
-      
+
       // Clear item positions when changing directory since items will be different
       _itemPositions.clear();
       _dragStartPosition = null;
@@ -231,12 +245,15 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     });
 
     try {
-      final items = await _fileService.listDirectory(path, showHidden: _showHiddenFiles);
-      
+      final items = await _fileService.listDirectory(
+        path,
+        showHidden: _showHiddenFiles,
+      );
+
       setState(() {
         _items = items;
         _isLoading = false;
-        
+
         // Reset selection when changing directories
         _selectedItemsPaths = {};
       });
@@ -261,7 +278,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       } else {
         // If no history, just show error state
         _handleError('Failed to load directory: $e');
-        final tabManager = Provider.of<TabManagerService>(context, listen: false);
+        final tabManager = Provider.of<TabManagerService>(
+          context,
+          listen: false,
+        );
         tabManager.updateCurrentTabError(true, 'Failed to load directory: $e');
       }
     }
@@ -307,30 +327,32 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
 
   Future<void> _showCreateDialog(bool isDirectory) async {
     final TextEditingController nameController = TextEditingController();
-    
+
     final result = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Create ${isDirectory ? 'Directory' : 'File'}'),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: 'Name',
-            hintText: isDirectory ? 'Enter directory name' : 'Enter file name',
+      builder:
+          (context) => AlertDialog(
+            title: Text('Create ${isDirectory ? 'Directory' : 'File'}'),
+            content: TextField(
+              controller: nameController,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Name',
+                hintText:
+                    isDirectory ? 'Enter directory name' : 'Enter file name',
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, nameController.text),
+                child: Text('Create'),
+              ),
+            ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, nameController.text),
-            child: Text('Create'),
-          ),
-        ],
-      ),
     );
 
     if (result != null && result.isNotEmpty) {
@@ -354,30 +376,31 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   }
 
   Future<void> _showRenameDialog(FileItem item) async {
-    final TextEditingController nameController = TextEditingController(text: item.name);
-    
+    final TextEditingController nameController = TextEditingController(
+      text: item.name,
+    );
+
     final result = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Rename'),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: 'New name',
+      builder:
+          (context) => AlertDialog(
+            title: Text('Rename'),
+            content: TextField(
+              controller: nameController,
+              autofocus: true,
+              decoration: InputDecoration(labelText: 'New name'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, nameController.text),
+                child: Text('Rename'),
+              ),
+            ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, nameController.text),
-            child: Text('Rename'),
-          ),
-        ],
-      ),
     );
 
     if (result != null && result.isNotEmpty && result != item.name) {
@@ -399,21 +422,26 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   Future<void> _showDeleteConfirmation(FileItem item) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete ${item.type == FileItemType.directory ? 'Directory' : 'File'}'),
-        content: Text('Are you sure you want to delete "${item.name}"? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: Text(
+              'Delete ${item.type == FileItemType.directory ? 'Directory' : 'File'}',
+            ),
+            content: Text(
+              'Are you sure you want to delete "${item.name}"? This action cannot be undone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: Text('Delete'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text('Delete'),
-          ),
-        ],
-      ),
     );
 
     if (confirmed == true) {
@@ -434,27 +462,31 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
 
   void _selectItem(FileItem item, [bool multiSelect = false]) {
     final String itemPath = item.path;
-    final previewPanelService = Provider.of<PreviewPanelService>(context, listen: false);
-    
+    final previewPanelService = Provider.of<PreviewPanelService>(
+      context,
+      listen: false,
+    );
+
     setState(() {
       if (multiSelect) {
         // Multi-select logic (when holding Ctrl/Cmd)
         if (_selectedItemsPaths.contains(itemPath)) {
           _selectedItemsPaths.remove(itemPath);
-          
+
           // If we removed the current preview item, try to set a new one
           if (previewPanelService.selectedItem?.path == itemPath) {
             if (_selectedItemsPaths.isNotEmpty) {
               final firstSelectedPath = _selectedItemsPaths.first;
               final firstSelectedItem = _items.firstWhere(
                 (item) => item.path == firstSelectedPath,
-                orElse: () => FileItem(
-                  path: '',
-                  name: '',
-                  type: FileItemType.unknown,
-                ),
+                orElse:
+                    () => FileItem(
+                      path: '',
+                      name: '',
+                      type: FileItemType.unknown,
+                    ),
               );
-              
+
               if (firstSelectedItem.type != FileItemType.unknown) {
                 previewPanelService.setSelectedItem(firstSelectedItem);
               } else {
@@ -466,9 +498,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
           }
         } else {
           _selectedItemsPaths.add(itemPath);
-          
+
           // If this is the first item or we're replacing a previous selection, update preview
-          if (_selectedItemsPaths.length == 1 || previewPanelService.selectedItem == null) {
+          if (_selectedItemsPaths.length == 1 ||
+              previewPanelService.selectedItem == null) {
             previewPanelService.setSelectedItem(item);
           }
         }
@@ -477,25 +510,30 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         setState(() {
           // Just select the item without navigating
           _selectedItemsPaths = {itemPath};
-          
+
           // Set selected item for preview
           previewPanelService.setSelectedItem(item);
         });
       }
     });
   }
-  
+
   void _handleItemDoubleTap(FileItem item) {
     // For files, try to open them, for directories navigate into them
     if (item.type == FileItemType.directory) {
       _navigateToDirectory(item.path);
     } else {
       // Check if there's a default app for this file type
-      final fileAssociationService = Provider.of<FileAssociationService>(context, listen: false);
-      
+      final fileAssociationService = Provider.of<FileAssociationService>(
+        context,
+        listen: false,
+      );
+
       // Get the default app desktop file path for this file
-      final defaultAppPath = fileAssociationService.getDefaultAppForFile(item.path);
-      
+      final defaultAppPath = fileAssociationService.getDefaultAppForFile(
+        item.path,
+      );
+
       if (defaultAppPath != null) {
         // Use gtk-launch to open the file with the default app
         try {
@@ -541,31 +579,36 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         _selectedItemsPaths = {item.path};
       }
     });
-    
-    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    final bookmarkService = Provider.of<BookmarkService>(context, listen: false);
+
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final bookmarkService = Provider.of<BookmarkService>(
+      context,
+      listen: false,
+    );
     final isFolder = item.type == FileItemType.directory;
-    final isBookmarked = isFolder ? bookmarkService.isBookmarked(item.path) : false;
+    final isBookmarked =
+        isFolder ? bookmarkService.isBookmarked(item.path) : false;
     final isCompressed = _isCompressedFile(item);
-    
+
     // Check if this directory is a mount point
     bool isMountPoint = false;
     if (isFolder) {
       isMountPoint = await _isDirectoryMountPoint(item.path);
     }
-    
+
     // Create a relative rectangle for positioning the menu
     final RelativeRect menuPosition = RelativeRect.fromRect(
       Rect.fromPoints(position, position),
       Rect.fromLTWH(0, 0, overlay.size.width, overlay.size.height),
     );
-    
+
     // Add mounted check
     if (!mounted) return;
-    
+
     // Create menu items depending on whether we have multiple items selected
     final hasMultipleSelection = _selectedItemsPaths.length > 1;
-    
+
     final menuItems = <PopupMenuEntry<String>>[
       // Show number of selected items when multiple are selected
       if (hasMultipleSelection)
@@ -573,13 +616,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
           enabled: false,
           child: Text(
             '${_selectedItemsPaths.length} items selected',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.blue,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
           ),
         ),
-      
+
       // Open option (only for single item)
       if (!hasMultipleSelection)
         PopupMenuItem<String>(
@@ -592,7 +632,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
             ],
           ),
         ),
-      
+
       // Open with option (only for files, not directories)
       if (!hasMultipleSelection && item.type != FileItemType.directory)
         PopupMenuItem<String>(
@@ -605,7 +645,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
             ],
           ),
         ),
-        
+
       // Add common operations for both single and multiple selections
       PopupMenuItem<String>(
         value: 'copy',
@@ -650,7 +690,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
           ],
         ),
       ),
-      
+
       // Single item specific options
       if (!hasMultipleSelection) ...[
         const PopupMenuDivider(),
@@ -666,20 +706,23 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
               ],
             ),
           ),
-        
+
         // Add/remove bookmark (directories only)
         if (isFolder)
           PopupMenuItem<String>(
             value: isBookmarked ? 'remove_bookmark' : 'bookmark',
             child: Row(
               children: [
-                Icon(isBookmarked ? Icons.bookmark_remove : Icons.bookmark_add, size: 16),
+                Icon(
+                  isBookmarked ? Icons.bookmark_remove : Icons.bookmark_add,
+                  size: 16,
+                ),
                 SizedBox(width: 8),
                 Text(isBookmarked ? 'Remove Bookmark' : 'Add Bookmark'),
               ],
             ),
           ),
-          
+
         // Terminal option (directories only)
         if (isFolder)
           PopupMenuItem<String>(
@@ -692,7 +735,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
               ],
             ),
           ),
-          
+
         // Unmount option (mount points only)
         if (isMountPoint)
           PopupMenuItem<String>(
@@ -705,7 +748,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
               ],
             ),
           ),
-          
+
         // Extract option (compressed files only)
         if (isCompressed)
           PopupMenuItem<String>(
@@ -718,7 +761,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
               ],
             ),
           ),
-          
+
         // Compress option (for both files and folders, but not for already compressed files)
         if (!_isCompressedFile(item))
           PopupMenuItem<String>(
@@ -731,7 +774,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
               ],
             ),
           ),
-          
+
         PopupMenuItem<String>(
           value: 'paste',
           child: Row(
@@ -744,22 +787,23 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         ),
       ],
     ];
-    
+
     // Add mounted check again
     if (!mounted) return;
-    
+
     final result = await showMenu<String>(
       context: context,
       position: menuPosition,
-      color: Theme.of(context).brightness == Brightness.dark 
-          ? const Color(0xFF2D2E30)
-          : Colors.white,
+      color:
+          Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFF2D2E30)
+              : Colors.white,
       items: menuItems,
     );
-    
+
     // Process the selected menu option
     if (result == null || !mounted) return;
-    
+
     // Handle operations for both single and multiple selections
     switch (result) {
       case 'open':
@@ -839,32 +883,38 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
 
   Future<void> _showDeleteMultipleConfirmation() async {
     if (_selectedItemsPaths.isEmpty) return;
-    
-    final items = _items.where((item) => _selectedItemsPaths.contains(item.path)).toList();
-    final numFiles = items.where((item) => item.type == FileItemType.file).length;
-    final numFolders = items.where((item) => item.type == FileItemType.directory).length;
-    
+
+    final items =
+        _items
+            .where((item) => _selectedItemsPaths.contains(item.path))
+            .toList();
+    final numFiles =
+        items.where((item) => item.type == FileItemType.file).length;
+    final numFolders =
+        items.where((item) => item.type == FileItemType.directory).length;
+
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete Multiple Items'),
-        content: Text(
-          'Are you sure you want to delete ${items.length} items '
-          '($numFiles files, $numFolders folders)? '
-          'This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: Text('Delete Multiple Items'),
+            content: Text(
+              'Are you sure you want to delete ${items.length} items '
+              '($numFiles files, $numFolders folders)? '
+              'This action cannot be undone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: Text('Delete'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text('Delete'),
-          ),
-        ],
-      ),
     );
 
     if (confirmed == true) {
@@ -891,21 +941,21 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
           },
         );
       }
-      
+
       try {
         // Delete each item
         for (final item in items) {
           await _fileService.deleteFileOrDirectory(item.path);
         }
-        
+
         // Dismiss progress dialog
         if (mounted) {
           Navigator.pop(context);
         }
-        
+
         // Reload directory
         _loadDirectory(_currentPath);
-        
+
         if (mounted) {
           NotificationService.showNotification(
             context,
@@ -926,13 +976,13 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       }
     }
   }
-  
+
   void _copyItem(FileItem item) {
     setState(() {
       _clipboardItems = [item];
       _isItemCut = false;
     });
-    
+
     // Copy the path to the system clipboard
     FlutterClipboard.copy(item.path).then((result) {
       if (mounted) {
@@ -944,13 +994,13 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       }
     });
   }
-  
+
   void _cutItem(FileItem item) {
     setState(() {
       _clipboardItems = [item];
       _isItemCut = true;
     });
-    
+
     // Copy the path to the system clipboard with a prefix indicating it's a cut operation
     // This is just to provide data to the system clipboard - the cut operation is still handled internally
     FlutterClipboard.copy("CUT:${item.path}").then((result) {
@@ -963,7 +1013,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       }
     });
   }
-  
+
   Future<void> _pasteItemsToCurrentDirectory() async {
     await _pasteItemsFromInternalClipboard();
   }
@@ -974,20 +1024,20 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       await _pasteItemsFromInternalClipboard();
       return;
     }
-    
+
     try {
       // Get data from system clipboard
       final String clipboardData = await FlutterClipboard.paste();
-      
+
       if (clipboardData.isEmpty) {
         // Nothing to paste
         return;
       }
-      
+
       // Check if it's a cut operation
       bool isCut = false;
       String processedData = clipboardData;
-      
+
       if (clipboardData.startsWith("CUT:")) {
         isCut = true;
         // Remove the CUT: prefix
@@ -997,55 +1047,61 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
           processedData = clipboardData.substring(4); // Skip "CUT:"
         }
       }
-      
+
       // Split by newlines to get multiple paths
-      final List<String> paths = processedData.split('\n')
-          .where((path) => path.trim().isNotEmpty)
-          .toList();
-      
+      final List<String> paths =
+          processedData
+              .split('\n')
+              .where((path) => path.trim().isNotEmpty)
+              .toList();
+
       if (paths.isEmpty) return;
-      
+
       // Create temporary FileItems for these paths
       final List<FileItem> tempClipboardItems = [];
-      
+
       for (final path in paths) {
         if (FileSystemEntity.isFileSync(path)) {
           final file = File(path);
           final stat = file.statSync();
-          tempClipboardItems.add(FileItem(
-            path: path,
-            name: p.basename(path),
-            type: FileItemType.file,
-            modifiedTime: stat.modified,
-            size: stat.size,
-          ));
+          tempClipboardItems.add(
+            FileItem(
+              path: path,
+              name: p.basename(path),
+              type: FileItemType.file,
+              modifiedTime: stat.modified,
+              size: stat.size,
+            ),
+          );
         } else if (FileSystemEntity.isDirectorySync(path)) {
           final dir = Directory(path);
           final stat = dir.statSync();
-          tempClipboardItems.add(FileItem(
-            path: path,
-            name: p.basename(path),
-            type: FileItemType.directory,
-            modifiedTime: stat.modified,
-          ));
+          tempClipboardItems.add(
+            FileItem(
+              path: path,
+              name: p.basename(path),
+              type: FileItemType.directory,
+              modifiedTime: stat.modified,
+            ),
+          );
         }
       }
-      
+
       // If we have valid items, temporarily set them as clipboard items and paste
       if (tempClipboardItems.isNotEmpty) {
         // Save the current clipboard state
         final oldClipboardItems = _clipboardItems;
         final oldIsItemCut = _isItemCut;
-        
+
         // Temporarily set the new clipboard data
         setState(() {
           _clipboardItems = tempClipboardItems;
           _isItemCut = isCut;
         });
-        
+
         // Paste using the internal paste method
         await _pasteItemsFromInternalClipboard();
-        
+
         // Restore previous clipboard if it was a copy operation
         // or if it was a cut but the operation failed
         if (!isCut) {
@@ -1065,7 +1121,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       }
     }
   }
-  
+
   Future<void> _pasteItemsFromInternalClipboard() async {
     if (_clipboardItems == null || _clipboardItems!.isEmpty) {
       if (mounted) {
@@ -1077,7 +1133,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       }
       return;
     }
-    
+
     try {
       // Show progress dialog
       if (mounted) {
@@ -1103,10 +1159,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
           },
         );
       }
-      
+
       final sourcePaths = _clipboardItems!.map((item) => item.path).toList();
       var completed = 0;
-      
+
       // Process files asynchronously
       await _fileService.processFilesAsync(
         sourcePaths: sourcePaths,
@@ -1120,33 +1176,31 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
           }
         },
       );
-      
+
       // Clear clipboard after cut-paste
       if (_isItemCut) {
         setState(() {
           _clipboardItems = null;
         });
       }
-      
+
       // Dismiss progress dialog
       if (mounted) {
         Navigator.of(context).pop();
       }
-      
+
       // Show success notification
       if (mounted) {
         NotificationService.showNotification(
           context,
-          message: _isItemCut 
-              ? 'Moved $completed items' 
-              : 'Copied $completed items',
+          message:
+              _isItemCut ? 'Moved $completed items' : 'Copied $completed items',
           type: NotificationType.success,
         );
       }
-      
+
       // Refresh directory contents
       _loadDirectory(_currentPath);
-      
     } catch (e) {
       // Dismiss progress dialog if it's still showing
       if (mounted) {
@@ -1164,27 +1218,25 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     final File file = File(item.path);
     final Directory dir = Directory(item.path);
     final bool isDirectory = item.type == FileItemType.directory;
-    
+
     // Check if this is a mount point
     bool isMountPoint = false;
     if (isDirectory) {
       isMountPoint = await _isDirectoryMountPoint(item.path);
     }
-    
+
     // Get file or directory stats
-    final FileStat stat = isDirectory 
-        ? dir.statSync() 
-        : file.statSync();
-    
+    final FileStat stat = isDirectory ? dir.statSync() : file.statSync();
+
     // For directories, calculate the number of items
     int itemCount = 0;
     int totalSize = 0;
-    
+
     if (isDirectory) {
       try {
         final List<FileSystemEntity> entities = dir.listSync();
         itemCount = entities.length;
-        
+
         // Calculate total size for directory contents (first level only)
         for (final entity in entities) {
           if (entity is File) {
@@ -1195,106 +1247,130 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         // Handle permission issues silently
       }
     }
-    
+
     // Helper function to format size
     String formatBytes(int bytes) {
       if (bytes < 1024) return '$bytes B';
       if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-      if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+      if (bytes < 1024 * 1024 * 1024)
+        return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
       return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
     }
-    
+
     // Check if the widget is still mounted before using context
     if (!mounted) return;
-    
+
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              isDirectory ? (isMountPoint ? Icons.usb : Icons.folder) : Icons.insert_drive_file,
-              color: isDirectory ? (isMountPoint ? Colors.amber : Colors.blue) : Colors.blueGrey,
-            ),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Properties: ${item.name}',
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: Text('Path'),
-                subtitle: Text(item.path, style: TextStyle(fontSize: 13)),
-                dense: true,
-              ),
-              ListTile(
-                title: Text('Type'),
-                subtitle: Text(isDirectory ? (isMountPoint ? 'Mount Point' : 'Directory') : 'File - ${item.fileExtension}', style: TextStyle(fontSize: 13)),
-                dense: true,
-              ),
-              ListTile(
-                title: Text('Size'),
-                subtitle: Text(
+      builder:
+          (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(
                   isDirectory
-                      ? '$itemCount items, ${totalSize > 0 ? formatBytes(totalSize) : "Calculating..."}'
-                      : item.formattedSize,
-                  style: TextStyle(fontSize: 13)
+                      ? (isMountPoint ? Icons.usb : Icons.folder)
+                      : Icons.insert_drive_file,
+                  color:
+                      isDirectory
+                          ? (isMountPoint ? Colors.amber : Colors.blue)
+                          : Colors.blueGrey,
                 ),
-                dense: true,
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Properties: ${item.name}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    title: Text('Path'),
+                    subtitle: Text(item.path, style: TextStyle(fontSize: 13)),
+                    dense: true,
+                  ),
+                  ListTile(
+                    title: Text('Type'),
+                    subtitle: Text(
+                      isDirectory
+                          ? (isMountPoint ? 'Mount Point' : 'Directory')
+                          : 'File - ${item.fileExtension}',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    dense: true,
+                  ),
+                  ListTile(
+                    title: Text('Size'),
+                    subtitle: Text(
+                      isDirectory
+                          ? '$itemCount items, ${totalSize > 0 ? formatBytes(totalSize) : "Calculating..."}'
+                          : item.formattedSize,
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    dense: true,
+                  ),
+                  ListTile(
+                    title: Text('Modified'),
+                    subtitle: Text(
+                      item.formattedModifiedTime,
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    dense: true,
+                  ),
+                  ListTile(
+                    title: Text('Permissions'),
+                    subtitle: Text(
+                      stat.modeString().substring(1),
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    dense: true,
+                  ),
+                  if (isMountPoint)
+                    ListTile(
+                      title: Text('Mount Status'),
+                      subtitle: Text(
+                        'Mounted',
+                        style: TextStyle(fontSize: 13, color: Colors.green),
+                      ),
+                      dense: true,
+                    ),
+                ],
               ),
-              ListTile(
-                title: Text('Modified'),
-                subtitle: Text(item.formattedModifiedTime, style: TextStyle(fontSize: 13)),
-                dense: true,
-              ),
-              ListTile(
-                title: Text('Permissions'),
-                subtitle: Text(stat.modeString().substring(1), style: TextStyle(fontSize: 13)),
-                dense: true,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Close'),
               ),
               if (isMountPoint)
-                ListTile(
-                  title: Text('Mount Status'),
-                  subtitle: Text('Mounted', style: TextStyle(fontSize: 13, color: Colors.green)),
-                  dense: true,
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showUnmountConfirmation(item);
+                  },
+                  icon: Icon(Icons.eject),
+                  label: Text('Unmount'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                  ),
                 ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Close'),
-          ),
-          if (isMountPoint)
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                _showUnmountConfirmation(item);
-              },
-              icon: Icon(Icons.eject),
-              label: Text('Unmount'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                foregroundColor: Colors.white,
-              ),
-            ),
-        ],
-      ),
     );
   }
 
   // Add method to show quick look for selected file item
   void _showQuickLook(FileItem item) {
-    final previewPanelService = Provider.of<PreviewPanelService>(context, listen: false);
+    final previewPanelService = Provider.of<PreviewPanelService>(
+      context,
+      listen: false,
+    );
     final quickLookService = QuickLookService(
       context: context,
       previewPanelService: previewPanelService,
@@ -1305,7 +1381,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   // Handle key events for the file explorer
   void _handleKeyEvent(KeyEvent event) {
     // Debug log for keyboard events
-    _logger.info('Key event: ${event.logicalKey}, Alt pressed: ${HardwareKeyboard.instance.isAltPressed}');
+    _logger.info(
+      'Key event: ${event.logicalKey}, Alt pressed: ${HardwareKeyboard.instance.isAltPressed}',
+    );
 
     // If we're searching, don't interfere with normal text input
     if (_isSearchActive && _searchFocusNode.hasFocus) {
@@ -1313,28 +1391,24 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     }
 
     // Handle quick look with space bar
-    if (event is KeyDownEvent && 
-        event.logicalKey == LogicalKeyboardKey.space && 
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.space &&
         _selectedItemsPaths.isNotEmpty) {
       // Get the first selected item for quick look
       final selectedPath = _selectedItemsPaths.first;
       final selectedItem = _items.firstWhere(
         (item) => item.path == selectedPath,
-        orElse: () => FileItem(
-          path: '',
-          name: '',
-          type: FileItemType.unknown,
-        ),
+        orElse: () => FileItem(path: '', name: '', type: FileItemType.unknown),
       );
-      
+
       if (selectedItem.type != FileItemType.unknown) {
         _showQuickLook(selectedItem);
       }
     }
 
     // Handle search dialog with Alt+S
-    if (event is KeyDownEvent && 
-        event.logicalKey == LogicalKeyboardKey.keyS && 
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.keyS &&
         HardwareKeyboard.instance.isAltPressed) {
       _logger.info('Alt+S detected, showing search dialog');
       _showSearchDialog();
@@ -1362,8 +1436,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
 
     // Navigation with arrow keys
     if (event is KeyDownEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.backspace || 
-          (event.logicalKey == LogicalKeyboardKey.arrowUp && HardwareKeyboard.instance.isAltPressed)) {
+      if (event.logicalKey == LogicalKeyboardKey.backspace ||
+          (event.logicalKey == LogicalKeyboardKey.arrowUp &&
+              HardwareKeyboard.instance.isAltPressed)) {
         // Navigate up one directory
         final currentDir = Directory(_currentPath);
         final parentDir = currentDir.parent.path;
@@ -1378,32 +1453,41 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       } else if (event.logicalKey == LogicalKeyboardKey.f5) {
         // Refresh directory
         _loadDirectory(_currentPath);
-      } else if (event.logicalKey == LogicalKeyboardKey.keyC && HardwareKeyboard.instance.isControlPressed) {
+      } else if (event.logicalKey == LogicalKeyboardKey.keyC &&
+          HardwareKeyboard.instance.isControlPressed) {
         // Copy selected items
         _copySelectedItems();
-      } else if (event.logicalKey == LogicalKeyboardKey.keyX && HardwareKeyboard.instance.isControlPressed) {
+      } else if (event.logicalKey == LogicalKeyboardKey.keyX &&
+          HardwareKeyboard.instance.isControlPressed) {
         // Cut selected items
         _cutSelectedItems();
-      } else if (event.logicalKey == LogicalKeyboardKey.keyV && HardwareKeyboard.instance.isControlPressed) {
+      } else if (event.logicalKey == LogicalKeyboardKey.keyV &&
+          HardwareKeyboard.instance.isControlPressed) {
         // Paste items
         _pasteItemsToCurrentDirectory();
-      } else if (event.logicalKey == LogicalKeyboardKey.keyA && HardwareKeyboard.instance.isControlPressed) {
+      } else if (event.logicalKey == LogicalKeyboardKey.keyA &&
+          HardwareKeyboard.instance.isControlPressed) {
         // Select all items
         setState(() {
           _selectedItemsPaths = _items.map((item) => item.path).toSet();
         });
-      } else if (event.logicalKey == LogicalKeyboardKey.keyH && 
-                 HardwareKeyboard.instance.isControlPressed && 
-                 HardwareKeyboard.instance.isShiftPressed) {
+      } else if (event.logicalKey == LogicalKeyboardKey.keyH &&
+          HardwareKeyboard.instance.isControlPressed &&
+          HardwareKeyboard.instance.isShiftPressed) {
         // Toggle tab bar visibility
-        final tabManager = Provider.of<TabManagerService>(context, listen: false);
+        final tabManager = Provider.of<TabManagerService>(
+          context,
+          listen: false,
+        );
         tabManager.setShowTabBar(!tabManager.showTabBar);
-      
+
         // Toggle hidden files visibility
         setState(() {
           _showHiddenFiles = !_showHiddenFiles;
         });
-        _loadDirectory(_currentPath); // Reload directory with new visibility setting
+        _loadDirectory(
+          _currentPath,
+        ); // Reload directory with new visibility setting
       }
     }
   }
@@ -1411,27 +1495,33 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   void _showSearchDialog() async {
     final fileService = Provider.of<FileService>(context, listen: false);
     fileService.setCurrentDirectory(_currentPath);
-    
+
     final result = await showDialog<FileItem>(
       context: context,
-      builder: (context) => SearchDialog(
-        currentDirectory: _currentPath,
-        fileService: _fileService,
-        onFileSelected: (path) {
-          // No need to handle navigation here, we'll do it after the dialog closes
-        },
-      ),
+      builder:
+          (context) => SearchDialog(
+            currentDirectory: _currentPath,
+            fileService: _fileService,
+            onFileSelected: (path) {
+              // No need to handle navigation here, we'll do it after the dialog closes
+            },
+          ),
     );
-    
+
     if (result != null) {
       if (result.type == FileItemType.directory) {
         // Navigate to the directory
         _navigateToDirectory(result.path);
       } else {
         // Open the file with default application
-        final fileAssociationService = Provider.of<FileAssociationService>(context, listen: false);
-        final defaultApp = fileAssociationService.getDefaultAppForFile(result.path);
-        
+        final fileAssociationService = Provider.of<FileAssociationService>(
+          context,
+          listen: false,
+        );
+        final defaultApp = fileAssociationService.getDefaultAppForFile(
+          result.path,
+        );
+
         if (defaultApp != null) {
           final appService = Provider.of<AppService>(context, listen: false);
           await appService.openFileWithApp(result.path, defaultApp);
@@ -1449,17 +1539,17 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       // Use mount command to list mounted file systems
       final result = await Process.run('mount', []);
       if (result.exitCode != 0) return false;
-      
+
       // Parse the mount output
       final List<String> mountOutput = result.stdout.toString().split('\n');
-      
+
       // Check if the path is in the mount list
       for (final line in mountOutput) {
         if (line.contains(' on $path ')) {
           return true;
         }
       }
-      
+
       // Also check with UsbDriveService
       final drives = await _usbDriveService.getMountedUsbDrives();
       return drives.any((drive) => drive.mountPoint == path);
@@ -1473,28 +1563,28 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   Widget _buildBreadcrumbNavigator() {
     // Split the path into segments
     final List<String> pathSegments = [];
-    
+
     // Always start with root
     String currentBuiltPath = '';
-    
+
     // Handle root directory
     if (_currentPath == '/') {
       pathSegments.add('/');
     } else {
       // Split the path and build segments with full paths
       final parts = _currentPath.split('/').where((p) => p.isNotEmpty).toList();
-      
+
       // Add root
       pathSegments.add('/');
       currentBuiltPath = '/';
-      
+
       // Add each subsequent directory
       for (int i = 0; i < parts.length; i++) {
         currentBuiltPath = '$currentBuiltPath${parts[i]}/';
         pathSegments.add(currentBuiltPath);
       }
     }
-    
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -1505,20 +1595,28 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                 // No separator before root
                 if (i > 0)
                   const Text(' / ', style: TextStyle(color: Colors.grey)),
-                
+
                 InkWell(
                   onTap: () => _navigateToDirectory(pathSegments[i]),
                   child: Text(
-                    i == 0 
-                        ? 'Root'  // Root directory
-                        : p.basename(pathSegments[i].substring(0, pathSegments[i].length - 1)),  // Remove trailing slash
+                    i == 0
+                        ? 'Root' // Root directory
+                        : p.basename(
+                          pathSegments[i].substring(
+                            0,
+                            pathSegments[i].length - 1,
+                          ),
+                        ), // Remove trailing slash
                     style: TextStyle(
-                      color: i == pathSegments.length - 1
-                          ? Theme.of(context).primaryColor  // Current directory
-                          : null,
-                      fontWeight: i == pathSegments.length - 1
-                          ? FontWeight.bold
-                          : FontWeight.normal,
+                      color:
+                          i == pathSegments.length - 1
+                              ? Theme.of(context)
+                                  .primaryColor // Current directory
+                              : null,
+                      fontWeight:
+                          i == pathSegments.length - 1
+                              ? FontWeight.bold
+                              : FontWeight.normal,
                     ),
                   ),
                 ),
@@ -1531,35 +1629,50 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
 
   // Show app options menu
   void _showOptionsMenu(BuildContext context) {
-    final viewModeService = Provider.of<ViewModeService>(context, listen: false);
-    final previewPanelService = Provider.of<PreviewPanelService>(context, listen: false);
-    final iconSizeService = Provider.of<IconSizeService>(context, listen: false);
-    final statusBarService = Provider.of<StatusBarService>(context, listen: false);
+    final viewModeService = Provider.of<ViewModeService>(
+      context,
+      listen: false,
+    );
+    final previewPanelService = Provider.of<PreviewPanelService>(
+      context,
+      listen: false,
+    );
+    final iconSizeService = Provider.of<IconSizeService>(
+      context,
+      listen: false,
+    );
+    final statusBarService = Provider.of<StatusBarService>(
+      context,
+      listen: false,
+    );
     final appService = Provider.of<AppService>(context, listen: false);
-    
+
     // Calculate position relative to the action bar
-    // This positions it just below the options button
     final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
     final size = renderBox?.size ?? Size(0, 0);
-    
+
     // Position the menu right-aligned with the options button and just below the action bar
     final RelativeRect position = RelativeRect.fromLTRB(
-      size.width - 250, // Right-align, 250px width for menu (wider to accommodate slider)
-      40, // Just below the action bar (which is about 40px tall)
-      0,  // No right padding
-      0   // No bottom padding
+      size.width - 250,
+      40,
+      0,
+      0,
     );
-    
+
     // Create a StatefulBuilder for the slider
     StatefulBuilder statefulBuilder = StatefulBuilder(
       builder: (BuildContext context, StateSetter setState) {
-        // Calculate a normalized value for the slider (0.0 to 1.0)
-        double sliderValue = viewModeService.isGrid 
-            ? (iconSizeService.gridUIScale - IconSizeService.minGridUIScale) / 
-              (IconSizeService.maxGridUIScale - IconSizeService.minGridUIScale)
-            : (iconSizeService.listUIScale - IconSizeService.minListUIScale) / 
-              (IconSizeService.maxListUIScale - IconSizeService.minListUIScale);
-        
+        double sliderValue =
+            viewModeService.isGrid
+                ? (iconSizeService.gridUIScale -
+                        IconSizeService.minGridUIScale) /
+                    (IconSizeService.maxGridUIScale -
+                        IconSizeService.minGridUIScale)
+                : (iconSizeService.listUIScale -
+                        IconSizeService.minListUIScale) /
+                    (IconSizeService.maxListUIScale -
+                        IconSizeService.minListUIScale);
+
         return ClipRRect(
           borderRadius: BorderRadius.circular(4.0),
           child: SizedBox(
@@ -1567,6 +1680,18 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Add Disk Manager option at the top
+                PopupMenuItem<String>(
+                  value: 'disk_manager',
+                  child: Row(
+                    children: [
+                      Icon(Icons.storage, size: 16),
+                      SizedBox(width: 8),
+                      Text('Disk Manager'),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
                 // Standard menu items
                 PopupMenuItem<String>(
                   value: 'view_mode',
@@ -1578,31 +1703,49 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                     ],
                   ),
                 ),
-                
+
                 // Toggle status bar
                 PopupMenuItem<String>(
                   value: 'status_bar',
                   child: Row(
                     children: [
-                      Icon(statusBarService.showStatusBar ? Icons.visibility_off : Icons.visibility, size: 16),
+                      Icon(
+                        statusBarService.showStatusBar
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        size: 16,
+                      ),
                       SizedBox(width: 8),
-                      Text(statusBarService.showStatusBar ? 'Hide Status Bar' : 'Show Status Bar'),
+                      Text(
+                        statusBarService.showStatusBar
+                            ? 'Hide Status Bar'
+                            : 'Show Status Bar',
+                      ),
                     ],
                   ),
                 ),
-                
+
                 // Toggle preview panel
                 PopupMenuItem<String>(
                   value: 'preview_panel',
                   child: Row(
                     children: [
-                      Icon(previewPanelService.showPreviewPanel ? Icons.info : Icons.info_outline, size: 16),
+                      Icon(
+                        previewPanelService.showPreviewPanel
+                            ? Icons.info
+                            : Icons.info_outline,
+                        size: 16,
+                      ),
                       SizedBox(width: 8),
-                      Text(previewPanelService.showPreviewPanel ? 'Hide Preview Panel' : 'Show Preview Panel'),
+                      Text(
+                        previewPanelService.showPreviewPanel
+                            ? 'Hide Preview Panel'
+                            : 'Show Preview Panel',
+                      ),
                     ],
                   ),
                 ),
-                
+
                 // Open in Terminal option
                 PopupMenuItem<String>(
                   value: 'terminal',
@@ -1614,7 +1757,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                     ],
                   ),
                 ),
-                
+
                 // Tags View option
                 PopupMenuItem<String>(
                   value: 'tags_view',
@@ -1626,9 +1769,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                     ],
                   ),
                 ),
-                
+
                 const PopupMenuDivider(),
-                
+
                 // File associations
                 PopupMenuItem<String>(
                   value: 'file_associations',
@@ -1640,7 +1783,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                     ],
                   ),
                 ),
-                
+
                 // Refresh application list
                 PopupMenuItem<String>(
                   value: 'refresh_apps',
@@ -1664,13 +1807,16 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                     ],
                   ),
                 ),
-                
+
                 // Divider before icon size slider
                 const PopupMenuDivider(),
-                
+
                 // Icon size slider section
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 8.0,
+                  ),
                   child: Row(
                     children: [
                       Icon(Icons.photo_size_select_small, size: 18),
@@ -1681,31 +1827,49 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                             setState(() {
                               if (viewModeService.isGrid) {
                                 // Map the 0-1 value to the grid UI scale range
-                                double newScale = IconSizeService.minGridUIScale + 
-                                    newValue * (IconSizeService.maxGridUIScale - IconSizeService.minGridUIScale);
+                                double newScale =
+                                    IconSizeService.minGridUIScale +
+                                    newValue *
+                                        (IconSizeService.maxGridUIScale -
+                                            IconSizeService.minGridUIScale);
                                 // Calculate how many steps to increase/decrease
-                                double steps = (newScale - iconSizeService.gridUIScale) / IconSizeService.gridUIScaleStep;
+                                double steps =
+                                    (newScale - iconSizeService.gridUIScale) /
+                                    IconSizeService.gridUIScaleStep;
                                 if (steps > 0) {
                                   for (int i = 0; i < steps.round(); i++) {
                                     iconSizeService.increaseGridIconSize();
                                   }
                                 } else if (steps < 0) {
-                                  for (int i = 0; i < steps.abs().round(); i++) {
+                                  for (
+                                    int i = 0;
+                                    i < steps.abs().round();
+                                    i++
+                                  ) {
                                     iconSizeService.decreaseGridIconSize();
                                   }
                                 }
                               } else {
                                 // Map the 0-1 value to the list UI scale range
-                                double newScale = IconSizeService.minListUIScale + 
-                                    newValue * (IconSizeService.maxListUIScale - IconSizeService.minListUIScale);
+                                double newScale =
+                                    IconSizeService.minListUIScale +
+                                    newValue *
+                                        (IconSizeService.maxListUIScale -
+                                            IconSizeService.minListUIScale);
                                 // Calculate how many steps to increase/decrease
-                                double steps = (newScale - iconSizeService.listUIScale) / IconSizeService.listUIScaleStep;
+                                double steps =
+                                    (newScale - iconSizeService.listUIScale) /
+                                    IconSizeService.listUIScaleStep;
                                 if (steps > 0) {
                                   for (int i = 0; i < steps.round(); i++) {
                                     iconSizeService.increaseListIconSize();
                                   }
                                 } else if (steps < 0) {
-                                  for (int i = 0; i < steps.abs().round(); i++) {
+                                  for (
+                                    int i = 0;
+                                    i < steps.abs().round();
+                                    i++
+                                  ) {
                                     iconSizeService.decreaseListIconSize();
                                   }
                                 }
@@ -1725,9 +1889,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                     'Icon Size',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).brightness == Brightness.dark 
-                          ? Colors.white70 
-                          : Colors.black54,
+                      color:
+                          Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white70
+                              : Colors.black54,
                     ),
                   ),
                 ),
@@ -1737,7 +1902,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         );
       },
     );
-    
+
     // Show the custom menu
     showDialog(
       context: context,
@@ -1751,9 +1916,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
               child: Material(
                 elevation: 8,
                 borderRadius: BorderRadius.circular(4),
-                color: Theme.of(context).brightness == Brightness.dark 
-                    ? const Color(0xFF2D2E30)
-                    : Colors.white,
+                color:
+                    Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF2D2E30)
+                        : Colors.white,
                 child: statefulBuilder,
               ),
             ),
@@ -1764,6 +1930,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       // Handle selection outside of slider
       if (value != null && mounted) {
         switch (value) {
+          case 'disk_manager':
+            _showDiskManagerDialog();
+            break;
           case 'view_mode':
             _showViewModeSubmenu(context, size);
             break;
@@ -1782,7 +1951,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
           case 'file_associations':
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const FileAssociationsScreen()),
+              MaterialPageRoute(
+                builder: (context) => const FileAssociationsScreen(),
+              ),
             );
             break;
           case 'refresh_apps':
@@ -1798,19 +1969,47 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       }
     });
   }
-  
+
+  void _showDiskManagerDialog() {
+    showGeneralDialog(
+      context: context,
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return const DiskManagerDialog();
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: ScaleTransition(
+            scale: CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutBack,
+            ),
+            child: child,
+          ),
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 300),
+      barrierDismissible: true,
+      barrierLabel: '',
+      barrierColor: Colors.black54,
+    );
+  }
+
   // Show view mode submenu
   void _showViewModeSubmenu(BuildContext context, Size size) {
-    final viewModeService = Provider.of<ViewModeService>(context, listen: false);
-    
+    final viewModeService = Provider.of<ViewModeService>(
+      context,
+      listen: false,
+    );
+
     Future.delayed(const Duration(milliseconds: 10), () {
       showMenu<String>(
         context: context,
         position: RelativeRect.fromLTRB(
           size.width - 180, // Right-align, slightly offset from main menu
           70, // Below the main menu item
-          0,  // No right padding
-          0   // No bottom padding
+          0, // No right padding
+          0, // No bottom padding
         ),
         items: <PopupMenuEntry<String>>[
           PopupMenuItem<String>(
@@ -1856,7 +2055,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         ],
       ).then((value) {
         if (value == null || !mounted) return;
-        
+
         switch (value) {
           case 'list':
             viewModeService.setViewMode(ViewMode.list);
@@ -1874,35 +2073,43 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       });
     });
   }
-  
+
   // Function to delete selected items
   void _deleteSelectedItems() async {
     if (_selectedItemsPaths.isEmpty) return;
-    
-    List<FileItem> itemsToDelete = _items.where(
-      (item) => _selectedItemsPaths.contains(item.path)
-    ).toList();
-    
+
+    List<FileItem> itemsToDelete =
+        _items
+            .where((item) => _selectedItemsPaths.contains(item.path))
+            .toList();
+
     // Show confirmation dialog
-    final bool confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete ${itemsToDelete.length} ${itemsToDelete.length == 1 ? 'Item' : 'Items'}'),
-        content: Text('Are you sure you want to delete the selected items? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text('Delete'),
-          ),
-        ],
-      ),
-    ) ?? false;
-    
+    final bool confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: Text(
+                  'Delete ${itemsToDelete.length} ${itemsToDelete.length == 1 ? 'Item' : 'Items'}',
+                ),
+                content: Text(
+                  'Are you sure you want to delete the selected items? This action cannot be undone.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    child: Text('Delete'),
+                  ),
+                ],
+              ),
+        ) ??
+        false;
+
     if (confirmed) {
       try {
         // Show progress for multiple items
@@ -1930,10 +2137,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
             );
           }
         }
-        
+
         int successCount = 0;
         List<String> errors = [];
-        
+
         // Delete each item
         for (final item in itemsToDelete) {
           try {
@@ -1943,21 +2150,22 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
             errors.add("${item.name}: $e");
           }
         }
-        
+
         // Dismiss progress dialog if it was shown
         if (itemsToDelete.length > 1 && mounted) {
           Navigator.pop(context);
         }
-        
+
         // Refresh directory contents
         _loadDirectory(_currentPath);
-        
+
         // Show result notification
         if (mounted) {
           if (errors.isEmpty) {
             NotificationService.showNotification(
               context,
-              message: "Deleted $successCount ${successCount == 1 ? "item" : "items"}",
+              message:
+                  "Deleted $successCount ${successCount == 1 ? "item" : "items"}",
               type: NotificationType.success,
             );
           } else {
@@ -1966,34 +2174,37 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
               message: "Completed with ${errors.length} errors",
               type: NotificationType.warning,
             );
-            
+
             // Show detailed error dialog for multiple errors
             if (errors.length > 1 && mounted) {
               showDialog(
                 context: context,
-                builder: (context) => AlertDialog(
-                  title: Text("Delete Errors"),
-                  content: SizedBox(
-                    width: double.maxFinite,
-                    height: 200,
-                    child: ListView.builder(
-                      itemCount: errors.length,
-                      itemBuilder: (context, index) {
-                        return ListTile(
-                          leading: Icon(Icons.error, color: Colors.red),
-                          title: Text(errors[index], 
-                              style: TextStyle(fontSize: 14)),
-                        );
-                      },
+                builder:
+                    (context) => AlertDialog(
+                      title: Text("Delete Errors"),
+                      content: SizedBox(
+                        width: double.maxFinite,
+                        height: 200,
+                        child: ListView.builder(
+                          itemCount: errors.length,
+                          itemBuilder: (context, index) {
+                            return ListTile(
+                              leading: Icon(Icons.error, color: Colors.red),
+                              title: Text(
+                                errors[index],
+                                style: TextStyle(fontSize: 14),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text("Close"),
+                        ),
+                      ],
                     ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text("Close"),
-                    ),
-                  ],
-                ),
               );
             }
           }
@@ -2006,46 +2217,49 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
             type: NotificationType.error,
           );
         }
-  
-    }
+      }
     }
   }
 
   // Copy selected items to clipboard
   void _copySelectedItems() {
     if (_selectedItemsPaths.isEmpty) return;
-    
-    final List<FileItem> selectedItems = _items
-        .where((item) => _selectedItemsPaths.contains(item.path))
-        .toList();
-    
+
+    final List<FileItem> selectedItems =
+        _items
+            .where((item) => _selectedItemsPaths.contains(item.path))
+            .toList();
+
     setState(() {
       _clipboardItems = selectedItems;
       _isItemCut = false;
     });
-    
+
     NotificationService.showNotification(
       context,
-      message: 'Copied ${selectedItems.length} ${selectedItems.length == 1 ? 'item' : 'items'} to clipboard',
+      message:
+          'Copied ${selectedItems.length} ${selectedItems.length == 1 ? 'item' : 'items'} to clipboard',
       type: NotificationType.info,
     );
   }
-  
+
   void _cutSelectedItems() {
     if (_selectedItemsPaths.isEmpty) return;
-    
-    final List<FileItem> selectedItems = _items
-        .where((item) => _selectedItemsPaths.contains(item.path))
-        .toList();
-    
+
+    final List<FileItem> selectedItems =
+        _items
+            .where((item) => _selectedItemsPaths.contains(item.path))
+            .toList();
+
     setState(() {
       _clipboardItems = selectedItems;
       _isItemCut = true;
     });
-    
+
     NotificationService.showNotification(
       context,
-      message: 'Cut ${selectedItems.length} ${selectedItems.length == 1 ? 'item' : 'items'} to clipboard',
+      message:
+          'Cut ${selectedItems.length} ${selectedItems.length == 1 ? 'item' : 'items'} to clipboard',
       type: NotificationType.info,
     );
   }
@@ -2063,20 +2277,21 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   Future<void> _showUnmountConfirmation(FileItem item) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Unmount Drive'),
-        content: Text('Are you sure you want to unmount "${item.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: Text('Unmount Drive'),
+            content: Text('Are you sure you want to unmount "${item.name}"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text('Unmount'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text('Unmount'),
-          ),
-        ],
-      ),
     );
 
     if (confirmed == true) {
@@ -2113,7 +2328,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       name: p.basename(_currentPath),
       type: FileItemType.directory,
     );
-    
+
     _openInTerminal(currentDirItem);
   }
 
@@ -2122,14 +2337,13 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     try {
       // Extract filename from the path
       final fileName = p.basename(item.path);
-      
+
       // Show app selection dialog
       showDialog(
         context: context,
-        builder: (context) => AppSelectionDialog(
-          filePath: item.path,
-          fileName: fileName,
-        ),
+        builder:
+            (context) =>
+                AppSelectionDialog(filePath: item.path, fileName: fileName),
       );
     } catch (e) {
       if (mounted) {
@@ -2145,34 +2359,42 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   // Open a terminal in the specified directory
   void _openInTerminal(FileItem item) {
     if (item.type != FileItemType.directory) return;
-    
+
     try {
       _logger.info('Attempting to open terminal in directory: ${item.path}');
-      
+
       // First try warp-terminal with a script-based approach
-      Process.run('which', ['warp-terminal']).then((result) {
-        final String warpPath = result.stdout.toString().trim();
-        if (warpPath.isNotEmpty) {
-          _logger.info('Found warp-terminal at: $warpPath');
-          
-          // Try the shell script approach first
-          _tryWarpTerminalWithScript(item, warpPath).catchError((e) {
-            _logger.warning('Script approach failed: $e. Trying with environment variables...');
-            
-            // Fallback to environment variable approach if script fails
-            return _tryWarpTerminalWithEnv(item, warpPath);
-          }).catchError((e) {
-            _logger.severe('All warp-terminal approaches failed: $e');
-            return _tryFallbackTerminals(item).then((process) => process);
+      Process.run('which', ['warp-terminal'])
+          .then((result) {
+            final String warpPath = result.stdout.toString().trim();
+            if (warpPath.isNotEmpty) {
+              _logger.info('Found warp-terminal at: $warpPath');
+
+              // Try the shell script approach first
+              _tryWarpTerminalWithScript(item, warpPath)
+                  .catchError((e) {
+                    _logger.warning(
+                      'Script approach failed: $e. Trying with environment variables...',
+                    );
+
+                    // Fallback to environment variable approach if script fails
+                    return _tryWarpTerminalWithEnv(item, warpPath);
+                  })
+                  .catchError((e) {
+                    _logger.severe('All warp-terminal approaches failed: $e');
+                    return _tryFallbackTerminals(
+                      item,
+                    ).then((process) => process);
+                  });
+            } else {
+              // Warp terminal not found, try others
+              _tryFallbackTerminals(item);
+            }
+          })
+          .catchError((e) {
+            _logger.severe('Error checking for warp-terminal: $e');
+            _tryFallbackTerminals(item);
           });
-        } else {
-          // Warp terminal not found, try others
-          _tryFallbackTerminals(item);
-        }
-      }).catchError((e) {
-        _logger.severe('Error checking for warp-terminal: $e');
-        _tryFallbackTerminals(item);
-      });
     } catch (e) {
       _logger.severe('Error in _openInTerminal: $e');
       if (mounted) {
@@ -2184,30 +2406,34 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       }
     }
   }
-  
+
   // Try launching warp-terminal with a shell script
   Future<Process> _tryWarpTerminalWithScript(FileItem item, String warpPath) {
     // Create a temporary script to open warp in the correct directory
     final tempDir = Directory.systemTemp;
-    final scriptFile = File('${tempDir.path}/open_warp_${DateTime.now().millisecondsSinceEpoch}.sh');
-    
+    final scriptFile = File(
+      '${tempDir.path}/open_warp_${DateTime.now().millisecondsSinceEpoch}.sh',
+    );
+
     // Create script content to change directory and launch warp
     final scriptContent = '''#!/bin/bash
 cd "${item.path}"
 exec $warpPath
 exit
 ''';
-    
+
     // Write and make executable
     scriptFile.writeAsStringSync(scriptContent);
     Process.runSync('chmod', ['+x', scriptFile.path]);
-    
-    _logger.info('Created script at ${scriptFile.path} with content:\n$scriptContent');
-    
+
+    _logger.info(
+      'Created script at ${scriptFile.path} with content:\n$scriptContent',
+    );
+
     // Run the script
     return Process.start('bash', [scriptFile.path]).then((process) {
       _logger.info('Warp terminal script started with PID: ${process.pid}');
-      
+
       if (mounted) {
         NotificationService.showNotification(
           context,
@@ -2215,7 +2441,7 @@ exit
           type: NotificationType.success,
         );
       }
-      
+
       // Clean up the script file after a delay
       Future.delayed(Duration(seconds: 5), () {
         try {
@@ -2227,27 +2453,32 @@ exit
           _logger.warning('Failed to delete temporary script: $e');
         }
       });
-      
+
       return process;
     });
   }
-  
+
   // Try launching warp-terminal with environment variables
   Future<Process> _tryWarpTerminalWithEnv(FileItem item, String warpPath) {
     _logger.info('Trying with environment variables approach');
-    
+
     // Set up environment variables including PWD
     final Map<String, String> environment = Map.from(Platform.environment);
     environment['PWD'] = item.path; // Setting PWD to target directory
-    
+
     // Create a bash command that sets PWD and launches warp
     // ignore: unnecessary_brace_in_string_interps
     final bashCommand = 'cd "${item.path}" && $warpPath';
-    
+
     // Launch bash with the command
-    return Process.start('bash', ['-c', bashCommand], environment: environment).then((process) {
-      _logger.info('Warp terminal with env vars started with PID: ${process.pid}');
-      
+    return Process.start('bash', [
+      '-c',
+      bashCommand,
+    ], environment: environment).then((process) {
+      _logger.info(
+        'Warp terminal with env vars started with PID: ${process.pid}',
+      );
+
       if (mounted) {
         NotificationService.showNotification(
           context,
@@ -2255,16 +2486,16 @@ exit
           type: NotificationType.success,
         );
       }
-      
+
       return process;
     });
   }
-  
+
   // Try other terminal emulators as fallback
   Future<Process> _tryFallbackTerminals(FileItem item) {
     // Create a completer to manage the async process
     final completer = Completer<Process>();
-    
+
     // Common terminal emulators to check (excluding warp which we already tried)
     final List<String> fallbackTerminals = [
       'gnome-terminal',
@@ -2277,86 +2508,94 @@ exit
       'alacritty',
       'kitty',
     ];
-    
+
     // Find the first available terminal
-    Process.run('which', fallbackTerminals).then((result) {
-      final String output = result.stdout.toString().trim();
-      
-      if (output.isNotEmpty) {
-        final String terminal = output.split('\n').first;
-        final List<String> command = [];
-        
-        // Customize command based on terminal
-        if (terminal.contains('gnome-terminal')) {
-          command.addAll([terminal, '--working-directory=${item.path}']);
-        } else if (terminal.contains('konsole')) {
-          command.addAll([terminal, '--workdir', item.path]);
-        } else if (terminal.contains('xfce4-terminal')) {
-          command.addAll([terminal, '--working-directory=${item.path}']);
-        } else if (terminal.contains('terminator')) {
-          command.addAll([terminal, '--working-directory=${item.path}']);
-        } else if (terminal.contains('tilix')) {
-          command.addAll([terminal, '--working-directory=${item.path}']);
-        } else if (terminal.contains('alacritty')) {
-          command.addAll([terminal, '--working-directory', item.path]);
-        } else if (terminal.contains('kitty')) {
-          command.addAll([terminal, '--directory', item.path]);
-        } else {
-          // For other terminals, fallback to cd command
-          command.addAll([terminal, '-e', 'cd "${item.path}" && bash']);
-        }
-        
-        _logger.info('Opening fallback terminal with command: $command');
-        Process.start(command[0], command.sublist(1)).then((process) {
-          // Log success
-          _logger.info('Fallback terminal process started with PID: ${process.pid}');
-          
-          if (mounted) {
-            NotificationService.showNotification(
-              context,
-              message: 'Terminal opened in ${p.basename(item.path)}',
-              type: NotificationType.success,
-            );
+    Process.run('which', fallbackTerminals)
+        .then((result) {
+          final String output = result.stdout.toString().trim();
+
+          if (output.isNotEmpty) {
+            final String terminal = output.split('\n').first;
+            final List<String> command = [];
+
+            // Customize command based on terminal
+            if (terminal.contains('gnome-terminal')) {
+              command.addAll([terminal, '--working-directory=${item.path}']);
+            } else if (terminal.contains('konsole')) {
+              command.addAll([terminal, '--workdir', item.path]);
+            } else if (terminal.contains('xfce4-terminal')) {
+              command.addAll([terminal, '--working-directory=${item.path}']);
+            } else if (terminal.contains('terminator')) {
+              command.addAll([terminal, '--working-directory=${item.path}']);
+            } else if (terminal.contains('tilix')) {
+              command.addAll([terminal, '--working-directory=${item.path}']);
+            } else if (terminal.contains('alacritty')) {
+              command.addAll([terminal, '--working-directory', item.path]);
+            } else if (terminal.contains('kitty')) {
+              command.addAll([terminal, '--directory', item.path]);
+            } else {
+              // For other terminals, fallback to cd command
+              command.addAll([terminal, '-e', 'cd "${item.path}" && bash']);
+            }
+
+            _logger.info('Opening fallback terminal with command: $command');
+            Process.start(command[0], command.sublist(1))
+                .then((process) {
+                  // Log success
+                  _logger.info(
+                    'Fallback terminal process started with PID: ${process.pid}',
+                  );
+
+                  if (mounted) {
+                    NotificationService.showNotification(
+                      context,
+                      message: 'Terminal opened in ${p.basename(item.path)}',
+                      type: NotificationType.success,
+                    );
+                  }
+                  completer.complete(process);
+                })
+                .catchError((e) {
+                  // Log detailed error
+                  _logger.severe(
+                    'Error starting fallback terminal process: $e',
+                  );
+                  if (mounted) {
+                    NotificationService.showNotification(
+                      context,
+                      message: 'Failed to start terminal: $e',
+                      type: NotificationType.error,
+                    );
+                  }
+                  completer.completeError(e);
+                });
+          } else {
+            // No terminals found
+            final error = 'No available terminal emulators found';
+            _logger.warning(error);
+            if (mounted) {
+              NotificationService.showNotification(
+                context,
+                message: error,
+                type: NotificationType.error,
+              );
+            }
+            completer.completeError(Exception(error));
           }
-          completer.complete(process);
-        }).catchError((e) {
-          // Log detailed error
-          _logger.severe('Error starting fallback terminal process: $e');
+        })
+        .catchError((e) {
+          // Error checking for terminals
+          _logger.severe('Error checking for terminal emulators: $e');
           if (mounted) {
             NotificationService.showNotification(
               context,
-              message: 'Failed to start terminal: $e',
+              message: 'Failed to find terminal: $e',
               type: NotificationType.error,
             );
           }
           completer.completeError(e);
         });
-      } else {
-        // No terminals found
-        final error = 'No available terminal emulators found';
-        _logger.warning(error);
-        if (mounted) {
-          NotificationService.showNotification(
-            context,
-            message: error,
-            type: NotificationType.error,
-          );
-        }
-        completer.completeError(Exception(error));
-      }
-    }).catchError((e) {
-      // Error checking for terminals
-      _logger.severe('Error checking for terminal emulators: $e');
-      if (mounted) {
-        NotificationService.showNotification(
-          context,
-          message: 'Failed to find terminal: $e',
-          type: NotificationType.error,
-        );
-      }
-      completer.completeError(e);
-    });
-    
+
     return completer.future;
   }
 
@@ -2366,23 +2605,25 @@ exit
     setState(() {
       _selectedItemsPaths = {};
     });
-    
-    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    
+
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+
     // Create a relative rectangle for positioning the menu
     final RelativeRect menuPosition = RelativeRect.fromRect(
       Rect.fromPoints(position, position),
       Rect.fromLTWH(0, 0, overlay.size.width, overlay.size.height),
     );
-    
+
     // Add mounted check
     if (!mounted) return;
-    
-    // Check if clipboard has items 
-    final bool hasClipboardItems = _clipboardItems != null && _clipboardItems!.isNotEmpty;
+
+    // Check if clipboard has items
+    final bool hasClipboardItems =
+        _clipboardItems != null && _clipboardItems!.isNotEmpty;
     // Check if there are items that can be selected
     final bool hasItemsToSelect = _items.isNotEmpty;
-    
+
     // Create menu items
     final menuItems = <PopupMenuEntry<String>>[
       PopupMenuItem<String>(
@@ -2411,9 +2652,16 @@ exit
         enabled: hasClipboardItems,
         child: Row(
           children: [
-            Icon(Icons.paste, size: 16, color: hasClipboardItems ? null : Colors.grey),
+            Icon(
+              Icons.paste,
+              size: 16,
+              color: hasClipboardItems ? null : Colors.grey,
+            ),
             SizedBox(width: 8),
-            Text('Paste', style: TextStyle(color: hasClipboardItems ? null : Colors.grey)),
+            Text(
+              'Paste',
+              style: TextStyle(color: hasClipboardItems ? null : Colors.grey),
+            ),
           ],
         ),
       ),
@@ -2451,20 +2699,21 @@ exit
         ),
       ),
     ];
-    
+
     // Show context menu
     final result = await showMenu<String>(
       context: context,
       position: menuPosition,
-      color: Theme.of(context).brightness == Brightness.dark 
-          ? const Color(0xFF2D2E30)
-          : Colors.white,
+      color:
+          Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFF2D2E30)
+              : Colors.white,
       items: menuItems,
     );
-    
+
     // Process the selected menu option
     if (result == null || !mounted) return;
-    
+
     // Handle menu selection
     switch (result) {
       case 'new_folder':
@@ -2493,24 +2742,24 @@ exit
         break;
     }
   }
-  
+
   // Handle creating a new folder
   void _handleCreateNewFolder() {
     _showCreateDialog(true);
   }
-  
+
   // Handle creating a new file
   void _handleCreateNewFile() {
     _showCreateDialog(false);
   }
-  
+
   // Select all items in the current directory
   void _selectAllItems() {
     setState(() {
       // Get paths of all visible items
       _selectedItemsPaths = _items.map((item) => item.path).toSet();
     });
-    
+
     // Show notification
     if (mounted) {
       NotificationService.showNotification(
@@ -2520,23 +2769,25 @@ exit
       );
     }
   }
-  
+
   // Handle showing sort options
   void _handleSortByOptions(Offset position) {
-    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+
     // Create a relative rectangle for positioning the menu
     final RelativeRect menuPosition = RelativeRect.fromRect(
       Rect.fromPoints(position.translate(100, 0), position.translate(100, 0)),
       Rect.fromLTWH(0, 0, overlay.size.width, overlay.size.height),
     );
-    
+
     showMenu<String>(
       context: context,
       position: menuPosition,
-      color: Theme.of(context).brightness == Brightness.dark 
-          ? const Color(0xFF2D2E30)
-          : Colors.white,
+      color:
+          Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFF2D2E30)
+              : Colors.white,
       items: <PopupMenuEntry<String>>[
         PopupMenuItem<String>(
           value: 'name_asc',
@@ -2552,7 +2803,11 @@ exit
           value: 'name_desc',
           child: Row(
             children: [
-              Icon(Icons.sort_by_alpha, textDirection: TextDirection.rtl, size: 16),
+              Icon(
+                Icons.sort_by_alpha,
+                textDirection: TextDirection.rtl,
+                size: 16,
+              ),
               SizedBox(width: 8),
               Text('Name (Z to A)'),
             ],
@@ -2601,23 +2856,33 @@ exit
       ],
     ).then((result) {
       if (result == null || !mounted) return;
-      
+
       // Sort items based on selection
       setState(() {
         switch (result) {
           case 'name_asc':
-            _sortItems((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+            _sortItems(
+              (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+            );
             break;
           case 'name_desc':
-            _sortItems((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
+            _sortItems(
+              (a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()),
+            );
             break;
           case 'date_newest':
-            _sortItems((a, b) => (b.modifiedTime ?? DateTime(1970))
-                .compareTo(a.modifiedTime ?? DateTime(1970)));
+            _sortItems(
+              (a, b) => (b.modifiedTime ?? DateTime(1970)).compareTo(
+                a.modifiedTime ?? DateTime(1970),
+              ),
+            );
             break;
           case 'date_oldest':
-            _sortItems((a, b) => (a.modifiedTime ?? DateTime(1970))
-                .compareTo(b.modifiedTime ?? DateTime(1970)));
+            _sortItems(
+              (a, b) => (a.modifiedTime ?? DateTime(1970)).compareTo(
+                b.modifiedTime ?? DateTime(1970),
+              ),
+            );
             break;
           case 'size_largest':
             _sortItems((a, b) => (b.size ?? 0).compareTo(a.size ?? 0));
@@ -2627,7 +2892,7 @@ exit
             break;
         }
       });
-      
+
       // Show notification
       if (mounted) {
         NotificationService.showNotification(
@@ -2638,33 +2903,42 @@ exit
       }
     });
   }
-  
+
   // Sort items with directories always first
   void _sortItems(int Function(FileItem a, FileItem b) compareFunc) {
     _items.sort((a, b) {
       // Always keep directories first
-      if (a.type == FileItemType.directory && b.type != FileItemType.directory) {
+      if (a.type == FileItemType.directory &&
+          b.type != FileItemType.directory) {
         return -1;
       }
-      if (a.type != FileItemType.directory && b.type == FileItemType.directory) {
+      if (a.type != FileItemType.directory &&
+          b.type == FileItemType.directory) {
         return 1;
       }
-      
+
       // Then apply the specific sort function
       return compareFunc(a, b);
     });
   }
-  
+
   // Get human-readable name for sort option
   String _getSortByName(String sortOption) {
     switch (sortOption) {
-      case 'name_asc': return 'name (A to Z)';
-      case 'name_desc': return 'name (Z to A)';
-      case 'date_newest': return 'date (newest first)';
-      case 'date_oldest': return 'date (oldest first)';
-      case 'size_largest': return 'size (largest first)';
-      case 'size_smallest': return 'size (smallest first)';
-      default: return sortOption;
+      case 'name_asc':
+        return 'name (A to Z)';
+      case 'name_desc':
+        return 'name (Z to A)';
+      case 'date_newest':
+        return 'date (newest first)';
+      case 'date_oldest':
+        return 'date (oldest first)';
+      case 'size_largest':
+        return 'size (largest first)';
+      case 'size_smallest':
+        return 'size (smallest first)';
+      default:
+        return sortOption;
     }
   }
 
@@ -2676,12 +2950,14 @@ exit
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     // Handle animations
-    if (previewPanelService.showPreviewPanel && _previewPanelAnimation.isDismissed) {
+    if (previewPanelService.showPreviewPanel &&
+        _previewPanelAnimation.isDismissed) {
       _previewPanelAnimation.forward();
-    } else if (!previewPanelService.showPreviewPanel && _previewPanelAnimation.isCompleted) {
+    } else if (!previewPanelService.showPreviewPanel &&
+        _previewPanelAnimation.isCompleted) {
       _previewPanelAnimation.reverse();
     }
-    
+
     if (_showBookmarkSidebar && _bookmarkSidebarAnimation.isDismissed) {
       _bookmarkSidebarAnimation.forward();
     } else if (!_showBookmarkSidebar && _bookmarkSidebarAnimation.isCompleted) {
@@ -2696,128 +2972,267 @@ exit
         _handleKeyEvent(event);
         return KeyEventResult.handled;
       },
-      child: Scaffold(
-        body: Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark 
-                ? const Color(0xFF202124) // Dark mode background
-                : const Color(0xFFE8F0FE), // Very light blue background
-          ),
-          child: Row(
-            children: [
-              if (_showBookmarkSidebar)
-                AnimatedBuilder(
-                  animation: _bookmarkSidebarAnimation,
-                  builder: (context, child) {
-                    return Container(
-                      width: _bookmarkSidebarAnimation.value * 200,
-                      decoration: BoxDecoration(
-                        color: isDarkMode 
-                            ? const Color(0xFF2C2C2C)
-                            : const Color(0xFFF5F5F5),
-                        border: Border(
-                          right: BorderSide(
-                            color: isDarkMode 
-                                ? Colors.grey.shade800 
-                                : Colors.grey.shade300,
-                            width: 0.5,
-                          ),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          // Window title in bookmarks sidebar
-                          Container(
-                            height: 40,
-                            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                            decoration: BoxDecoration(
-                              color: isDarkMode 
-                                  ? const Color(0xFF2C2C2C) // Dark mode background
-                                  : const Color(0xFFF5F5F5), // Light mode background
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: isDarkMode 
-                                      ? Colors.grey.shade800 
-                                      : Colors.grey.shade300,
-                                  width: 0.5,
-                                ),
+      child: Stack(
+        children: [
+          Scaffold(
+            body: Container(
+              decoration: BoxDecoration(
+                color:
+                    Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF202124) // Dark mode background
+                        : const Color(0xFFE8F0FE), // Very light blue background
+              ),
+              child: Row(
+                children: [
+                  if (_showBookmarkSidebar)
+                    AnimatedBuilder(
+                      animation: _bookmarkSidebarAnimation,
+                      builder: (context, child) {
+                        return Container(
+                          width: _bookmarkSidebarAnimation.value * 200,
+                          decoration: BoxDecoration(
+                            color:
+                                isDarkMode
+                                    ? const Color(0xFF2C2C2C)
+                                    : const Color(0xFFF5F5F5),
+                            border: Border(
+                              right: BorderSide(
+                                color:
+                                    isDarkMode
+                                        ? Colors.grey.shade800
+                                        : Colors.grey.shade300,
+                                width: 0.5,
                               ),
                             ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.folder,
-                                  size: 18,
-                                  color: isDarkMode ? Colors.white70 : Colors.black54,
+                          ),
+                          child: Column(
+                            children: [
+                              // Window title in bookmarks sidebar
+                              Container(
+                                height: 40,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12.0,
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Linux File Manager',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 14,
-                                      color: isDarkMode ? Colors.white : Colors.black87,
+                                decoration: BoxDecoration(
+                                  color:
+                                      isDarkMode
+                                          ? const Color(
+                                            0xFF2C2C2C,
+                                          ) // Dark mode background
+                                          : const Color(
+                                            0xFFF5F5F5,
+                                          ), // Light mode background
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color:
+                                          isDarkMode
+                                              ? Colors.grey.shade800
+                                              : Colors.grey.shade300,
+                                      width: 0.5,
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.folder,
+                                      size: 18,
+                                      color:
+                                          isDarkMode
+                                              ? Colors.white70
+                                              : Colors.black54,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Linux File Manager',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 14,
+                                          color:
+                                              isDarkMode
+                                                  ? Colors.white
+                                                  : Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                child: BookmarkSidebar(
+                                  onNavigate: _navigateToDirectory,
+                                  currentPath: _currentPath,
+                                ),
+                              ),
+                            ],
                           ),
-                          Expanded(
-                            child: BookmarkSidebar(
-                              onNavigate: _navigateToDirectory,
-                              currentPath: _currentPath,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              Expanded(
-                child: Column(
-                  children: [
-                    _buildAppBar(context),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          if (tabManager.showTabBar) const FileExplorerTabBar(),
-                          Expanded(
-                            child: currentTab != null && currentTab.hasError
-                                ? Center(child: Text(currentTab.errorMessage))
-                                : _isLoading
-                                    ? const Center(child: CircularProgressIndicator())
-                                    : _buildFileView(),
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
-                    if (Provider.of<StatusBarService>(context).showStatusBar)
-                      StatusBar(
-                        items: _items,
-                        selectedItemsPaths: _selectedItemsPaths,
-                        currentPath: _currentPath,
-                      ),
-                  ],
-                ),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _buildAppBar(context),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              if (tabManager.showTabBar)
+                                const FileExplorerTabBar(),
+                              Expanded(
+                                child:
+                                    currentTab != null && currentTab.hasError
+                                        ? Center(
+                                          child: Text(currentTab.errorMessage),
+                                        )
+                                        : _isLoading
+                                        ? const Center(
+                                          child: CircularProgressIndicator(),
+                                        )
+                                        : _buildFileView(),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (Provider.of<StatusBarService>(
+                          context,
+                        ).showStatusBar)
+                          StatusBar(
+                            items: _items,
+                            selectedItemsPaths: _selectedItemsPaths,
+                            currentPath: _currentPath,
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (previewPanelService.showPreviewPanel)
+                    AnimatedBuilder(
+                      animation: _previewPanelAnimation,
+                      builder: (context, child) {
+                        return SizedBox(
+                          width: _previewPanelAnimation.value * 300,
+                          child: PreviewPanel(onNavigate: _navigateToDirectory),
+                        );
+                      },
+                    ),
+                ],
               ),
-              if (previewPanelService.showPreviewPanel)
-                AnimatedBuilder(
-                  animation: _previewPanelAnimation,
-                  builder: (context, child) {
-                    return SizedBox(
-                      width: _previewPanelAnimation.value * 300,
-                      child: PreviewPanel(
-                        onNavigate: _navigateToDirectory,
-                      ),
-                    );
-                  },
-                ),
-            ],
+            ),
+          ),
+          _buildResizeHandles(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResizeHandles() {
+    return Stack(
+      children: [
+        // Left edge
+        Positioned(
+          left: 0,
+          top: 0,
+          bottom: 0,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.resizeLeftRight,
+            child: GestureDetector(
+              onPanStart: (_) => windowManager.startResizing(ResizeEdge.left),
+              child: Container(width: 4, color: Colors.transparent),
+            ),
           ),
         ),
-      ),
+        // Right edge
+        Positioned(
+          right: 0,
+          top: 0,
+          bottom: 0,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.resizeLeftRight,
+            child: GestureDetector(
+              onPanStart: (_) => windowManager.startResizing(ResizeEdge.right),
+              child: Container(width: 4, color: Colors.transparent),
+            ),
+          ),
+        ),
+        // Top edge
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.resizeUpDown,
+            child: GestureDetector(
+              onPanStart: (_) => windowManager.startResizing(ResizeEdge.top),
+              child: Container(height: 4, color: Colors.transparent),
+            ),
+          ),
+        ),
+        // Bottom edge
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.resizeUpDown,
+            child: GestureDetector(
+              onPanStart: (_) => windowManager.startResizing(ResizeEdge.bottom),
+              child: Container(height: 4, color: Colors.transparent),
+            ),
+          ),
+        ),
+        // Top-left corner
+        Positioned(
+          left: 0,
+          top: 0,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.resizeUpLeftDownRight,
+            child: GestureDetector(
+              onPanStart:
+                  (_) => windowManager.startResizing(ResizeEdge.topLeft),
+              child: Container(width: 8, height: 8, color: Colors.transparent),
+            ),
+          ),
+        ),
+        // Top-right corner
+        Positioned(
+          right: 0,
+          top: 0,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.resizeUpRightDownLeft,
+            child: GestureDetector(
+              onPanStart:
+                  (_) => windowManager.startResizing(ResizeEdge.topRight),
+              child: Container(width: 8, height: 8, color: Colors.transparent),
+            ),
+          ),
+        ),
+        // Bottom-left corner
+        Positioned(
+          left: 0,
+          bottom: 0,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.resizeUpRightDownLeft,
+            child: GestureDetector(
+              onPanStart:
+                  (_) => windowManager.startResizing(ResizeEdge.bottomLeft),
+              child: Container(width: 8, height: 8, color: Colors.transparent),
+            ),
+          ),
+        ),
+        // Bottom-right corner
+        Positioned(
+          right: 0,
+          bottom: 0,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.resizeUpLeftDownRight,
+            child: GestureDetector(
+              onPanStart:
+                  (_) => windowManager.startResizing(ResizeEdge.bottomRight),
+              child: Container(width: 8, height: 8, color: Colors.transparent),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -2837,8 +3252,8 @@ exit
                   Flexible(
                     flex: 1,
                     child: _buildMainContentArea(
-                      viewModeService, 
-                      iconSizeService, 
+                      viewModeService,
+                      iconSizeService,
                       previewPanelService,
                     ),
                   ),
@@ -2854,167 +3269,171 @@ exit
   Widget _buildAppBar(BuildContext context) {
     final previewPanelService = Provider.of<PreviewPanelService>(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    return Container(
-      height: 40,
-      decoration: BoxDecoration(
-        color: isDarkMode 
-            ? const Color(0xFF2C2C2C) // Dark mode toolbar color
-            : const Color(0xFFF5F5F5), // Light mode toolbar color
-        border: Border(
-          bottom: BorderSide(
-            color: isDarkMode 
-                ? Colors.grey.shade800 
-                : Colors.grey.shade300,
-            width: 0.5,
+
+    return GestureDetector(
+      onPanStart: (_) => windowManager.startDragging(),
+      child: Container(
+        height: 40,
+        decoration: BoxDecoration(
+          color:
+              isDarkMode
+                  ? const Color(0xFF2C2C2C) // Dark mode toolbar color
+                  : const Color(0xFFF5F5F5), // Light mode toolbar color
+          border: Border(
+            bottom: BorderSide(
+              color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
+              width: 0.5,
+            ),
           ),
         ),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: _navigationHistory.isEmpty ? null : _navigateBack,
-            tooltip: 'Back',
-            iconSize: 20,
-          ),
-          IconButton(
-            icon: Icon(Icons.arrow_forward),
-            onPressed: _forwardHistory.isEmpty ? null : _navigateForward,
-            tooltip: 'Forward',
-            iconSize: 20,
-          ),
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: () => _loadDirectory(_currentPath),
-            tooltip: 'Refresh',
-            iconSize: 20,
-          ),
-          // Home button
-          IconButton(
-            icon: Icon(Icons.home),
-            onPressed: _initHomeDirectory,
-            tooltip: 'Home Directory',
-            iconSize: 20,
-          ),
-          // Breadcrumb navigation bar
-          Expanded(
-            child: Container(
-              key: _breadcrumbKey,
-              padding: EdgeInsets.symmetric(horizontal: 8.0),
-              child: _buildBreadcrumbNavigator(),
+        child: Row(
+          children: [
+            IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: _navigationHistory.isEmpty ? null : _navigateBack,
+              tooltip: 'Back',
+              iconSize: 20,
             ),
-          ),
-          // Bookmark toggle
-          IconButton(
-            icon: Icon(_showBookmarkSidebar ? Icons.bookmark : Icons.bookmark_border),
-            onPressed: () {
-              setState(() {
-                _showBookmarkSidebar = !_showBookmarkSidebar;
-              });
-            },
-            tooltip: _showBookmarkSidebar ? 'Hide Bookmarks' : 'Show Bookmarks',
-            iconSize: 20,
-          ),
-          // Preview panel toggle
-          IconButton(
-            icon: Icon(previewPanelService.showPreviewPanel ? Icons.info : Icons.info_outline),
-            onPressed: () => previewPanelService.togglePreviewPanel(),
-            tooltip: previewPanelService.showPreviewPanel ? 'Hide Preview' : 'Show Preview',
-            iconSize: 20,
-          ),
-          // Tags button
-          IconButton(
-            icon: Icon(Icons.local_offer_outlined),
-            onPressed: () => Navigator.pushNamed(context, '/tags').then((result) {
-              if (result != null && result is Map<String, dynamic>) {
-                // Handle navigation or file opening from tags view
-                if (result['action'] == 'navigate') {
-                  final path = result['path'] as String;
-                  final parentDir = p.dirname(path);
-                  _navigateToDirectory(parentDir);
-                  
-                  // Wait for directory to load, then select the file
-                  Future.delayed(const Duration(milliseconds: 300), () {
-                    setState(() {
-                      _selectedItemsPaths = {path};
-                    });
-                  });
-                } else if (result['action'] == 'open') {
-                  final path = result['path'] as String;
-                  // Try to find the file item to open it
-                  try {
-                    final file = File(path);
-                    if (file.existsSync()) {
-                      final item = FileItem.fromFile(file);
-                      _handleItemDoubleTap(item);
+            IconButton(
+              icon: Icon(Icons.arrow_forward),
+              onPressed: _forwardHistory.isEmpty ? null : _navigateForward,
+              tooltip: 'Forward',
+              iconSize: 20,
+            ),
+            IconButton(
+              icon: Icon(Icons.refresh),
+              onPressed: () => _loadDirectory(_currentPath),
+              tooltip: 'Refresh',
+              iconSize: 20,
+            ),
+            // Home button
+            IconButton(
+              icon: Icon(Icons.home),
+              onPressed: _initHomeDirectory,
+              tooltip: 'Home Directory',
+              iconSize: 20,
+            ),
+            // Breadcrumb navigation bar
+            Expanded(
+              child: Container(
+                key: _breadcrumbKey,
+                padding: EdgeInsets.symmetric(horizontal: 8.0),
+                child: _buildBreadcrumbNavigator(),
+              ),
+            ),
+            // Bookmark toggle
+            IconButton(
+              icon: Icon(
+                _showBookmarkSidebar ? Icons.bookmark : Icons.bookmark_border,
+              ),
+              onPressed: () {
+                setState(() {
+                  _showBookmarkSidebar = !_showBookmarkSidebar;
+                });
+              },
+              tooltip:
+                  _showBookmarkSidebar ? 'Hide Bookmarks' : 'Show Bookmarks',
+              iconSize: 20,
+            ),
+            // Preview panel toggle
+            IconButton(
+              icon: Icon(
+                previewPanelService.showPreviewPanel
+                    ? Icons.info
+                    : Icons.info_outline,
+              ),
+              onPressed: () => previewPanelService.togglePreviewPanel(),
+              tooltip:
+                  previewPanelService.showPreviewPanel
+                      ? 'Hide Preview'
+                      : 'Show Preview',
+              iconSize: 20,
+            ),
+            // Tags button
+            IconButton(
+              icon: Icon(Icons.local_offer_outlined),
+              onPressed:
+                  () => Navigator.pushNamed(context, '/tags').then((result) {
+                    if (result != null && result is Map<String, dynamic>) {
+                      // Handle navigation or file opening from tags view
+                      if (result['action'] == 'navigate') {
+                        final path = result['path'] as String;
+                        final parentDir = p.dirname(path);
+                        _navigateToDirectory(parentDir);
+
+                        // Wait for directory to load, then select the file
+                        Future.delayed(const Duration(milliseconds: 300), () {
+                          setState(() {
+                            _selectedItemsPaths = {path};
+                          });
+                        });
+                      } else if (result['action'] == 'open') {
+                        final path = result['path'] as String;
+                        // Try to find the file item to open it
+                        try {
+                          final file = File(path);
+                          if (file.existsSync()) {
+                            final item = FileItem.fromFile(file);
+                            _handleItemDoubleTap(item);
+                          }
+                        } catch (e) {
+                          debugPrint('Error opening file from tags: $e');
+                        }
+                      }
                     }
-                  } catch (e) {
-                    debugPrint('Error opening file from tags: $e');
-                  }
+                  }),
+              tooltip: 'Manage Tags',
+              iconSize: 20,
+            ),
+            // Settings/options menu
+            IconButton(
+              icon: Icon(Icons.more_vert),
+              onPressed: () => _showOptionsMenu(context),
+              tooltip: 'Options',
+              iconSize: 20,
+            ),
+            // Window title action buttons
+            IconButton(
+              icon: Icon(Icons.remove, size: 18),
+              onPressed: () => windowManager.minimize(),
+              tooltip: 'Minimize',
+              color: isDarkMode ? Colors.white70 : Colors.black54,
+              constraints: const BoxConstraints(minWidth: 46, minHeight: 28),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+            ),
+            IconButton(
+              icon: Icon(
+                _isMaximized ? Icons.filter_none : Icons.crop_square,
+                size: 18,
+              ),
+              onPressed: () async {
+                if (_isMaximized) {
+                  await windowManager.unmaximize();
+                } else {
+                  await windowManager.maximize();
                 }
-              }
-            }),
-            tooltip: 'Manage Tags',
-            iconSize: 20,
-          ),
-          // Settings/options menu
-          IconButton(
-            icon: Icon(Icons.more_vert),
-            onPressed: () => _showOptionsMenu(context),
-            tooltip: 'Options',
-            iconSize: 20,
-          ),
-          // Window title action buttons
-          IconButton(
-            icon: Icon(Icons.remove, size: 18),
-            onPressed: () => windowManager.minimize(),
-            tooltip: 'Minimize',
-            color: isDarkMode ? Colors.white70 : Colors.black54,
-            constraints: const BoxConstraints(
-              minWidth: 46,
-              minHeight: 28,
+              },
+              tooltip: _isMaximized ? 'Restore' : 'Maximize',
+              color: isDarkMode ? Colors.white70 : Colors.black54,
+              constraints: const BoxConstraints(minWidth: 46, minHeight: 28),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-          ),
-          IconButton(
-            icon: Icon(
-              _isMaximized ? Icons.filter_none : Icons.crop_square,
-              size: 18,
+            IconButton(
+              icon: Icon(Icons.close, size: 18),
+              onPressed: () => windowManager.close(),
+              tooltip: 'Close',
+              color: isDarkMode ? Colors.white70 : Colors.black54,
+              constraints: const BoxConstraints(minWidth: 46, minHeight: 28),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
             ),
-            onPressed: () async {
-              if (_isMaximized) {
-                await windowManager.unmaximize();
-              } else {
-                await windowManager.maximize();
-              }
-            },
-            tooltip: _isMaximized ? 'Restore' : 'Maximize',
-            color: isDarkMode ? Colors.white70 : Colors.black54,
-            constraints: const BoxConstraints(
-              minWidth: 46,
-              minHeight: 28,
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-          ),
-          IconButton(
-            icon: Icon(Icons.close, size: 18),
-            onPressed: () => windowManager.close(),
-            tooltip: 'Close',
-            color: isDarkMode ? Colors.white70 : Colors.black54,
-            constraints: const BoxConstraints(
-              minWidth: 46,
-              minHeight: 28,
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildMainContentArea(
-    ViewModeService viewModeService, 
+    ViewModeService viewModeService,
     IconSizeService iconSizeService,
     PreviewPanelService previewPanelService,
   ) {
@@ -3023,16 +3442,9 @@ exit
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              color: Colors.red,
-              size: 48,
-            ),
+            Icon(Icons.error_outline, color: Colors.red, size: 48),
             SizedBox(height: 16),
-            Text(
-              'Error loading directory',
-              style: TextStyle(fontSize: 18),
-            ),
+            Text('Error loading directory', style: TextStyle(fontSize: 18)),
             SizedBox(height: 8),
             Text(_errorMessage),
             SizedBox(height: 16),
@@ -3046,16 +3458,20 @@ exit
     }
 
     if (_isLoading) {
-      return Center(
-        child: CircularProgressIndicator(),
-      );
+      return Center(child: CircularProgressIndicator());
     }
 
     if (_items.isEmpty) {
       return GestureDetector(
-        behavior: HitTestBehavior.opaque, // Important to detect gestures on the empty area
-        onSecondaryTapUp: (details) => _showEmptyAreaContextMenu(details.globalPosition),
-        onTap: () => setState(() => _selectedItemsPaths = {}), // Clear selection on tap
+        behavior:
+            HitTestBehavior
+                .opaque, // Important to detect gestures on the empty area
+        onSecondaryTapUp:
+            (details) => _showEmptyAreaContextMenu(details.globalPosition),
+        onTap:
+            () => setState(
+              () => _selectedItemsPaths = {},
+            ), // Clear selection on tap
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -3066,10 +3482,7 @@ exit
                 size: 48,
               ),
               SizedBox(height: 16),
-              Text(
-                'This folder is empty',
-                style: TextStyle(fontSize: 18),
-              ),
+              Text('This folder is empty', style: TextStyle(fontSize: 18)),
             ],
           ),
         ),
@@ -3104,7 +3517,8 @@ exit
   Widget _buildListView(List<FileItem> items, IconSizeService iconSizeService) {
     return GestureDetector(
       onTap: () => setState(() => _selectedItemsPaths = {}),
-      onSecondaryTapUp: (details) => _showEmptyAreaContextMenu(details.globalPosition),
+      onSecondaryTapUp:
+          (details) => _showEmptyAreaContextMenu(details.globalPosition),
       onPanStart: (details) {
         setState(() {
           _dragStartPosition = details.localPosition;
@@ -3131,17 +3545,21 @@ exit
         itemBuilder: (context, index) {
           final item = items[index];
           final isSelected = _selectedItemsPaths.contains(item.path);
-          
+
           // Get all selected items
-          final selectedItems = _selectedItemsPaths.isNotEmpty
-              ? items.where((i) => _selectedItemsPaths.contains(i.path)).toList()
-              : null;
-          
+          final selectedItems =
+              _selectedItemsPaths.isNotEmpty
+                  ? items
+                      .where((i) => _selectedItemsPaths.contains(i.path))
+                      .toList()
+                  : null;
+
           return Builder(
             builder: (context) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) {
-                  final RenderBox? box = context.findRenderObject() as RenderBox?;
+                  final RenderBox? box =
+                      context.findRenderObject() as RenderBox?;
                   if (box != null) {
                     final Offset position = box.localToGlobal(Offset.zero);
                     final Size size = box.size;
@@ -3154,19 +3572,20 @@ exit
                   }
                 }
               });
-              
+
               Widget itemWidget = DraggableFileItem(
                 key: ValueKey(item.path),
                 item: item,
                 isSelected: isSelected,
                 isGridMode: false,
                 selectedItems: selectedItems,
-                onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
+                onTap:
+                    (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
                 onDoubleTap: () => _handleItemDoubleTap(item),
                 onLongPress: (item) => _showContextMenu(item, Offset.zero),
                 onRightClick: _showContextMenu,
               );
-              
+
               // Wrap directory items with FolderDropTarget
               if (item.type == FileItemType.directory) {
                 itemWidget = FolderDropTarget(
@@ -3179,19 +3598,20 @@ exit
                   child: itemWidget,
                 );
               }
-              
+
               return itemWidget;
-            }
+            },
           );
         },
       ),
     );
   }
-  
+
   Widget _buildGridView(List<FileItem> items, IconSizeService iconSizeService) {
     return GestureDetector(
       onTap: () => setState(() => _selectedItemsPaths = {}),
-      onSecondaryTapUp: (details) => _showEmptyAreaContextMenu(details.globalPosition),
+      onSecondaryTapUp:
+          (details) => _showEmptyAreaContextMenu(details.globalPosition),
       onPanStart: (details) {
         setState(() {
           _dragStartPosition = details.localPosition;
@@ -3227,17 +3647,21 @@ exit
             itemBuilder: (context, index) {
               final item = items[index];
               final isSelected = _selectedItemsPaths.contains(item.path);
-              
+
               // Get all selected items
-              final selectedItems = _selectedItemsPaths.isNotEmpty
-                  ? items.where((i) => _selectedItemsPaths.contains(i.path)).toList()
-                  : null;
-              
+              final selectedItems =
+                  _selectedItemsPaths.isNotEmpty
+                      ? items
+                          .where((i) => _selectedItemsPaths.contains(i.path))
+                          .toList()
+                      : null;
+
               return Builder(
                 builder: (context) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (mounted) {
-                      final RenderBox? box = context.findRenderObject() as RenderBox?;
+                      final RenderBox? box =
+                          context.findRenderObject() as RenderBox?;
                       if (box != null) {
                         final Offset position = box.localToGlobal(Offset.zero);
                         final Size size = box.size;
@@ -3250,19 +3674,21 @@ exit
                       }
                     }
                   });
-                  
+
                   Widget itemWidget = DraggableFileItem(
                     key: ValueKey(item.path),
                     item: item,
                     isSelected: isSelected,
                     isGridMode: true,
                     selectedItems: selectedItems,
-                    onTap: (item, isCtrlPressed) => _selectItem(item, isCtrlPressed),
+                    onTap:
+                        (item, isCtrlPressed) =>
+                            _selectItem(item, isCtrlPressed),
                     onDoubleTap: () => _handleItemDoubleTap(item),
                     onLongPress: (item) => _showContextMenu(item, Offset.zero),
                     onRightClick: _showContextMenu,
                   );
-                  
+
                   // Wrap directory items with FolderDropTarget
                   if (item.type == FileItemType.directory) {
                     itemWidget = FolderDropTarget(
@@ -3275,9 +3701,9 @@ exit
                       child: itemWidget,
                     );
                   }
-                  
+
                   return itemWidget;
-                }
+                },
               );
             },
           );
@@ -3285,22 +3711,26 @@ exit
       ),
     );
   }
-  
+
   // Function to update selection based on rectangle bounds
   void _updateSelectionRectangle() {
     if (_dragStartPosition == null || _dragEndPosition == null) return;
-    
+
     // Create the selection rectangle from drag points
-    final Rect selectionRect = Rect.fromPoints(_dragStartPosition!, _dragEndPosition!);
-    
+    final Rect selectionRect = Rect.fromPoints(
+      _dragStartPosition!,
+      _dragEndPosition!,
+    );
+
     // Check each item's position against the selection rectangle
     bool isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
-    Set<String> newSelection = isCtrlPressed ? Set.from(_selectedItemsPaths) : {};
-    
+    Set<String> newSelection =
+        isCtrlPressed ? Set.from(_selectedItemsPaths) : {};
+
     for (final entry in _itemPositions.entries) {
       final String path = entry.key;
       final Rect itemRect = entry.value;
-      
+
       // Check if the item intersects with the selection rectangle
       if (itemRect.overlaps(selectionRect)) {
         newSelection.add(path);
@@ -3309,7 +3739,7 @@ exit
         newSelection.remove(path);
       }
     }
-    
+
     // Update the selection if it changed
     if (newSelection != _selectedItemsPaths) {
       setState(() {
@@ -3317,8 +3747,11 @@ exit
       });
     }
   }
-  
-  Widget _buildDetailsView(List<FileItem> items, IconSizeService iconSizeService) {
+
+  Widget _buildDetailsView(
+    List<FileItem> items,
+    IconSizeService iconSizeService,
+  ) {
     return SplitFolderView(
       items: items,
       selectedItemsPaths: _selectedItemsPaths,
@@ -3341,22 +3774,25 @@ exit
 
   void _compressItem(BuildContext context, FileItem item) async {
     if (!mounted) return;
-    
+
     // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text('Compressing ${item.type == FileItemType.directory ? 'Folder' : 'File'}...'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text('Compressing ${item.name}...'),
-          ],
-        ),
-      ),
+      builder:
+          (context) => AlertDialog(
+            title: Text(
+              'Compressing ${item.type == FileItemType.directory ? 'Folder' : 'File'}...',
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text('Compressing ${item.name}...'),
+              ],
+            ),
+          ),
     );
 
     try {
@@ -3371,7 +3807,9 @@ exit
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${item.type == FileItemType.directory ? 'Folder' : 'File'} compressed to ${p.basename(outputPath)}'),
+            content: Text(
+              '${item.type == FileItemType.directory ? 'Folder' : 'File'} compressed to ${p.basename(outputPath)}',
+            ),
             duration: const Duration(seconds: 3),
           ),
         );
@@ -3387,7 +3825,9 @@ exit
         // Show error message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to compress ${item.type == FileItemType.directory ? 'folder' : 'file'}: $e'),
+            content: Text(
+              'Failed to compress ${item.type == FileItemType.directory ? 'folder' : 'file'}: $e',
+            ),
             duration: const Duration(seconds: 3),
           ),
         );
@@ -3397,22 +3837,23 @@ exit
 
   void _compressMultipleItems(BuildContext context) async {
     if (!mounted) return;
-    
+
     // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Compressing Items...'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text('Compressing ${_selectedItemsPaths.length} items...'),
-          ],
-        ),
-      ),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Compressing Items...'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text('Compressing ${_selectedItemsPaths.length} items...'),
+              ],
+            ),
+          ),
     );
 
     try {
@@ -3420,7 +3861,7 @@ exit
       final outputDir = p.dirname(_selectedItemsPaths.first);
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final outputPath = p.join(outputDir, 'compressed_$timestamp.zip');
-      
+
       // Create a temporary directory to store the items
       final tempDir = await Directory.systemTemp.createTemp('compress_');
       try {
@@ -3430,10 +3871,13 @@ exit
           final dest = File(p.join(tempDir.path, p.basename(path)));
           await source.copy(dest.path);
         }
-        
+
         // Compress the temporary directory
-        await compressionService.compressToZip(tempDir.path, outputPath: outputPath);
-        
+        await compressionService.compressToZip(
+          tempDir.path,
+          outputPath: outputPath,
+        );
+
         // Close loading dialog
         if (mounted) {
           Navigator.of(context).pop(); // Close loading dialog
@@ -3441,7 +3885,9 @@ exit
           // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${_selectedItemsPaths.length} items compressed to ${p.basename(outputPath)}'),
+              content: Text(
+                '${_selectedItemsPaths.length} items compressed to ${p.basename(outputPath)}',
+              ),
               duration: const Duration(seconds: 3),
             ),
           );
@@ -3472,7 +3918,7 @@ exit
   void _handleTabChange() {
     final tabManager = Provider.of<TabManagerService>(context, listen: false);
     final currentTab = tabManager.currentTab;
-    
+
     if (currentTab != null && currentTab.path != _currentPath) {
       setState(() {
         _currentPath = currentTab.path;
@@ -3480,7 +3926,7 @@ exit
         _hasError = currentTab.hasError;
         _errorMessage = currentTab.errorMessage;
       });
-      
+
       if (!currentTab.isLoading && !currentTab.hasError) {
         _loadDirectory(currentTab.path, addToHistory: false);
       }
@@ -3490,32 +3936,34 @@ exit
   void _showAppSelectionDialog(FileItem file) async {
     await showDialog(
       context: context,
-      builder: (context) => AppSelectionDialog(
-        filePath: file.path,
-        fileName: file.name,
-      ),
+      builder:
+          (context) =>
+              AppSelectionDialog(filePath: file.path, fileName: file.name),
     );
   }
 
   Future<void> _extractFile(FileItem item) async {
     if (!mounted) return;
-    
+
     // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
     try {
       // Get the parent directory
       final parentDir = p.dirname(item.path);
-      
+
       // Run unzip command
-      final result = await Process.run('unzip', ['-o', item.path, '-d', parentDir]);
-      
+      final result = await Process.run('unzip', [
+        '-o',
+        item.path,
+        '-d',
+        parentDir,
+      ]);
+
       if (result.exitCode != 0) {
         throw Exception(result.stderr);
       }
@@ -3533,7 +3981,10 @@ exit
         );
 
         // Refresh the directory view
-        Provider.of<PreviewPanelService>(context, listen: false).refreshSelectedItem();
+        Provider.of<PreviewPanelService>(
+          context,
+          listen: false,
+        ).refreshSelectedItem();
       }
     } catch (e) {
       // Close loading dialog if it's still open
@@ -3554,14 +4005,17 @@ exit
   // Add methods for multi-file operations
   void _copyMultipleItems() {
     if (_selectedItemsPaths.isEmpty) return;
-    
-    final items = _items.where((item) => _selectedItemsPaths.contains(item.path)).toList();
-    
+
+    final items =
+        _items
+            .where((item) => _selectedItemsPaths.contains(item.path))
+            .toList();
+
     setState(() {
       _clipboardItems = items;
       _isItemCut = false;
     });
-    
+
     // Copy the paths to the system clipboard (joined with newlines)
     final String clipboardText = items.map((item) => item.path).join('\n');
     FlutterClipboard.copy(clipboardText).then((result) {
@@ -3574,19 +4028,23 @@ exit
       }
     });
   }
-  
+
   void _cutMultipleItems() {
     if (_selectedItemsPaths.isEmpty) return;
-    
-    final items = _items.where((item) => _selectedItemsPaths.contains(item.path)).toList();
-    
+
+    final items =
+        _items
+            .where((item) => _selectedItemsPaths.contains(item.path))
+            .toList();
+
     setState(() {
       _clipboardItems = items;
       _isItemCut = true;
     });
-    
+
     // Copy the paths to the system clipboard with a prefix indicating it's a cut operation
-    final String clipboardText = "CUT:\n${items.map((item) => item.path).join('\n')}";
+    final String clipboardText =
+        "CUT:\n${items.map((item) => item.path).join('\n')}";
     FlutterClipboard.copy(clipboardText).then((result) {
       if (mounted) {
         NotificationService.showNotification(
@@ -3616,26 +4074,28 @@ class SelectionRectanglePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Rect.fromPoints(start, end);
-    
+
     // Draw filled rectangle with semi-transparency
-    final fillPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
+    final fillPaint =
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.fill;
     canvas.drawRect(rect, fillPaint);
-    
+
     // Draw rectangle border
-    final strokePaint = Paint()
-      ..color = strokeColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
+    final strokePaint =
+        Paint()
+          ..color = strokeColor
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0;
     canvas.drawRect(rect, strokePaint);
   }
 
   @override
   bool shouldRepaint(SelectionRectanglePainter oldDelegate) {
     return start != oldDelegate.start ||
-           end != oldDelegate.end ||
-           color != oldDelegate.color ||
-           strokeColor != oldDelegate.strokeColor;
+        end != oldDelegate.end ||
+        color != oldDelegate.color ||
+        strokeColor != oldDelegate.strokeColor;
   }
 }
