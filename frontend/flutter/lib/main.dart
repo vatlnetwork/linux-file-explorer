@@ -70,8 +70,8 @@ void main() async {
       center: true,
       backgroundColor: Color(0xFF2D2D2D),
       skipTaskbar: false,
-      titleBarStyle: TitleBarStyle.hidden,
-      windowButtonVisibility: true,
+      titleBarStyle: TitleBarStyle.normal,
+      windowButtonVisibility: false,
       fullScreen: false,
       alwaysOnTop: false,
     );

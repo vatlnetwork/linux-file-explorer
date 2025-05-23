@@ -2673,6 +2673,7 @@ exit
     final tabManager = Provider.of<TabManagerService>(context);
     final currentTab = tabManager.currentTab;
     final previewPanelService = Provider.of<PreviewPanelService>(context);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     // Handle animations
     if (previewPanelService.showPreviewPanel && _previewPanelAnimation.isDismissed) {
@@ -2702,25 +2703,82 @@ exit
                 ? const Color(0xFF202124) // Dark mode background
                 : const Color(0xFFE8F0FE), // Very light blue background
           ),
-          child: Column(
+          child: Row(
             children: [
-              _buildAppBar(context),
-              Expanded(
-                child: Row(
-                  children: [
-                    if (_showBookmarkSidebar)
-                      AnimatedBuilder(
-                        animation: _bookmarkSidebarAnimation,
-                        builder: (context, child) {
-                          return SizedBox(
-                            width: _bookmarkSidebarAnimation.value * 200,
+              if (_showBookmarkSidebar)
+                AnimatedBuilder(
+                  animation: _bookmarkSidebarAnimation,
+                  builder: (context, child) {
+                    return Container(
+                      width: _bookmarkSidebarAnimation.value * 200,
+                      decoration: BoxDecoration(
+                        color: isDarkMode 
+                            ? const Color(0xFF2C2C2C)
+                            : const Color(0xFFF5F5F5),
+                        border: Border(
+                          right: BorderSide(
+                            color: isDarkMode 
+                                ? Colors.grey.shade800 
+                                : Colors.grey.shade300,
+                            width: 0.5,
+                          ),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          // Window title in bookmarks sidebar
+                          Container(
+                            height: 40,
+                            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                            decoration: BoxDecoration(
+                              color: isDarkMode 
+                                  ? const Color(0xFF2C2C2C) // Dark mode background
+                                  : const Color(0xFFF5F5F5), // Light mode background
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: isDarkMode 
+                                      ? Colors.grey.shade800 
+                                      : Colors.grey.shade300,
+                                  width: 0.5,
+                                ),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.folder,
+                                  size: 18,
+                                  color: isDarkMode ? Colors.white70 : Colors.black54,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Linux File Manager',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14,
+                                      color: isDarkMode ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
                             child: BookmarkSidebar(
                               onNavigate: _navigateToDirectory,
                               currentPath: _currentPath,
                             ),
-                          );
-                        },
+                          ),
+                        ],
                       ),
+                    );
+                  },
+                ),
+              Expanded(
+                child: Column(
+                  children: [
+                    _buildAppBar(context),
                     Expanded(
                       child: Column(
                         children: [
@@ -2735,26 +2793,26 @@ exit
                         ],
                       ),
                     ),
-                    if (previewPanelService.showPreviewPanel)
-                      AnimatedBuilder(
-                        animation: _previewPanelAnimation,
-                        builder: (context, child) {
-                          return SizedBox(
-                            width: _previewPanelAnimation.value * 300,
-                            child: PreviewPanel(
-                              onNavigate: _navigateToDirectory,
-                            ),
-                          );
-                        },
+                    if (Provider.of<StatusBarService>(context).showStatusBar)
+                      StatusBar(
+                        items: _items,
+                        selectedItemsPaths: _selectedItemsPaths,
+                        currentPath: _currentPath,
                       ),
                   ],
                 ),
               ),
-              if (Provider.of<StatusBarService>(context).showStatusBar)
-                StatusBar(
-                  items: _items,
-                  selectedItemsPaths: _selectedItemsPaths,
-                  currentPath: _currentPath,
+              if (previewPanelService.showPreviewPanel)
+                AnimatedBuilder(
+                  animation: _previewPanelAnimation,
+                  builder: (context, child) {
+                    return SizedBox(
+                      width: _previewPanelAnimation.value * 300,
+                      child: PreviewPanel(
+                        onNavigate: _navigateToDirectory,
+                      ),
+                    );
+                  },
                 ),
             ],
           ),
@@ -2797,192 +2855,160 @@ exit
     final previewPanelService = Provider.of<PreviewPanelService>(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
-    return GestureDetector(
-      onPanStart: (_) => windowManager.startDragging(),
-      child: Container(
-        height: 40,
-        decoration: BoxDecoration(
-          color: isDarkMode 
-              ? const Color(0xFF2C2C2C) // Dark mode toolbar color
-              : const Color(0xFFF5F5F5), // Light mode toolbar color
-          border: Border(
-            bottom: BorderSide(
-              color: isDarkMode 
-                  ? Colors.grey.shade800 
-                  : Colors.grey.shade300,
-              width: 0.5,
-            ),
+    return Container(
+      height: 40,
+      decoration: BoxDecoration(
+        color: isDarkMode 
+            ? const Color(0xFF2C2C2C) // Dark mode toolbar color
+            : const Color(0xFFF5F5F5), // Light mode toolbar color
+        border: Border(
+          bottom: BorderSide(
+            color: isDarkMode 
+                ? Colors.grey.shade800 
+                : Colors.grey.shade300,
+            width: 0.5,
           ),
         ),
-        child: Row(
-          children: [
-            // Application title
-            Padding(
-              padding: const EdgeInsets.only(left: 12.0, right: 8.0),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.folder,
-                    size: 18,
-                    color: isDarkMode ? Colors.white70 : Colors.black54,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Linux File Manager',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                      color: isDarkMode ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                ],
-              ),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: _navigationHistory.isEmpty ? null : _navigateBack,
+            tooltip: 'Back',
+            iconSize: 20,
+          ),
+          IconButton(
+            icon: Icon(Icons.arrow_forward),
+            onPressed: _forwardHistory.isEmpty ? null : _navigateForward,
+            tooltip: 'Forward',
+            iconSize: 20,
+          ),
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: () => _loadDirectory(_currentPath),
+            tooltip: 'Refresh',
+            iconSize: 20,
+          ),
+          // Home button
+          IconButton(
+            icon: Icon(Icons.home),
+            onPressed: _initHomeDirectory,
+            tooltip: 'Home Directory',
+            iconSize: 20,
+          ),
+          // Breadcrumb navigation bar
+          Expanded(
+            child: Container(
+              key: _breadcrumbKey,
+              padding: EdgeInsets.symmetric(horizontal: 8.0),
+              child: _buildBreadcrumbNavigator(),
             ),
-            // Divider between title and navigation buttons
-            Container(
-              height: 24,
-              width: 1,
-              margin: const EdgeInsets.symmetric(horizontal: 8.0),
-              color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
-            ),
-            IconButton(
-              icon: Icon(Icons.arrow_back),
-              onPressed: _navigationHistory.isEmpty ? null : _navigateBack,
-              tooltip: 'Back',
-              iconSize: 20,
-            ),
-            IconButton(
-              icon: Icon(Icons.arrow_forward),
-              onPressed: _forwardHistory.isEmpty ? null : _navigateForward,
-              tooltip: 'Forward',
-              iconSize: 20,
-            ),
-            IconButton(
-              icon: Icon(Icons.refresh),
-              onPressed: () => _loadDirectory(_currentPath),
-              tooltip: 'Refresh',
-              iconSize: 20,
-            ),
-            // Home button
-            IconButton(
-              icon: Icon(Icons.home),
-              onPressed: _initHomeDirectory,
-              tooltip: 'Home Directory',
-              iconSize: 20,
-            ),
-            // Breadcrumb navigation bar
-            Expanded(
-              child: Container(
-                key: _breadcrumbKey,
-                padding: EdgeInsets.symmetric(horizontal: 8.0),
-                child: _buildBreadcrumbNavigator(),
-              ),
-            ),
-            // Bookmark toggle
-            IconButton(
-              icon: Icon(_showBookmarkSidebar ? Icons.bookmark : Icons.bookmark_border),
-              onPressed: () {
-                setState(() {
-                  _showBookmarkSidebar = !_showBookmarkSidebar;
-                });
-              },
-              tooltip: _showBookmarkSidebar ? 'Hide Bookmarks' : 'Show Bookmarks',
-              iconSize: 20,
-            ),
-            // Preview panel toggle
-            IconButton(
-              icon: Icon(previewPanelService.showPreviewPanel ? Icons.info : Icons.info_outline),
-              onPressed: () => previewPanelService.togglePreviewPanel(),
-              tooltip: previewPanelService.showPreviewPanel ? 'Hide Preview' : 'Show Preview',
-              iconSize: 20,
-            ),
-            // Tags button
-            IconButton(
-              icon: Icon(Icons.local_offer_outlined),
-              onPressed: () => Navigator.pushNamed(context, '/tags').then((result) {
-                if (result != null && result is Map<String, dynamic>) {
-                  // Handle navigation or file opening from tags view
-                  if (result['action'] == 'navigate') {
-                    final path = result['path'] as String;
-                    final parentDir = p.dirname(path);
-                    _navigateToDirectory(parentDir);
-                    
-                    // Wait for directory to load, then select the file
-                    Future.delayed(const Duration(milliseconds: 300), () {
-                      setState(() {
-                        _selectedItemsPaths = {path};
-                      });
+          ),
+          // Bookmark toggle
+          IconButton(
+            icon: Icon(_showBookmarkSidebar ? Icons.bookmark : Icons.bookmark_border),
+            onPressed: () {
+              setState(() {
+                _showBookmarkSidebar = !_showBookmarkSidebar;
+              });
+            },
+            tooltip: _showBookmarkSidebar ? 'Hide Bookmarks' : 'Show Bookmarks',
+            iconSize: 20,
+          ),
+          // Preview panel toggle
+          IconButton(
+            icon: Icon(previewPanelService.showPreviewPanel ? Icons.info : Icons.info_outline),
+            onPressed: () => previewPanelService.togglePreviewPanel(),
+            tooltip: previewPanelService.showPreviewPanel ? 'Hide Preview' : 'Show Preview',
+            iconSize: 20,
+          ),
+          // Tags button
+          IconButton(
+            icon: Icon(Icons.local_offer_outlined),
+            onPressed: () => Navigator.pushNamed(context, '/tags').then((result) {
+              if (result != null && result is Map<String, dynamic>) {
+                // Handle navigation or file opening from tags view
+                if (result['action'] == 'navigate') {
+                  final path = result['path'] as String;
+                  final parentDir = p.dirname(path);
+                  _navigateToDirectory(parentDir);
+                  
+                  // Wait for directory to load, then select the file
+                  Future.delayed(const Duration(milliseconds: 300), () {
+                    setState(() {
+                      _selectedItemsPaths = {path};
                     });
-                  } else if (result['action'] == 'open') {
-                    final path = result['path'] as String;
-                    // Try to find the file item to open it
-                    try {
-                      final file = File(path);
-                      if (file.existsSync()) {
-                        final item = FileItem.fromFile(file);
-                        _handleItemDoubleTap(item);
-                      }
-                    } catch (e) {
-                      debugPrint('Error opening file from tags: $e');
+                  });
+                } else if (result['action'] == 'open') {
+                  final path = result['path'] as String;
+                  // Try to find the file item to open it
+                  try {
+                    final file = File(path);
+                    if (file.existsSync()) {
+                      final item = FileItem.fromFile(file);
+                      _handleItemDoubleTap(item);
                     }
+                  } catch (e) {
+                    debugPrint('Error opening file from tags: $e');
                   }
                 }
-              }),
-              tooltip: 'Manage Tags',
-              iconSize: 20,
+              }
+            }),
+            tooltip: 'Manage Tags',
+            iconSize: 20,
+          ),
+          // Settings/options menu
+          IconButton(
+            icon: Icon(Icons.more_vert),
+            onPressed: () => _showOptionsMenu(context),
+            tooltip: 'Options',
+            iconSize: 20,
+          ),
+          // Window title action buttons
+          IconButton(
+            icon: Icon(Icons.remove, size: 18),
+            onPressed: () => windowManager.minimize(),
+            tooltip: 'Minimize',
+            color: isDarkMode ? Colors.white70 : Colors.black54,
+            constraints: const BoxConstraints(
+              minWidth: 46,
+              minHeight: 28,
             ),
-            // Settings/options menu
-            IconButton(
-              icon: Icon(Icons.more_vert),
-              onPressed: () => _showOptionsMenu(context),
-              tooltip: 'Options',
-              iconSize: 20,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+          ),
+          IconButton(
+            icon: Icon(
+              _isMaximized ? Icons.filter_none : Icons.crop_square,
+              size: 18,
             ),
-            // Window title action buttons
-            IconButton(
-              icon: Icon(Icons.remove, size: 18),
-              onPressed: () => windowManager.minimize(),
-              tooltip: 'Minimize',
-              color: isDarkMode ? Colors.white70 : Colors.black54,
-              constraints: const BoxConstraints(
-                minWidth: 46,
-                minHeight: 28,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+            onPressed: () async {
+              if (_isMaximized) {
+                await windowManager.unmaximize();
+              } else {
+                await windowManager.maximize();
+              }
+            },
+            tooltip: _isMaximized ? 'Restore' : 'Maximize',
+            color: isDarkMode ? Colors.white70 : Colors.black54,
+            constraints: const BoxConstraints(
+              minWidth: 46,
+              minHeight: 28,
             ),
-            IconButton(
-              icon: Icon(
-                _isMaximized ? Icons.filter_none : Icons.crop_square,
-                size: 18,
-              ),
-              onPressed: () async {
-                if (_isMaximized) {
-                  await windowManager.unmaximize();
-                } else {
-                  await windowManager.maximize();
-                }
-              },
-              tooltip: _isMaximized ? 'Restore' : 'Maximize',
-              color: isDarkMode ? Colors.white70 : Colors.black54,
-              constraints: const BoxConstraints(
-                minWidth: 46,
-                minHeight: 28,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+          ),
+          IconButton(
+            icon: Icon(Icons.close, size: 18),
+            onPressed: () => windowManager.close(),
+            tooltip: 'Close',
+            color: isDarkMode ? Colors.white70 : Colors.black54,
+            constraints: const BoxConstraints(
+              minWidth: 46,
+              minHeight: 28,
             ),
-            IconButton(
-              icon: Icon(Icons.close, size: 18),
-              onPressed: () => windowManager.close(),
-              tooltip: 'Close',
-              color: isDarkMode ? Colors.white70 : Colors.black54,
-              constraints: const BoxConstraints(
-                minWidth: 46,
-                minHeight: 28,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-            ),
-          ],
-        ),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+          ),
+        ],
       ),
     );
   }
