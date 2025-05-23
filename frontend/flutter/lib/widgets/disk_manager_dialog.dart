@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import '../services/disk_service.dart';
 import 'package:logging/logging.dart';
+import 'dart:convert';
 
 class DiskManagerDialog extends StatefulWidget {
   final String? path;
@@ -279,42 +280,137 @@ class _DiskManagerDialogState extends State<DiskManagerDialog>
         throw Exception('smartctl not found. Please install smartmontools.');
       }
 
-      // Get the device path
-      final devicePath = disk.filesystem;
+      // Show password dialog
+      final passwordController = TextEditingController();
+      final password = await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (context) => AlertDialog(
+              title: const Text('Administrator Access Required'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Enter your password to check disk health:'),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: passwordController,
+                    obscureText: true,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      hintText: 'Password',
+                    ),
+                    onSubmitted: (value) => Navigator.pop(context, value),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed:
+                      () => Navigator.pop(context, passwordController.text),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+      );
 
-      // Run SMART test
-      final result = await Process.run('smartctl', ['-h', devicePath]);
+      // Dispose of the controller
+      passwordController.dispose();
 
+      if (password == null || !mounted) return;
+
+      // Show progress dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (context) => const AlertDialog(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Checking disk health...'),
+                ],
+              ),
+            ),
+      );
+
+      // Run SMART test with sudo
+      final result = await Process.start('sudo', [
+        '-S', // Read password from stdin
+        'smartctl',
+        '-H',
+        disk.filesystem,
+        '-d',
+        'ata',
+      ]);
+
+      // Write password to stdin
+      result.stdin.write(password + '\n');
+      await result.stdin.close();
+
+      // Collect output
+      final output = await result.stdout.transform(utf8.decoder).join();
+      final error = await result.stderr.transform(utf8.decoder).join();
+      final exitCode = await result.exitCode;
+
+      // Close progress dialog
       if (mounted) {
-        showDialog(
-          context: context,
-          builder:
-              (context) => AlertDialog(
-                title: Text('Disk Health Check'),
-                content: Column(
+        Navigator.pop(context);
+      }
+
+      if (!mounted) return;
+
+      if (exitCode != 0) {
+        throw Exception(error);
+      }
+
+      // Show results
+      showDialog(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: const Text('Disk Health Check'),
+              content: SingleChildScrollView(
+                child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Results for ${disk.mountPoint}:'),
                     const SizedBox(height: 8),
-                    Text(result.stdout.toString()),
-                    if (result.stderr.toString().isNotEmpty)
-                      Text(
-                        result.stderr.toString(),
-                        style: TextStyle(color: Colors.red),
+                    SelectableText(output),
+                    if (error.isNotEmpty)
+                      SelectableText(
+                        error,
+                        style: const TextStyle(color: Colors.red),
                       ),
                   ],
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Close'),
-                  ),
-                ],
               ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error checking disk health: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
-    } catch (e) {
       rethrow;
     }
   }
