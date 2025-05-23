@@ -318,78 +318,79 @@ class _DiskManagerDialogState extends State<DiskManagerDialog>
   }
 
   Future<void> _backupDisk(DiskInfo disk) async {
+    // First show the backup selection dialog
+    final selectedPaths = await showDialog<List<String>>(
+      context: context,
+      builder: (context) => BackupSelectionDialog(path: disk.mountPoint),
+    );
+
+    if (selectedPaths == null || selectedPaths.isEmpty || !mounted) return;
+
     final downloadsPath = '${Platform.environment['HOME']}/Downloads';
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final backupPath =
         '$downloadsPath/backup_${p.basename(disk.mountPoint)}_$timestamp';
 
-    if (mounted) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder:
-            (context) => AlertDialog(
-              title: Text('Backup ${disk.mountPoint}'),
-              content: Text(
-                'This will create a backup in:\n$backupPath\n\nContinue?',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Backup'),
-                ),
+    // Show progress dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Creating Backup'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text('Backing up ${selectedPaths.length} items...'),
               ],
             ),
-      );
+          ),
+    );
 
-      if (confirmed == true) {
-        // Show progress dialog
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder:
-              (context) => AlertDialog(
-                title: Text('Creating Backup'),
-                content: Row(
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(width: 16),
-                    Text('Creating backup...'),
-                  ],
-                ),
-              ),
+    try {
+      // Create backup using tar with relative paths
+      final workingDir = disk.mountPoint;
+      final List<String> tarArgs = [
+        '-czf',
+        '$backupPath.tar.gz',
+        '-C',
+        workingDir,
+      ];
+
+      // Add relative paths to tar arguments
+      for (final path in selectedPaths) {
+        final relativePath = p.relative(path, from: workingDir);
+        tarArgs.add(relativePath);
+      }
+
+      final result = await Process.run('tar', tarArgs);
+
+      if (result.exitCode != 0) {
+        throw Exception(result.stderr);
+      }
+
+      // Close progress dialog
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Backup created at $backupPath.tar.gz'),
+            backgroundColor: Colors.green,
+          ),
         );
-
-        try {
-          // Create backup using tar
-          await Process.run('tar', [
-            '-czf',
-            '$backupPath.tar.gz',
-            '-C',
-            p.dirname(disk.mountPoint),
-            p.basename(disk.mountPoint),
-          ]);
-
-          // Close progress dialog
-          if (mounted) {
-            Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Backup created at $backupPath.tar.gz'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        } catch (e) {
-          // Close progress dialog on error
-          if (mounted) {
-            Navigator.pop(context);
-          }
-          rethrow;
-        }
+      }
+    } catch (e) {
+      // Close progress dialog on error
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error creating backup: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -734,25 +735,50 @@ class _BackupSelectionDialogState extends State<BackupSelectionDialog> {
   final List<String> _selectedItems = [];
   bool _isLoading = true;
   List<FileSystemEntity> _items = [];
+  String _currentPath = '';
+  final List<String> _navigationHistory = [];
 
   @override
   void initState() {
     super.initState();
+    _currentPath = widget.path;
     _loadItems();
   }
 
   Future<void> _loadItems() async {
+    setState(() => _isLoading = true);
+
     try {
-      final directory = Directory(widget.path);
+      final directory = Directory(_currentPath);
       final items = await directory.list().toList();
       setState(() {
         _items = items;
         _isLoading = false;
       });
     } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading directory: $e')));
+      }
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _navigateToDirectory(String path) {
+    _navigationHistory.add(_currentPath);
+    setState(() {
+      _currentPath = path;
+    });
+    _loadItems();
+  }
+
+  void _navigateBack() {
+    if (_navigationHistory.isNotEmpty) {
       setState(() {
-        _isLoading = false;
+        _currentPath = _navigationHistory.removeLast();
       });
+      _loadItems();
     }
   }
 
@@ -761,67 +787,93 @@ class _BackupSelectionDialogState extends State<BackupSelectionDialog> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         width: 600,
+        height: 400,
         padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Select Items to Backup',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: isDarkMode ? Colors.white : Colors.black87,
-              ),
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: _navigationHistory.isEmpty ? null : _navigateBack,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Select Items to Backup from $_currentPath',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
-            if (_isLoading)
-              const Center(child: CircularProgressIndicator())
-            else
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _items.length,
-                  itemBuilder: (context, index) {
-                    final item = _items[index];
-                    final isSelected = _selectedItems.contains(item.path);
-                    final isDirectory = item is Directory;
+            Expanded(
+              child:
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : ListView.builder(
+                        itemCount: _items.length,
+                        itemBuilder: (context, index) {
+                          final item = _items[index];
+                          final isDirectory = item is Directory;
+                          final name = p.basename(item.path);
+                          final isSelected = _selectedItems.contains(item.path);
 
-                    return ListTile(
-                      leading: Icon(
-                        isDirectory ? Icons.folder : Icons.insert_drive_file,
-                        color: isDirectory ? Colors.blue : Colors.grey,
-                      ),
-                      title: Text(
-                        item.path.split('/').last,
-                        style: TextStyle(
-                          color: isDarkMode ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                      trailing: Checkbox(
-                        value: isSelected,
-                        onChanged: (value) {
-                          setState(() {
-                            if (value == true) {
-                              _selectedItems.add(item.path);
-                            } else {
-                              _selectedItems.remove(item.path);
-                            }
-                          });
+                          return ListTile(
+                            leading: Icon(
+                              isDirectory
+                                  ? Icons.folder
+                                  : Icons.insert_drive_file,
+                              color: isDirectory ? Colors.blue : Colors.grey,
+                            ),
+                            title: Text(name),
+                            trailing: Checkbox(
+                              value: isSelected,
+                              onChanged: (value) {
+                                setState(() {
+                                  if (value == true) {
+                                    _selectedItems.add(item.path);
+                                  } else {
+                                    _selectedItems.remove(item.path);
+                                  }
+                                });
+                              },
+                            ),
+                            onTap:
+                                isDirectory
+                                    ? () => _navigateToDirectory(item.path)
+                                    : () {
+                                      setState(() {
+                                        if (isSelected) {
+                                          _selectedItems.remove(item.path);
+                                        } else {
+                                          _selectedItems.add(item.path);
+                                        }
+                                      });
+                                    },
+                          );
                         },
                       ),
-                    );
-                  },
-                ),
-              ),
+            ),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                Text(
+                  '${_selectedItems.length} items selected',
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                ),
+                const Spacer(),
                 TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => Navigator.pop(context),
                   child: const Text('Cancel'),
                 ),
                 const SizedBox(width: 8),
@@ -829,7 +881,7 @@ class _BackupSelectionDialogState extends State<BackupSelectionDialog> {
                   onPressed:
                       _selectedItems.isEmpty
                           ? null
-                          : () => Navigator.of(context).pop(_selectedItems),
+                          : () => Navigator.pop(context, _selectedItems),
                   child: const Text('Backup Selected'),
                 ),
               ],
