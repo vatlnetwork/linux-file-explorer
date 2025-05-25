@@ -76,6 +76,7 @@ func (c *ApplicationController) setupControllers() error {
 	controllers := []Controller{
 		c,
 		// this is where you initialize your controllers. if you do not initialize your controllers here, they will not be usable
+		NewAppsController(c.appRepo),
 	}
 
 	// everything below here should be left untouched
