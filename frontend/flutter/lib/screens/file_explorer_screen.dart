@@ -55,6 +55,165 @@ class FileExplorerScreen extends StatefulWidget {
   _FileExplorerScreenState createState() => _FileExplorerScreenState();
 }
 
+// Add this class near the top of the file, after the FileExplorerScreen class
+class _ViewModeSubmenu extends PopupMenuEntry<String> {
+  final ViewModeService viewModeService;
+
+  const _ViewModeSubmenu({required this.viewModeService});
+
+  @override
+  double get height => kMinInteractiveDimension;
+
+  @override
+  bool represents(String? value) => false;
+
+  @override
+  _ViewModeSubmenuState createState() => _ViewModeSubmenuState();
+}
+
+class _ViewModeSubmenuState extends State<_ViewModeSubmenu> {
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuItem<String>(
+      child: Row(
+        children: [
+          Icon(Icons.view_list, size: 16),
+          SizedBox(width: 8),
+          Expanded(child: Text('View Mode')),
+          Icon(Icons.arrow_right, size: 16),
+        ],
+      ),
+      onTap: () {
+        // Schedule the submenu to show after the current frame
+        Future.delayed(Duration.zero, () {
+          // Show submenu
+          final RenderBox? button = context.findRenderObject() as RenderBox?;
+          if (button == null) return;
+
+          final position = button.localToGlobal(Offset.zero);
+          final overlay =
+              Overlay.of(context).context.findRenderObject() as RenderBox;
+
+          showMenu<String>(
+            context: context,
+            color:
+                Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF2D2E30)
+                    : Colors.white,
+            position: RelativeRect.fromRect(
+              Rect.fromPoints(
+                position.translate(button.size.width - 8, -4),
+                position.translate(button.size.width - 8, -4),
+              ),
+              Offset.zero & overlay.size,
+            ),
+            items: [
+              PopupMenuItem<String>(
+                value: 'list_view',
+                child: Row(
+                  children: [
+                    Icon(Icons.view_list, size: 16),
+                    SizedBox(width: 8),
+                    Text('List View'),
+                    if (widget.viewModeService.viewMode == ViewMode.list)
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Icon(Icons.check, size: 16),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'grid_view',
+                child: Row(
+                  children: [
+                    Icon(Icons.grid_view, size: 16),
+                    SizedBox(width: 8),
+                    Text('Grid View'),
+                    if (widget.viewModeService.viewMode == ViewMode.grid)
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Icon(Icons.check, size: 16),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'details_view',
+                child: Row(
+                  children: [
+                    Icon(Icons.table_rows, size: 16),
+                    SizedBox(width: 8),
+                    Text('Details View'),
+                    if (widget.viewModeService.viewMode == ViewMode.split)
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Icon(Icons.check, size: 16),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'column_view',
+                child: Row(
+                  children: [
+                    Icon(Icons.view_column, size: 16),
+                    SizedBox(width: 8),
+                    Text('Column View'),
+                    if (widget.viewModeService.viewMode == ViewMode.column)
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Icon(Icons.check, size: 16),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ).then((value) {
+            if (value != null) {
+              switch (value) {
+                case 'list_view':
+                  widget.viewModeService.setViewMode(ViewMode.list);
+                  break;
+                case 'grid_view':
+                  widget.viewModeService.setViewMode(ViewMode.grid);
+                  break;
+                case 'details_view':
+                  widget.viewModeService.setViewMode(ViewMode.split);
+                  break;
+                case 'column_view':
+                  widget.viewModeService.setViewMode(ViewMode.column);
+                  break;
+              }
+            }
+
+            // Show the main menu again
+            Future.delayed(Duration.zero, () {
+              if (context.mounted) {
+                showDialog(
+                  context: context,
+                  barrierColor: Colors.transparent,
+                  builder:
+                      (context) =>
+                          context.findAncestorWidgetOfExactType<Dialog>()!,
+                );
+              }
+            });
+          });
+        });
+      },
+    );
+  }
+}
+
 class _FileExplorerScreenState extends State<FileExplorerScreen>
     with TickerProviderStateMixin, WindowListener {
   final FileService _fileService = FileService();
@@ -102,6 +261,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   bool _mightStartDragging = false;
   bool _showHiddenFiles =
       false; // Add state variable for hidden files visibility
+
+  // Add GlobalKey for options button
+  final GlobalKey _optionsButtonKey = GlobalKey();
 
   @override
   void initState() {
@@ -1661,7 +1823,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   }
 
   // Show app options menu
-  void _showOptionsMenu(BuildContext context) {
+  void _showOptionsMenu() {
     final viewModeService = Provider.of<ViewModeService>(
       context,
       listen: false,
@@ -1680,14 +1842,18 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     );
     final appService = Provider.of<AppService>(context, listen: false);
 
-    // Calculate position relative to the action bar
-    final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
-    final size = renderBox?.size ?? Size(0, 0);
+    // Get the RenderBox of the options button using the GlobalKey
+    final RenderBox? button =
+        _optionsButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    if (button == null) return;
 
-    // Position the menu right-aligned with the options button and just below the action bar
+    // Get the global position of the button
+    final buttonPosition = button.localToGlobal(Offset.zero);
+
+    // Position the menu right under the button
     final RelativeRect position = RelativeRect.fromLTRB(
-      size.width - 250,
-      40,
+      buttonPosition.dx - 230 + button.size.width, // Right align with button
+      buttonPosition.dy + button.size.height, // Just below the button
       0,
       0,
     );
@@ -1738,17 +1904,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                 ),
                 const PopupMenuDivider(),
                 // Standard menu items
-                PopupMenuItem<String>(
-                  value: 'view_mode',
-                  child: Row(
-                    children: [
-                      Icon(Icons.view_list, size: 16),
-                      SizedBox(width: 8),
-                      Text('View Mode'),
-                    ],
-                  ),
-                ),
-
+                _ViewModeSubmenu(viewModeService: viewModeService),
+                const PopupMenuDivider(),
                 // Toggle status bar
                 PopupMenuItem<String>(
                   value: 'status_bar',
@@ -1953,11 +2110,27 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       context: context,
       barrierColor: Colors.transparent,
       builder: (BuildContext context) {
+        final RenderBox overlay =
+            Overlay.of(context).context.findRenderObject() as RenderBox;
+        final screenSize = overlay.size;
+
+        // Calculate position that ensures menu stays on screen
+        double left = buttonPosition.dx - 230 + button.size.width;
+        double top = buttonPosition.dy + button.size.height;
+
+        // Adjust if menu would go off screen
+        if (left + 230 > screenSize.width) {
+          left = screenSize.width - 230;
+        }
+        if (left < 0) {
+          left = 0;
+        }
+
         return Stack(
           children: [
             Positioned(
-              top: position.top,
-              right: 0,
+              left: left,
+              top: top,
               child: Material(
                 elevation: 8,
                 borderRadius: BorderRadius.circular(4),
@@ -1975,8 +2148,17 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       // Handle selection outside of slider
       if (value != null && mounted) {
         switch (value) {
-          case 'view_mode':
-            _showViewModeSubmenu(context, size);
+          case 'list_view':
+            viewModeService.setViewMode(ViewMode.list);
+            break;
+          case 'grid_view':
+            viewModeService.setViewMode(ViewMode.grid);
+            break;
+          case 'details_view':
+            viewModeService.setViewMode(ViewMode.split);
+            break;
+          case 'column_view':
+            viewModeService.setViewMode(ViewMode.column);
             break;
           case 'status_bar':
             statusBarService.toggleStatusBar();
@@ -2012,85 +2194,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
             break;
         }
       }
-    });
-  }
-
-  // Show view mode submenu
-  void _showViewModeSubmenu(BuildContext context, Size size) {
-    final viewModeService = Provider.of<ViewModeService>(
-      context,
-      listen: false,
-    );
-
-    Future.delayed(const Duration(milliseconds: 10), () {
-      showMenu<String>(
-        context: context,
-        position: RelativeRect.fromLTRB(
-          size.width - 180, // Right-align, slightly offset from main menu
-          70, // Below the main menu item
-          0, // No right padding
-          0, // No bottom padding
-        ),
-        items: <PopupMenuEntry<String>>[
-          PopupMenuItem<String>(
-            value: 'list',
-            child: Row(
-              children: [
-                Icon(Icons.view_list),
-                SizedBox(width: 8),
-                Text('List View'),
-              ],
-            ),
-          ),
-          PopupMenuItem<String>(
-            value: 'grid',
-            child: Row(
-              children: [
-                Icon(Icons.grid_view),
-                SizedBox(width: 8),
-                Text('Grid View'),
-              ],
-            ),
-          ),
-          PopupMenuItem<String>(
-            value: 'details',
-            child: Row(
-              children: [
-                Icon(Icons.table_rows),
-                SizedBox(width: 8),
-                Text('Details View'),
-              ],
-            ),
-          ),
-          PopupMenuItem<String>(
-            value: 'column',
-            child: Row(
-              children: [
-                Icon(Icons.view_column),
-                SizedBox(width: 8),
-                Text('Column View'),
-              ],
-            ),
-          ),
-        ],
-      ).then((value) {
-        if (value == null || !mounted) return;
-
-        switch (value) {
-          case 'list':
-            viewModeService.setViewMode(ViewMode.list);
-            break;
-          case 'grid':
-            viewModeService.setViewMode(ViewMode.grid);
-            break;
-          case 'details':
-            viewModeService.setViewMode(ViewMode.split);
-            break;
-          case 'column':
-            viewModeService.setViewMode(ViewMode.column);
-            break;
-        }
-      });
     });
   }
 
@@ -3427,8 +3530,9 @@ exit
             ),
             // Settings/options menu
             IconButton(
+              key: _optionsButtonKey,
               icon: Icon(Icons.more_vert),
-              onPressed: () => _showOptionsMenu(context),
+              onPressed: _showOptionsMenu,
               tooltip: 'Options',
               iconSize: 20,
             ),
