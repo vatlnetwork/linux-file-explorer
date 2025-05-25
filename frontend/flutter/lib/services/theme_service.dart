@@ -32,7 +32,7 @@ class ThemeService extends ChangeNotifier {
 
     // Load accent color
     final accentColorValue =
-        _prefs.getInt(_accentColorKey) ?? Colors.blue.value;
+        _prefs.getInt(_accentColorKey) ?? Colors.blue.toARGB32();
     _accentColor = Color(accentColorValue);
 
     notifyListeners();
@@ -50,7 +50,7 @@ class ThemeService extends ChangeNotifier {
     if (_accentColor == color) return;
 
     _accentColor = color;
-    await _prefs.setInt(_accentColorKey, color.value);
+    await _prefs.setInt(_accentColorKey, color.toARGB32());
     notifyListeners();
   }
 

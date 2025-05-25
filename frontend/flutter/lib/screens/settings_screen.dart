@@ -137,7 +137,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         selected: isSelected,
                         selectedTileColor: Theme.of(
                           context,
-                        ).colorScheme.primary.withOpacity(0.1),
+                        ).colorScheme.primary.withValues(alpha: 0.1),
                         onTap: () {
                           setState(() {
                             _selectedIndex = index;

@@ -1708,7 +1708,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
 
         return ClipRRect(
           borderRadius: BorderRadius.circular(4.0),
-          child: Container(
+          child: SizedBox(
             width: 230,
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -2266,22 +2266,28 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   void _cutSelectedItems() {
     if (_selectedItemsPaths.isEmpty) return;
 
-    final List<FileItem> selectedItems =
+    final items =
         _items
             .where((item) => _selectedItemsPaths.contains(item.path))
             .toList();
 
     setState(() {
-      _clipboardItems = selectedItems;
+      _clipboardItems = items;
       _isItemCut = true;
     });
 
-    NotificationService.showNotification(
-      context,
-      message:
-          'Cut ${selectedItems.length} ${selectedItems.length == 1 ? 'item' : 'items'} to clipboard',
-      type: NotificationType.info,
-    );
+    // Copy the paths to the system clipboard with a prefix indicating it's a cut operation
+    final String clipboardText =
+        "CUT:\n${items.map((item) => item.path).join('\n')}";
+    FlutterClipboard.copy(clipboardText).then((result) {
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: 'Cut ${items.length} items to clipboard',
+          type: NotificationType.info,
+        );
+      }
+    });
   }
 
   // Check if a file or directory exists at the given path

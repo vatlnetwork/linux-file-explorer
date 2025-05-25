@@ -128,9 +128,9 @@ class AboutSettings extends StatelessWidget {
                                     vertical: 2,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(
-                                      0xFF2196F3,
-                                    ).withOpacity(0.1),
+                                    color: Theme.of(
+                                      context,
+                                    ).primaryColor.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
@@ -165,7 +165,7 @@ class AboutSettings extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     color: const Color(
                                       0xFF2196F3,
-                                    ).withOpacity(0.1),
+                                    ).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
@@ -212,7 +212,7 @@ class AboutSettings extends StatelessWidget {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: Theme.of(context).primaryColor.withOpacity(0.1),
+            color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: Theme.of(context).primaryColor),
