@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"fmt"
+	"golang-web-core/domain"
+	apprepo "golang-web-core/repositories/app"
 	"golang-web-core/srv/cfg"
 	"golang-web-core/util"
 	"net/http"
@@ -13,6 +15,7 @@ import (
 type ApplicationController struct {
 	cfg.Config
 	Controllers map[string]Controller
+	appRepo     domain.AppRepository
 }
 
 // this verifies that ApplicationController fully implements Controller
@@ -24,7 +27,15 @@ func NewApplicationController(config cfg.Config) (ApplicationController, error) 
 		Controllers: map[string]Controller{},
 	}
 
-	err := cont.setupControllers()
+	err := cont.setupRepositories()
+	if err != nil {
+		return ApplicationController{}, err
+	}
+
+	err = cont.setupControllers()
+	if err != nil {
+		return ApplicationController{}, err
+	}
 
 	return cont, err
 }
@@ -51,7 +62,17 @@ func (c ApplicationController) Favicon(rw http.ResponseWriter, req *http.Request
 	http.ServeFile(rw, req, "favicon.ico")
 }
 
-func (c ApplicationController) setupControllers() error {
+func (c *ApplicationController) setupRepositories() error {
+	switch c.Config.AppRepository.Type {
+	case "MockAppRepository":
+		c.appRepo = apprepo.MockAppRepository{}
+	default:
+		return fmt.Errorf("unknown app repository type: %v", c.Config.AppRepository.Type)
+	}
+	return nil
+}
+
+func (c *ApplicationController) setupControllers() error {
 	controllers := []Controller{
 		c,
 		// this is where you initialize your controllers. if you do not initialize your controllers here, they will not be usable

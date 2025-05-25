@@ -38,5 +38,6 @@ func PrintServerConfig(server *Server) {
 		printLine(2, "Key Path", c.SSL.KeyPath, "")
 	}
 	printLine(1, "Number of Routes", len(server.Routes), "lightgreen")
+	printLine(0, "App Repository", c.AppRepository.Type, "brown")
 	fmt.Println("")
 }

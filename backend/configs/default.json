@@ -5,5 +5,8 @@
     "keyPath": ""
   },
   "enablePublicFS": true,
-  "env": "development"
+  "env": "development",
+  "appRepository": {
+    "type": "MockAppRepository"
+  }
 }
