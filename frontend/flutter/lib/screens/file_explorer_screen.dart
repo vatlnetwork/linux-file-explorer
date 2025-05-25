@@ -1660,12 +1660,28 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
           HardwareKeyboard.instance.isControlPressed) {
         // Paste items
         _pasteItemsToCurrentDirectory();
-      } else if (event.logicalKey == LogicalKeyboardKey.keyA &&
-          HardwareKeyboard.instance.isControlPressed) {
-        // Select all items
+      } else if (event.logicalKey == LogicalKeyboardKey.keyH &&
+          HardwareKeyboard.instance.isControlPressed &&
+          !HardwareKeyboard.instance.isShiftPressed) {
+        // Toggle hidden files visibility
         setState(() {
-          _selectedItemsPaths = _items.map((item) => item.path).toSet();
+          _showHiddenFiles = !_showHiddenFiles;
         });
+        _loadDirectory(
+          _currentPath,
+        ); // Reload directory with new visibility setting
+
+        // Show notification about the change
+        if (mounted) {
+          NotificationService.showNotification(
+            context,
+            message:
+                _showHiddenFiles
+                    ? 'Showing hidden files'
+                    : 'Hiding hidden files',
+            type: NotificationType.info,
+          );
+        }
       } else if (event.logicalKey == LogicalKeyboardKey.keyH &&
           HardwareKeyboard.instance.isControlPressed &&
           HardwareKeyboard.instance.isShiftPressed) {
@@ -1676,13 +1692,20 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         );
         tabManager.setShowTabBar(!tabManager.showTabBar);
 
-        // Toggle hidden files visibility
+        // Show notification about the change
+        if (mounted) {
+          NotificationService.showNotification(
+            context,
+            message: tabManager.showTabBar ? 'Showing tabs' : 'Hiding tabs',
+            type: NotificationType.info,
+          );
+        }
+      } else if (event.logicalKey == LogicalKeyboardKey.keyA &&
+          HardwareKeyboard.instance.isControlPressed) {
+        // Select all items
         setState(() {
-          _showHiddenFiles = !_showHiddenFiles;
+          _selectedItemsPaths = _items.map((item) => item.path).toSet();
         });
-        _loadDirectory(
-          _currentPath,
-        ); // Reload directory with new visibility setting
       }
     }
   }
