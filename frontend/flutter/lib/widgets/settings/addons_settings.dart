@@ -15,6 +15,7 @@ class ContextMenuSettings extends ChangeNotifier {
     'terminal': true, // Open in Terminal (folders only)
     'compress': true, // Compress
     'extract': true, // Extract (compressed files only)
+    'markup': false, // Markup Editor (images only)
   };
 
   bool isEnabled(String key) => _contextMenuItems[key] ?? true;
@@ -32,10 +33,7 @@ class AddonsSettings extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ContextMenuSettings(),
-      child: const _AddonsSettingsContent(),
-    );
+    return const _AddonsSettingsContent();
   }
 }
 
@@ -68,6 +66,8 @@ class _AddonsSettingsContent extends StatelessWidget {
         return 'Create compressed archive';
       case 'extract':
         return 'Extract compressed files';
+      case 'markup':
+        return 'Edit images with markup tools';
       default:
         return '';
     }
@@ -99,6 +99,8 @@ class _AddonsSettingsContent extends StatelessWidget {
         return Icons.archive;
       case 'extract':
         return Icons.unarchive;
+      case 'markup':
+        return Icons.brush;
       default:
         return Icons.extension;
     }
@@ -130,6 +132,8 @@ class _AddonsSettingsContent extends StatelessWidget {
         return 'Compress';
       case 'extract':
         return 'Extract';
+      case 'markup':
+        return 'Markup Editor';
       default:
         return key;
     }

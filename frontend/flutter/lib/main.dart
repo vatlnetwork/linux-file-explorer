@@ -22,6 +22,7 @@ import 'services/drag_drop_service.dart';
 import 'theme/google_theme.dart';
 import 'services/tab_manager_service.dart';
 import 'services/file_service.dart';
+import 'widgets/settings/addons_settings.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -128,6 +129,7 @@ void main() async {
           ChangeNotifierProvider(create: (_) => DragDropService()),
           ChangeNotifierProvider(create: (_) => TabManagerService()),
           Provider(create: (_) => FileService()),
+          ChangeNotifierProvider(create: (_) => ContextMenuSettings()),
         ],
         child: const MyApp(),
       ),

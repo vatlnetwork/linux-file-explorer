@@ -37,6 +37,7 @@ import '../widgets/tab_bar.dart';
 import '../widgets/keyboard_shortcuts_dialog.dart';
 import '../screens/settings_screen.dart';
 import '../widgets/settings/addons_settings.dart';
+import '../widgets/markup_editor.dart';
 
 /// A file explorer screen that displays files and folders in a customizable interface.
 ///
@@ -592,8 +593,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
           value: 'open',
           child: Row(
             children: [
-              Icon(Icons.open_in_new),
-              SizedBox(width: 8),
+              Icon(Icons.open_in_new, size: 16),
+              SizedBox(width: 12),
               Text('Open'),
             ],
           ),
@@ -607,8 +608,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
           value: 'open_with',
           child: Row(
             children: [
-              Icon(Icons.apps),
-              SizedBox(width: 8),
+              Icon(Icons.apps, size: 16),
+              SizedBox(width: 12),
               Text('Open with...'),
             ],
           ),
@@ -621,7 +622,11 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         const PopupMenuItem<String>(
           value: 'rename',
           child: Row(
-            children: [Icon(Icons.edit), SizedBox(width: 8), Text('Rename')],
+            children: [
+              Icon(Icons.edit, size: 16),
+              SizedBox(width: 12),
+              Text('Rename'),
+            ],
           ),
         ),
       );
@@ -632,7 +637,11 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         const PopupMenuItem<String>(
           value: 'copy',
           child: Row(
-            children: [Icon(Icons.copy), SizedBox(width: 8), Text('Copy')],
+            children: [
+              Icon(Icons.copy, size: 16),
+              SizedBox(width: 12),
+              Text('Copy'),
+            ],
           ),
         ),
       );
@@ -643,7 +652,11 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         const PopupMenuItem<String>(
           value: 'cut',
           child: Row(
-            children: [Icon(Icons.cut), SizedBox(width: 8), Text('Cut')],
+            children: [
+              Icon(Icons.cut, size: 16),
+              SizedBox(width: 12),
+              Text('Cut'),
+            ],
           ),
         ),
       );
@@ -654,7 +667,11 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         const PopupMenuItem<String>(
           value: 'delete',
           child: Row(
-            children: [Icon(Icons.delete), SizedBox(width: 8), Text('Delete')],
+            children: [
+              Icon(Icons.delete, size: 16),
+              SizedBox(width: 12),
+              Text('Delete'),
+            ],
           ),
         ),
       );
@@ -667,8 +684,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
             value: 'terminal',
             child: Row(
               children: [
-                Icon(Icons.terminal),
-                SizedBox(width: 8),
+                Icon(Icons.terminal, size: 16),
+                SizedBox(width: 12),
                 Text('Open in Terminal'),
               ],
             ),
@@ -687,8 +704,11 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
             value: isBookmarked ? 'remove_bookmark' : 'bookmark',
             child: Row(
               children: [
-                Icon(isBookmarked ? Icons.bookmark : Icons.bookmark_outline),
-                const SizedBox(width: 8),
+                Icon(
+                  isBookmarked ? Icons.bookmark : Icons.bookmark_outline,
+                  size: 16,
+                ),
+                const SizedBox(width: 12),
                 Text(isBookmarked ? 'Remove Bookmark' : 'Add Bookmark'),
               ],
             ),
@@ -703,9 +723,28 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
           value: 'compress',
           child: Row(
             children: [
-              Icon(Icons.archive),
-              SizedBox(width: 8),
+              Icon(Icons.archive, size: 16),
+              SizedBox(width: 12),
               Text('Compress'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Add markup editor option for image files
+    final imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+    if (item.type == FileItemType.file &&
+        imageExtensions.contains(item.fileExtension.toLowerCase()) &&
+        settings.isEnabled('markup')) {
+      menuItems.add(
+        const PopupMenuItem<String>(
+          value: 'markup',
+          child: Row(
+            children: [
+              Icon(Icons.brush, size: 16),
+              SizedBox(width: 12),
+              Text('Markup Editor'),
             ],
           ),
         ),
@@ -721,8 +760,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
           value: 'extract',
           child: Row(
             children: [
-              Icon(Icons.unarchive),
-              SizedBox(width: 8),
+              Icon(Icons.unarchive, size: 16),
+              SizedBox(width: 12),
               Text('Extract'),
             ],
           ),
@@ -739,14 +778,31 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
           value: 'properties',
           child: Row(
             children: [
-              Icon(Icons.info_outline),
-              SizedBox(width: 8),
+              Icon(Icons.info_outline, size: 16),
+              SizedBox(width: 12),
               Text('Properties'),
             ],
           ),
         ),
       );
     }
+
+    // Add Quick Look option
+    if (menuItems.isNotEmpty) {
+      menuItems.add(const PopupMenuDivider());
+    }
+    menuItems.add(
+      const PopupMenuItem<String>(
+        value: 'quick_look',
+        child: Row(
+          children: [
+            Icon(Icons.preview, size: 16),
+            SizedBox(width: 12),
+            Text('Quick Look'),
+          ],
+        ),
+      ),
+    );
 
     if (menuItems.isEmpty) return;
 
@@ -840,6 +896,19 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         break;
       case 'properties':
         _showPropertiesDialog(item);
+        break;
+      case 'markup':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => MarkupEditor(fileItem: item)),
+        ).then((success) {
+          if (success == true) {
+            _loadDirectory(_currentPath);
+          }
+        });
+        break;
+      case 'quick_look':
+        _showQuickLook(item);
         break;
     }
   }
@@ -2582,7 +2651,7 @@ exit
         child: Row(
           children: [
             Icon(Icons.create_new_folder, size: 16),
-            SizedBox(width: 8),
+            SizedBox(width: 12),
             Text('New Folder'),
           ],
         ),
@@ -2592,7 +2661,7 @@ exit
         child: Row(
           children: [
             Icon(Icons.note_add, size: 16),
-            SizedBox(width: 8),
+            SizedBox(width: 12),
             Text('New File'),
           ],
         ),
@@ -2608,7 +2677,7 @@ exit
               size: 16,
               color: hasClipboardItems ? null : Colors.grey,
             ),
-            SizedBox(width: 8),
+            SizedBox(width: 12),
             Text(
               'Paste',
               style: TextStyle(color: hasClipboardItems ? null : Colors.grey),
@@ -2623,7 +2692,7 @@ exit
           child: Row(
             children: [
               Icon(Icons.select_all, size: 16),
-              SizedBox(width: 8),
+              SizedBox(width: 12),
               Text('Select All'),
             ],
           ),
@@ -2633,7 +2702,7 @@ exit
           child: Row(
             children: [
               Icon(Icons.sort, size: 16),
-              SizedBox(width: 8),
+              SizedBox(width: 12),
               Text('Sort By'),
             ],
           ),
@@ -2644,8 +2713,22 @@ exit
         child: Row(
           children: [
             Icon(Icons.terminal, size: 16),
-            SizedBox(width: 8),
+            SizedBox(width: 12),
             Text('Open in Terminal'),
+          ],
+        ),
+      ),
+      const PopupMenuDivider(),
+      PopupMenuItem<String>(
+        enabled: false,
+        child: Row(
+          children: [
+            Icon(Icons.preview, size: 16, color: Colors.grey),
+            SizedBox(width: 12),
+            Text(
+              'Quick Look (Space)',
+              style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+            ),
           ],
         ),
       ),
