@@ -1,6 +1,7 @@
 package cfg
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 )
@@ -12,11 +13,17 @@ const (
 	Production  Environment = "production"
 )
 
+type RepositoryConfig struct {
+	Type   string          `json:"type"`
+	Config json.RawMessage `json:"config"`
+}
+
 type Config struct {
-	Port     int         `json:"port"`
-	SSL      SSL         `json:"ssl"`
-	PublicFS bool        `json:"enablePublicFS"`
-	Env      Environment `json:"env"`
+	Port          int              `json:"port"`
+	SSL           SSL              `json:"ssl"`
+	PublicFS      bool             `json:"enablePublicFS"`
+	Env           Environment      `json:"env"`
+	AppRepository RepositoryConfig `json:"appRepository"`
 }
 
 func (c Config) IsSSL() bool {
