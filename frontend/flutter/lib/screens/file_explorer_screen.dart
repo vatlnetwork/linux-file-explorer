@@ -36,6 +36,7 @@ import '../services/tab_manager_service.dart';
 import '../widgets/tab_bar.dart';
 import '../widgets/keyboard_shortcuts_dialog.dart';
 import '../screens/settings_screen.dart';
+import '../widgets/settings/addons_settings.dart';
 
 /// A file explorer screen that displays files and folders in a customizable interface.
 ///
@@ -571,7 +572,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     return ['.zip', '.rar', '.tar', '.gz', '.7z', '.bz2'].contains(ext);
   }
 
-  void _showContextMenu(FileItem item, Offset position) async {
+  Future<void> _showContextMenu(FileItem item, Offset position) async {
     // Select the item when right-clicked
     setState(() {
       // If the item is already part of the current multi-selection, keep all selected
@@ -580,263 +581,230 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       }
     });
 
-    final RenderBox overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
-    final bookmarkService = Provider.of<BookmarkService>(
-      context,
-      listen: false,
-    );
-    final isFolder = item.type == FileItemType.directory;
-    final isBookmarked =
-        isFolder ? bookmarkService.isBookmarked(item.path) : false;
-    final isCompressed = _isCompressedFile(item);
+    final settings = context.read<ContextMenuSettings>();
+    final List<PopupMenuEntry<String>> menuItems = [];
+    final isMultipleSelection = _selectedItemsPaths.length > 1;
 
-    // Check if this directory is a mount point
-    bool isMountPoint = false;
-    if (isFolder) {
-      isMountPoint = await _isDirectoryMountPoint(item.path);
-    }
-
-    // Create a relative rectangle for positioning the menu
-    final RelativeRect menuPosition = RelativeRect.fromRect(
-      Rect.fromPoints(position, position),
-      Rect.fromLTWH(0, 0, overlay.size.width, overlay.size.height),
-    );
-
-    // Add mounted check
-    if (!mounted) return;
-
-    // Create menu items depending on whether we have multiple items selected
-    final hasMultipleSelection = _selectedItemsPaths.length > 1;
-
-    final menuItems = <PopupMenuEntry<String>>[
-      // Show number of selected items when multiple are selected
-      if (hasMultipleSelection)
-        PopupMenuItem<String>(
-          enabled: false,
-          child: Text(
-            '${_selectedItemsPaths.length} items selected',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
-          ),
-        ),
-
-      // Open option (only for single item)
-      if (!hasMultipleSelection)
-        PopupMenuItem<String>(
+    // Add menu items based on settings
+    if (settings.isEnabled('open')) {
+      menuItems.add(
+        const PopupMenuItem<String>(
           value: 'open',
           child: Row(
             children: [
-              Icon(Icons.open_in_new, size: 16),
+              Icon(Icons.open_in_new),
               SizedBox(width: 8),
               Text('Open'),
             ],
           ),
         ),
+      );
+    }
 
-      // Open with option (only for files, not directories)
-      if (!hasMultipleSelection && item.type != FileItemType.directory)
-        PopupMenuItem<String>(
+    if (settings.isEnabled('open_with')) {
+      menuItems.add(
+        const PopupMenuItem<String>(
           value: 'open_with',
           child: Row(
             children: [
-              Icon(Icons.apps, size: 16),
+              Icon(Icons.apps),
               SizedBox(width: 8),
               Text('Open with...'),
             ],
           ),
         ),
+      );
+    }
 
-      // Add common operations for both single and multiple selections
-      PopupMenuItem<String>(
-        value: 'copy',
-        child: Row(
-          children: [
-            Icon(Icons.copy, size: 16),
-            SizedBox(width: 8),
-            Text(hasMultipleSelection ? 'Copy Items' : 'Copy'),
-          ],
-        ),
-      ),
-      PopupMenuItem<String>(
-        value: 'cut',
-        child: Row(
-          children: [
-            Icon(Icons.cut, size: 16),
-            SizedBox(width: 8),
-            Text(hasMultipleSelection ? 'Cut Items' : 'Cut'),
-          ],
-        ),
-      ),
-      PopupMenuItem<String>(
-        value: 'delete',
-        child: Row(
-          children: [
-            Icon(Icons.delete, size: 16, color: Colors.red),
-            SizedBox(width: 8),
-            Text(
-              hasMultipleSelection ? 'Delete Items' : 'Delete',
-              style: TextStyle(color: Colors.red),
-            ),
-          ],
-        ),
-      ),
-      PopupMenuItem<String>(
-        value: 'properties',
-        child: Row(
-          children: [
-            Icon(Icons.info_outline, size: 16),
-            SizedBox(width: 8),
-            Text('Properties'),
-          ],
-        ),
-      ),
-
-      // Single item specific options
-      if (!hasMultipleSelection) ...[
-        const PopupMenuDivider(),
-        // Rename option (not for mount points)
-        if (!isMountPoint)
-          PopupMenuItem<String>(
-            value: 'rename',
-            child: Row(
-              children: [
-                Icon(Icons.edit, size: 16),
-                SizedBox(width: 8),
-                Text('Rename'),
-              ],
-            ),
+    if (!isMultipleSelection && settings.isEnabled('rename')) {
+      menuItems.add(
+        const PopupMenuItem<String>(
+          value: 'rename',
+          child: Row(
+            children: [Icon(Icons.edit), SizedBox(width: 8), Text('Rename')],
           ),
+        ),
+      );
+    }
 
-        // Add/remove bookmark (directories only)
-        if (isFolder)
-          PopupMenuItem<String>(
-            value: isBookmarked ? 'remove_bookmark' : 'bookmark',
-            child: Row(
-              children: [
-                Icon(
-                  isBookmarked ? Icons.bookmark_remove : Icons.bookmark_add,
-                  size: 16,
-                ),
-                SizedBox(width: 8),
-                Text(isBookmarked ? 'Remove Bookmark' : 'Add Bookmark'),
-              ],
-            ),
+    if (settings.isEnabled('copy')) {
+      menuItems.add(
+        const PopupMenuItem<String>(
+          value: 'copy',
+          child: Row(
+            children: [Icon(Icons.copy), SizedBox(width: 8), Text('Copy')],
           ),
+        ),
+      );
+    }
 
-        // Terminal option (directories only)
-        if (isFolder)
-          PopupMenuItem<String>(
+    if (settings.isEnabled('cut')) {
+      menuItems.add(
+        const PopupMenuItem<String>(
+          value: 'cut',
+          child: Row(
+            children: [Icon(Icons.cut), SizedBox(width: 8), Text('Cut')],
+          ),
+        ),
+      );
+    }
+
+    if (settings.isEnabled('delete')) {
+      menuItems.add(
+        const PopupMenuItem<String>(
+          value: 'delete',
+          child: Row(
+            children: [Icon(Icons.delete), SizedBox(width: 8), Text('Delete')],
+          ),
+        ),
+      );
+    }
+
+    if (item.type == FileItemType.directory) {
+      if (settings.isEnabled('terminal')) {
+        menuItems.add(
+          const PopupMenuItem<String>(
             value: 'terminal',
             child: Row(
               children: [
-                Icon(Icons.terminal, size: 16),
+                Icon(Icons.terminal),
                 SizedBox(width: 8),
                 Text('Open in Terminal'),
               ],
             ),
           ),
+        );
+      }
 
-        // Unmount option (mount points only)
-        if (isMountPoint)
+      if (settings.isEnabled('bookmark')) {
+        final bookmarkService = Provider.of<BookmarkService>(
+          context,
+          listen: false,
+        );
+        final isBookmarked = bookmarkService.isBookmarked(item.path);
+        menuItems.add(
           PopupMenuItem<String>(
-            value: 'unmount',
+            value: isBookmarked ? 'remove_bookmark' : 'bookmark',
             child: Row(
               children: [
-                Icon(Icons.eject, size: 16),
-                SizedBox(width: 8),
-                Text('Unmount Drive'),
+                Icon(isBookmarked ? Icons.bookmark : Icons.bookmark_outline),
+                const SizedBox(width: 8),
+                Text(isBookmarked ? 'Remove Bookmark' : 'Add Bookmark'),
               ],
             ),
           ),
+        );
+      }
+    }
 
-        // Extract option (compressed files only)
-        if (isCompressed)
-          PopupMenuItem<String>(
-            value: 'extract',
-            child: Row(
-              children: [
-                Icon(Icons.file_download, size: 16),
-                SizedBox(width: 8),
-                Text('Extract'),
-              ],
-            ),
-          ),
-
-        // Compress option (for both files and folders, but not for already compressed files)
-        if (!_isCompressedFile(item))
-          PopupMenuItem<String>(
-            value: 'compress',
-            child: Row(
-              children: [
-                Icon(Icons.archive, size: 16),
-                SizedBox(width: 8),
-                Text('Compress'),
-              ],
-            ),
-          ),
-
-        PopupMenuItem<String>(
-          value: 'paste',
+    if (settings.isEnabled('compress')) {
+      menuItems.add(
+        const PopupMenuItem<String>(
+          value: 'compress',
           child: Row(
             children: [
-              Icon(Icons.paste, size: 16),
+              Icon(Icons.archive),
               SizedBox(width: 8),
-              Text('Paste'),
+              Text('Compress'),
             ],
           ),
         ),
-      ],
-    ];
+      );
+    }
 
-    // Add mounted check again
-    if (!mounted) return;
+    final compressedExtensions = ['.zip', '.rar', '.tar', '.gz', '.7z'];
+    if (item.type == FileItemType.file &&
+        compressedExtensions.contains(item.fileExtension.toLowerCase()) &&
+        settings.isEnabled('extract')) {
+      menuItems.add(
+        const PopupMenuItem<String>(
+          value: 'extract',
+          child: Row(
+            children: [
+              Icon(Icons.unarchive),
+              SizedBox(width: 8),
+              Text('Extract'),
+            ],
+          ),
+        ),
+      );
+    }
 
-    final result = await showMenu<String>(
+    if (settings.isEnabled('properties')) {
+      if (menuItems.isNotEmpty) {
+        menuItems.add(const PopupMenuDivider());
+      }
+      menuItems.add(
+        const PopupMenuItem<String>(
+          value: 'properties',
+          child: Row(
+            children: [
+              Icon(Icons.info_outline),
+              SizedBox(width: 8),
+              Text('Properties'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (menuItems.isEmpty) return;
+
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RelativeRect menuPosition = RelativeRect.fromRect(
+      Rect.fromPoints(position, position),
+      Rect.fromLTWH(0, 0, overlay.size.width, overlay.size.height),
+    );
+
+    final String? selectedValue = await showMenu<String>(
       context: context,
       position: menuPosition,
-      color:
-          Theme.of(context).brightness == Brightness.dark
-              ? const Color(0xFF2D2E30)
-              : Colors.white,
       items: menuItems,
     );
 
-    // Process the selected menu option
-    if (result == null || !mounted) return;
+    if (selectedValue == null || !mounted) return;
 
-    // Handle operations for both single and multiple selections
-    switch (result) {
+    // Handle menu item selection
+    switch (selectedValue) {
       case 'open':
         _handleItemDoubleTap(item);
         break;
       case 'open_with':
         _showOpenWithDialog(item);
         break;
+      case 'rename':
+        _showRenameDialog(item);
+        break;
       case 'copy':
-        if (hasMultipleSelection) {
+        if (isMultipleSelection) {
           _copyMultipleItems();
         } else {
           _copyItem(item);
         }
         break;
       case 'cut':
-        if (hasMultipleSelection) {
+        if (isMultipleSelection) {
           _cutMultipleItems();
         } else {
           _cutItem(item);
         }
         break;
       case 'delete':
-        if (hasMultipleSelection) {
+        if (isMultipleSelection) {
           _showDeleteMultipleConfirmation();
         } else {
           _showDeleteConfirmation(item);
         }
         break;
-      case 'rename':
-        _showRenameDialog(item);
+      case 'terminal':
+        _openInTerminal(item);
         break;
       case 'bookmark':
+        final bookmarkService = Provider.of<BookmarkService>(
+          context,
+          listen: false,
+        );
         bookmarkService.addBookmark(item);
         if (mounted) {
           NotificationService.showNotification(
@@ -847,6 +815,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         }
         break;
       case 'remove_bookmark':
+        final bookmarkService = Provider.of<BookmarkService>(
+          context,
+          listen: false,
+        );
         bookmarkService.removeBookmark(item.path);
         if (mounted) {
           NotificationService.showNotification(
@@ -856,24 +828,15 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
           );
         }
         break;
-      case 'terminal':
-        _openInTerminal(item);
-        break;
-      case 'unmount':
-        _showUnmountConfirmation(item);
-        break;
-      case 'extract':
-        _extractFile(item);
-        break;
-      case 'paste':
-        _pasteFromSystemClipboard();
-        break;
       case 'compress':
-        if (hasMultipleSelection) {
+        if (isMultipleSelection) {
           _compressMultipleItems(context);
         } else {
           _compressItem(context, item);
         }
+        break;
+      case 'extract':
+        _extractFile(item);
         break;
       case 'properties':
         _showPropertiesDialog(item);
