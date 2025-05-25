@@ -9,5 +9,6 @@ type App struct {
 }
 
 func (a App) Run(args []string) error {
+	// TODO: implement this
 	return errors.New("not implemented")
 }
