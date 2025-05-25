@@ -35,6 +35,7 @@ import '../services/compression_service.dart';
 import '../services/tab_manager_service.dart';
 import '../widgets/tab_bar.dart';
 import '../widgets/keyboard_shortcuts_dialog.dart';
+import '../screens/settings_screen.dart';
 
 /// A file explorer screen that displays files and folders in a customizable interface.
 ///
@@ -1675,11 +1676,23 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
 
         return ClipRRect(
           borderRadius: BorderRadius.circular(4.0),
-          child: SizedBox(
+          child: Container(
             width: 230,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Add Settings option at the top
+                PopupMenuItem<String>(
+                  value: 'settings',
+                  child: Row(
+                    children: [
+                      Icon(Icons.settings_outlined, size: 16),
+                      SizedBox(width: 8),
+                      Text('Settings'),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
                 // Add Disk Manager option at the top
                 PopupMenuItem<String>(
                   value: 'disk_manager',
@@ -1961,6 +1974,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
               context: context,
               builder: (context) => const KeyboardShortcutsDialog(),
             );
+            break;
+          case 'settings':
+            Navigator.pushNamed(context, SettingsScreen.routeName);
             break;
         }
       }

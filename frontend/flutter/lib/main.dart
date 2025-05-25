@@ -5,6 +5,7 @@ import 'package:logging/logging.dart';
 import 'dart:io';
 import 'screens/file_explorer_screen.dart';
 import 'screens/tags_view_screen.dart';
+import 'screens/settings_screen.dart';
 import 'services/theme_service.dart';
 import 'services/view_mode_service.dart';
 import 'services/bookmark_service.dart';
@@ -173,7 +174,10 @@ class MyApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       debugShowCheckedModeBanner: false,
       home: const FileExplorerScreen(),
-      routes: {TagsViewScreen.routeName: (context) => const TagsViewScreen()},
+      routes: {
+        TagsViewScreen.routeName: (context) => const TagsViewScreen(),
+        SettingsScreen.routeName: (context) => const SettingsScreen(),
+      },
       scaffoldMessengerKey: NotificationService.messengerKey,
     );
   }
