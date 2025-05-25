@@ -8,5 +8,8 @@
   "env": "development",
   "appRepository": {
     "type": "MockAppRepository"
+  },
+  "fileAssociationRepository": {
+    "type": "MockFileAssociationRepository"
   }
 }

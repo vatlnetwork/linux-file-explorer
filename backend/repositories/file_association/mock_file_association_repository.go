@@ -1,4 +1,4 @@
-package fileassociation
+package fileassociationrepo
 
 import (
 	"golang-web-core/domain"

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"golang-web-core/domain"
 	apprepo "golang-web-core/repositories/app"
+	fileassociationrepo "golang-web-core/repositories/file_association"
 	"golang-web-core/srv/cfg"
 	"golang-web-core/util"
 	"net/http"
@@ -14,8 +15,9 @@ import (
 
 type ApplicationController struct {
 	cfg.Config
-	Controllers map[string]Controller
-	appRepo     domain.AppRepository
+	Controllers     map[string]Controller
+	appRepo         domain.AppRepository
+	associationRepo domain.FileAssociationRepository
 }
 
 // this verifies that ApplicationController fully implements Controller
@@ -69,6 +71,14 @@ func (c *ApplicationController) setupRepositories() error {
 	default:
 		return fmt.Errorf("unknown app repository type: %v", c.Config.AppRepository.Type)
 	}
+
+	switch c.Config.FileAssociationRepository.Type {
+	case "MockFileAssociationRepository":
+		c.associationRepo = fileassociationrepo.MockFileAssociationRepository{}
+	default:
+		return fmt.Errorf("unknown file association repository type: %v", c.Config.FileAssociationRepository.Type)
+	}
+
 	return nil
 }
 
@@ -77,6 +87,7 @@ func (c *ApplicationController) setupControllers() error {
 		c,
 		// this is where you initialize your controllers. if you do not initialize your controllers here, they will not be usable
 		NewAppsController(c.appRepo),
+		NewAssociationsController(c.associationRepo),
 	}
 
 	// everything below here should be left untouched

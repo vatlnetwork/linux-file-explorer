@@ -39,5 +39,6 @@ func PrintServerConfig(server *Server) {
 	}
 	printLine(1, "Number of Routes", len(server.Routes), "lightgreen")
 	printLine(0, "App Repository", c.AppRepository.Type, "brown")
+	printLine(0, "File Association Repository", c.FileAssociationRepository.Type, "brown")
 	fmt.Println("")
 }

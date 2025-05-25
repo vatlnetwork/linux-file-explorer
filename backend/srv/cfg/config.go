@@ -19,11 +19,12 @@ type RepositoryConfig struct {
 }
 
 type Config struct {
-	Port          int              `json:"port"`
-	SSL           SSL              `json:"ssl"`
-	PublicFS      bool             `json:"enablePublicFS"`
-	Env           Environment      `json:"env"`
-	AppRepository RepositoryConfig `json:"appRepository"`
+	Port                      int              `json:"port"`
+	SSL                       SSL              `json:"ssl"`
+	PublicFS                  bool             `json:"enablePublicFS"`
+	Env                       Environment      `json:"env"`
+	AppRepository             RepositoryConfig `json:"appRepository"`
+	FileAssociationRepository RepositoryConfig `json:"fileAssociationRepository"`
 }
 
 func (c Config) IsSSL() bool {

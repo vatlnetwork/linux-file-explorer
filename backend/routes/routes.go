@@ -34,5 +34,8 @@ func (r Router) Routes(appController controllers.ApplicationController) []route.
 	appsController := appController.GetController("AppsController").(controllers.AppsController)
 	routes = append(routes, appsController.Routes()...)
 
+	associationsController := appController.GetController("AssociationsController").(controllers.AssociationsController)
+	routes = append(routes, associationsController.Routes()...)
+
 	return routes
 }
