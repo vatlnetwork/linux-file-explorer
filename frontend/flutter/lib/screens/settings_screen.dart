@@ -56,7 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 color: isDarkMode ? const Color(0xFF2D2D2D) : Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withAlpha(13),
                     blurRadius: 1,
                     offset: const Offset(0, 1),
                   ),
@@ -142,7 +142,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     useIndicator: true,
                     indicatorColor: Theme.of(
                       context,
-                    ).colorScheme.primary.withOpacity(0.1),
+                    ).colorScheme.primary.withAlpha(26),
                     destinations:
                         _sections.map((section) {
                           return NavigationRailDestination(
@@ -166,7 +166,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: Colors.black.withAlpha(13),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),

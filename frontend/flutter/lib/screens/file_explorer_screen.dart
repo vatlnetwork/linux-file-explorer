@@ -2110,27 +2110,11 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       context: context,
       barrierColor: Colors.transparent,
       builder: (BuildContext context) {
-        final RenderBox overlay =
-            Overlay.of(context).context.findRenderObject() as RenderBox;
-        final screenSize = overlay.size;
-
-        // Calculate position that ensures menu stays on screen
-        double left = buttonPosition.dx - 230 + button.size.width;
-        double top = buttonPosition.dy + button.size.height;
-
-        // Adjust if menu would go off screen
-        if (left + 230 > screenSize.width) {
-          left = screenSize.width - 230;
-        }
-        if (left < 0) {
-          left = 0;
-        }
-
         return Stack(
           children: [
             Positioned(
-              left: left,
-              top: top,
+              left: position.left,
+              top: position.top,
               child: Material(
                 elevation: 8,
                 borderRadius: BorderRadius.circular(4),

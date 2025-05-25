@@ -67,11 +67,11 @@ class AppearanceSettings extends StatelessWidget {
     ThemeService themeService,
   ) {
     final colors = [
+      Colors.red,
       Colors.blue,
       Colors.indigo,
       Colors.purple,
       Colors.pink,
-      Colors.red,
       Colors.orange,
       Colors.amber,
       Colors.green,
