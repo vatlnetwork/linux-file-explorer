@@ -51,7 +51,9 @@ class AboutSettings extends StatelessWidget {
             title: 'Report an Issue',
             subtitle: 'Help us improve by reporting bugs',
             onTap: () {
-              // TODO: Add issue reporting link
+              _launchUrl(
+                'https://github.com/vatlnetwork/linux-file-explorer/issues',
+              );
             },
           ),
           const SizedBox(height: 16),
