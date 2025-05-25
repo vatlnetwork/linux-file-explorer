@@ -35,7 +35,6 @@ import '../services/compression_service.dart';
 import '../services/tab_manager_service.dart';
 import '../widgets/tab_bar.dart';
 import '../widgets/keyboard_shortcuts_dialog.dart';
-import '../widgets/disk_manager_dialog.dart';
 
 /// A file explorer screen that displays files and folders in a customizable interface.
 ///
@@ -1931,9 +1930,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       // Handle selection outside of slider
       if (value != null && mounted) {
         switch (value) {
-          case 'disk_manager':
-            _showDiskManagerDialog();
-            break;
           case 'view_mode':
             _showViewModeSubmenu(context, size);
             break;
@@ -1969,31 +1965,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         }
       }
     });
-  }
-
-  void _showDiskManagerDialog() {
-    showGeneralDialog(
-      context: context,
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return const DiskManagerDialog();
-      },
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-          child: ScaleTransition(
-            scale: CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutBack,
-            ),
-            child: child,
-          ),
-        );
-      },
-      transitionDuration: const Duration(milliseconds: 300),
-      barrierDismissible: true,
-      barrierLabel: '',
-      barrierColor: Colors.black54,
-    );
   }
 
   // Show view mode submenu

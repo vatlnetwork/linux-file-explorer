@@ -6,12 +6,8 @@ import '../services/tags_service.dart';
 class TagSelector extends StatefulWidget {
   final String filePath;
   final Function(List<Tag>)? onTagsChanged;
-  
-  const TagSelector({
-    super.key,
-    required this.filePath,
-    this.onTagsChanged,
-  });
+
+  const TagSelector({super.key, required this.filePath, this.onTagsChanged});
 
   @override
   State<TagSelector> createState() => _TagSelectorState();
@@ -20,27 +16,28 @@ class TagSelector extends StatefulWidget {
 class _TagSelectorState extends State<TagSelector> {
   final TextEditingController _tagController = TextEditingController();
   Color _selectedColor = Colors.blue;
-  
+
   @override
   void dispose() {
     _tagController.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Consumer<TagsService>(
       builder: (context, tagsService, _) {
         final fileTags = tagsService.getTagsForFile(widget.filePath);
         final availableTags = tagsService.availableTags;
-        
+
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 1.0),
           padding: const EdgeInsets.all(16.0),
           decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark 
-                ? const Color(0xFF3C4043) // Dark mode background
-                : Colors.white, // Light mode background
+            color:
+                Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF3C4043) // Dark mode background
+                    : Colors.white, // Light mode background
             borderRadius: BorderRadius.circular(8.0),
           ),
           child: Column(
@@ -57,13 +54,16 @@ class _TagSelectorState extends State<TagSelector> {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: fileTags
-                      .map((tag) => _buildTagChip(context, tag, tagsService))
-                      .toList(),
+                  children:
+                      fileTags
+                          .map(
+                            (tag) => _buildTagChip(context, tag, tagsService),
+                          )
+                          .toList(),
                 ),
                 const SizedBox(height: 16),
               ],
-              
+
               // Add new tag
               Row(
                 children: [
@@ -71,7 +71,7 @@ class _TagSelectorState extends State<TagSelector> {
                     child: TextField(
                       controller: _tagController,
                       decoration: const InputDecoration(
-                        hintText: 'Add a tag...',
+                        hintText: "I'm broken",
                         isDense: true,
                         contentPadding: EdgeInsets.symmetric(
                           horizontal: 12,
@@ -112,9 +112,9 @@ class _TagSelectorState extends State<TagSelector> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Available tags
               const Text(
                 'Available Tags',
@@ -124,10 +124,14 @@ class _TagSelectorState extends State<TagSelector> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: availableTags
-                    .where((tag) => !fileTags.contains(tag))
-                    .map((tag) => _buildAvailableTagChip(context, tag, tagsService))
-                    .toList(),
+                children:
+                    availableTags
+                        .where((tag) => !fileTags.contains(tag))
+                        .map(
+                          (tag) =>
+                              _buildAvailableTagChip(context, tag, tagsService),
+                        )
+                        .toList(),
               ),
             ],
           ),
@@ -135,11 +139,16 @@ class _TagSelectorState extends State<TagSelector> {
       },
     );
   }
-  
+
   Widget _buildTagChip(BuildContext context, Tag tag, TagsService tagsService) {
     return Chip(
       label: Text(tag.name),
-      backgroundColor: tag.color.withValues(alpha: tag.color.a * 0.2, red: tag.color.r, green: tag.color.g, blue: tag.color.b),
+      backgroundColor: tag.color.withValues(
+        alpha: tag.color.a * 0.2,
+        red: tag.color.r,
+        green: tag.color.g,
+        blue: tag.color.b,
+      ),
       labelStyle: TextStyle(color: tag.color),
       deleteIcon: const Icon(Icons.close, size: 16),
       onDeleted: () async {
@@ -150,8 +159,12 @@ class _TagSelectorState extends State<TagSelector> {
       },
     );
   }
-  
-  Widget _buildAvailableTagChip(BuildContext context, Tag tag, TagsService tagsService) {
+
+  Widget _buildAvailableTagChip(
+    BuildContext context,
+    Tag tag,
+    TagsService tagsService,
+  ) {
     return InkWell(
       onTap: () async {
         await tagsService.addTagToFile(widget.filePath, tag);
@@ -161,57 +174,63 @@ class _TagSelectorState extends State<TagSelector> {
       },
       child: Chip(
         label: Text(tag.name),
-        backgroundColor: tag.color.withValues(alpha: tag.color.a * 0.1, red: tag.color.r, green: tag.color.g, blue: tag.color.b),
+        backgroundColor: tag.color.withValues(
+          alpha: tag.color.a * 0.1,
+          red: tag.color.r,
+          green: tag.color.g,
+          blue: tag.color.b,
+        ),
         labelStyle: TextStyle(color: tag.color),
       ),
     );
   }
-  
+
   void _selectColor(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Select a color'),
-        children: [
-          for (final color in [
-            Colors.blue,
-            Colors.red,
-            Colors.green,
-            Colors.orange,
-            Colors.purple,
-            Colors.teal,
-            Colors.pink,
-            Colors.amber,
-            Colors.cyan,
-            Colors.indigo,
-          ])
-            SimpleDialogOption(
-              onPressed: () {
-                setState(() {
-                  _selectedColor = color;
-                });
-                Navigator.of(context).pop();
-              },
-              child: Row(
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                    ),
+      builder:
+          (context) => SimpleDialog(
+            title: const Text('Select a color'),
+            children: [
+              for (final color in [
+                Colors.blue,
+                Colors.red,
+                Colors.green,
+                Colors.orange,
+                Colors.purple,
+                Colors.teal,
+                Colors.pink,
+                Colors.amber,
+                Colors.cyan,
+                Colors.indigo,
+              ])
+                SimpleDialogOption(
+                  onPressed: () {
+                    setState(() {
+                      _selectedColor = color;
+                    });
+                    Navigator.of(context).pop();
+                  },
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(_getColorName(color)),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Text(_getColorName(color)),
-                ],
-              ),
-            ),
-        ],
-      ),
+                ),
+            ],
+          ),
     );
   }
-  
+
   String _getColorName(Color color) {
     if (color == Colors.blue) return 'Blue';
     if (color == Colors.red) return 'Red';
@@ -225,18 +244,18 @@ class _TagSelectorState extends State<TagSelector> {
     if (color == Colors.indigo) return 'Indigo';
     return 'Unknown';
   }
-  
+
   void _addNewTag(BuildContext context, TagsService tagsService) async {
     final name = _tagController.text.trim();
     if (name.isEmpty) return;
-    
+
     final tag = await tagsService.createTag(name, _selectedColor);
     await tagsService.addTagToFile(widget.filePath, tag);
-    
+
     if (widget.onTagsChanged != null) {
       widget.onTagsChanged!(tagsService.getTagsForFile(widget.filePath));
     }
-    
+
     _tagController.clear();
   }
-} 
+}
