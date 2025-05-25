@@ -5,6 +5,7 @@ import 'package:logging/logging.dart';
 import 'dart:io';
 import 'screens/file_explorer_screen.dart';
 import 'screens/tags_view_screen.dart';
+import 'screens/settings_screen.dart';
 import 'services/theme_service.dart';
 import 'services/view_mode_service.dart';
 import 'services/bookmark_service.dart';
@@ -21,6 +22,7 @@ import 'services/drag_drop_service.dart';
 import 'theme/google_theme.dart';
 import 'services/tab_manager_service.dart';
 import 'services/file_service.dart';
+import 'widgets/settings/addons_settings.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -127,6 +129,7 @@ void main() async {
           ChangeNotifierProvider(create: (_) => DragDropService()),
           ChangeNotifierProvider(create: (_) => TabManagerService()),
           Provider(create: (_) => FileService()),
+          ChangeNotifierProvider(create: (_) => ContextMenuSettings()),
         ],
         child: const MyApp(),
       ),
@@ -173,7 +176,10 @@ class MyApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       debugShowCheckedModeBanner: false,
       home: const FileExplorerScreen(),
-      routes: {TagsViewScreen.routeName: (context) => const TagsViewScreen()},
+      routes: {
+        TagsViewScreen.routeName: (context) => const TagsViewScreen(),
+        SettingsScreen.routeName: (context) => const SettingsScreen(),
+      },
       scaffoldMessengerKey: NotificationService.messengerKey,
     );
   }
