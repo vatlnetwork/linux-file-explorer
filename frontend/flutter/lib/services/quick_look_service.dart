@@ -4,21 +4,19 @@ import '../models/file_item.dart';
 import 'preview_panel_service.dart';
 import 'package:logging/logging.dart';
 import 'dart:async';
+import '../widgets/audio_player_widget.dart';
 
 class QuickLookService {
   final BuildContext context;
   final PreviewPanelService previewPanelService;
   final _logger = Logger('QuickLookService');
 
-  QuickLookService({
-    required this.context,
-    required this.previewPanelService,
-  });
+  QuickLookService({required this.context, required this.previewPanelService});
 
   /// Show a quick look preview dialog for the given file item
   Future<void> showQuickLook(FileItem item) async {
     _logger.info('Initiating Quick Look for ${item.path}');
-    
+
     if (!previewPanelService.canPreview(item)) {
       _logger.info('Cannot preview this file type');
       return;
@@ -31,20 +29,15 @@ class QuickLookService {
       barrierLabel: 'Dismiss',
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (context, animation, secondaryAnimation) => QuickLookDialog(
-        item: item,
-        previewPanelService: previewPanelService,
-      ),
+      pageBuilder:
+          (context, animation, secondaryAnimation) => QuickLookDialog(
+            item: item,
+            previewPanelService: previewPanelService,
+          ),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return ScaleTransition(
-          scale: CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-          ),
-          child: FadeTransition(
-            opacity: animation,
-            child: child,
-          ),
+          scale: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+          child: FadeTransition(opacity: animation, child: child),
         );
       },
     );
@@ -70,11 +63,19 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
   bool _isLoading = true;
   String? _textContent;
   List<FileItem>? _directoryContent;
+  late FileItem _currentItem;
 
   @override
   void initState() {
     super.initState();
+    _currentItem = widget.item;
     _loadPreview();
+  }
+
+  void _handleFileChanged(FileItem newFile) {
+    setState(() {
+      _currentItem = newFile;
+    });
   }
 
   Future<void> _loadPreview() async {
@@ -85,7 +86,9 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
     });
 
     if (widget.item.type == FileItemType.directory) {
-      final content = await widget.previewPanelService.getDirectoryContent(widget.item.path);
+      final content = await widget.previewPanelService.getDirectoryContent(
+        widget.item.path,
+      );
       if (mounted) {
         setState(() {
           _directoryContent = content;
@@ -94,9 +97,21 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
       }
     } else if (widget.item.type == FileItemType.file) {
       final ext = widget.item.fileExtension.toLowerCase();
-      
-      if (['.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.html', '.css', '.js'].contains(ext)) {
-        final content = await widget.previewPanelService.getTextFileContent(widget.item.path);
+
+      if ([
+        '.txt',
+        '.md',
+        '.json',
+        '.yaml',
+        '.yml',
+        '.xml',
+        '.html',
+        '.css',
+        '.js',
+      ].contains(ext)) {
+        final content = await widget.previewPanelService.getTextFileContent(
+          widget.item.path,
+        );
         if (mounted) {
           setState(() {
             _textContent = content;
@@ -113,14 +128,14 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final borderRadius = BorderRadius.circular(16);
-    
+    final ext = _currentItem.fileExtension.toLowerCase();
+    final isAudioFile = ['.mp3', '.wav', '.ogg', '.flac'].contains(ext);
+
     return Dialog(
       backgroundColor: isDarkMode ? const Color(0xFF292929) : Colors.white,
       elevation: 24,
       insetPadding: const EdgeInsets.all(40),
-      shape: RoundedRectangleBorder(
-        borderRadius: borderRadius,
-      ),
+      shape: RoundedRectangleBorder(borderRadius: borderRadius),
       child: Container(
         width: 800,
         height: 600,
@@ -134,15 +149,15 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
             ),
           ],
         ),
-        clipBehavior: Clip.antiAlias, // Ensure content respects rounded corners
+        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header with file name and close button
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: isDarkMode ? const Color(0xFF333333) : Colors.grey.shade100,
+                color:
+                    isDarkMode ? const Color(0xFF333333) : Colors.grey.shade100,
                 border: Border(
                   bottom: BorderSide(
                     color: isDarkMode ? Colors.black : Colors.grey.shade300,
@@ -153,20 +168,40 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
               child: Row(
                 children: [
                   Icon(
-                    _getIconForItem(widget.item),
-                    color: _getColorForItem(widget.item),
+                    _getIconForItem(_currentItem),
+                    color: _getColorForItem(_currentItem),
                     size: 24,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      widget.item.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: isDarkMode ? Colors.grey.shade200 : Colors.grey.shade800,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _currentItem.name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color:
+                                isDarkMode
+                                    ? Colors.grey.shade200
+                                    : Colors.grey.shade800,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (isAudioFile)
+                          Text(
+                            'Now Playing',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color:
+                                  isDarkMode
+                                      ? Colors.grey.shade400
+                                      : Colors.grey.shade600,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   IconButton(
@@ -177,12 +212,11 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
                 ],
               ),
             ),
-            
-            // Content area
             Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _buildPreviewContent(),
+              child:
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _buildPreviewContent(),
             ),
           ],
         ),
@@ -195,39 +229,60 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
     if (widget.item.type == FileItemType.directory) {
       return _buildDirectoryPreview();
     }
-    
+
     // File preview based on type
     final ext = widget.item.fileExtension.toLowerCase();
-    
+
     // Image preview
     if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].contains(ext)) {
       return _buildImagePreview();
     }
-    
+
     // Text file preview
-    if (['.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.html', '.css', '.js'].contains(ext)) {
+    if ([
+      '.txt',
+      '.md',
+      '.json',
+      '.yaml',
+      '.yml',
+      '.xml',
+      '.html',
+      '.css',
+      '.js',
+    ].contains(ext)) {
       return _buildTextPreview();
     }
-    
+
     // Video preview
     if (['.mp4', '.avi', '.mov', '.mkv', '.webm'].contains(ext)) {
       return _buildVideoPreview();
     }
-    
+
+    // Audio preview
+    if (['.mp3', '.wav', '.ogg', '.flac'].contains(ext)) {
+      return _buildAudioPreview();
+    }
+
     // Document preview
-    if (['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'].contains(ext)) {
+    if ([
+      '.pdf',
+      '.doc',
+      '.docx',
+      '.xls',
+      '.xlsx',
+      '.ppt',
+      '.pptx',
+    ].contains(ext)) {
       return _buildDocumentPreview();
     }
-    
+
     // Default file info
     return _buildDefaultFileInfo();
   }
 
   Widget _buildDirectoryPreview() {
     if (_directoryContent == null || _directoryContent!.isEmpty) {
-      return const Center(
-        child: Text('This folder is empty'),
-      );
+      return const Center(child: Text('This folder is empty'));
     }
 
     return ListView.builder(
@@ -236,15 +291,10 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
       itemBuilder: (context, index) {
         final item = _directoryContent![index];
         return ListTile(
-          leading: Icon(
-            _getIconForItem(item),
-            color: _getColorForItem(item),
-          ),
+          leading: Icon(_getIconForItem(item), color: _getColorForItem(item)),
           title: Text(item.name),
           subtitle: Text(
-            item.type == FileItemType.directory
-                ? 'Folder'
-                : item.formattedSize,
+            item.type == FileItemType.directory ? 'Folder' : item.formattedSize,
           ),
         );
       },
@@ -262,11 +312,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
           return Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.broken_image,
-                size: 64,
-                color: Colors.red,
-              ),
+              const Icon(Icons.broken_image, size: 64, color: Colors.red),
               const SizedBox(height: 16),
               Text('Failed to load image: $error'),
             ],
@@ -278,9 +324,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
 
   Widget _buildTextPreview() {
     if (_textContent == null) {
-      return const Center(
-        child: Text('Failed to load text content'),
-      );
+      return const Center(child: Text('Failed to load text content'));
     }
 
     return SingleChildScrollView(
@@ -290,9 +334,10 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
         style: TextStyle(
           fontFamily: 'monospace',
           fontSize: 14,
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.grey.shade300
-              : Colors.grey.shade800,
+          color:
+              Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey.shade300
+                  : Colors.grey.shade800,
         ),
       ),
     );
@@ -303,11 +348,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.movie,
-            size: 64,
-            color: Colors.red,
-          ),
+          Icon(Icons.movie, size: 64, color: Colors.red),
           const SizedBox(height: 16),
           Text(widget.item.name),
           const SizedBox(height: 8),
@@ -323,9 +364,19 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
     );
   }
 
+  Widget _buildAudioPreview() {
+    return Center(
+      child: AudioPlayerWidget(
+        audioFile: widget.item,
+        darkMode: Theme.of(context).brightness == Brightness.dark,
+        onFileChanged: _handleFileChanged,
+      ),
+    );
+  }
+
   Widget _buildDocumentPreview() {
     final ext = widget.item.fileExtension.toLowerCase();
-    
+
     // If it's a PDF file, show a basic preview instead of using SfPdfViewer
     if (['.pdf'].contains(ext)) {
       return Center(
@@ -356,12 +407,12 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
         ),
       );
     }
-    
+
     // For other document types, show file info
     IconData iconData;
     Color iconColor;
     String fileType;
-    
+
     if (['.doc', '.docx'].contains(ext)) {
       iconData = Icons.description;
       iconColor = Colors.blue;
@@ -379,7 +430,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
       iconColor = Colors.blue;
       fileType = 'Document';
     }
-    
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -422,7 +473,9 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
-          Text('Type: ${widget.item.fileExtension.toUpperCase().replaceFirst('.', '')} File'),
+          Text(
+            'Type: ${widget.item.fileExtension.toUpperCase().replaceFirst('.', '')} File',
+          ),
           Text('Size: ${widget.item.formattedSize}'),
           Text('Modified: ${widget.item.formattedModifiedTime}'),
         ],
@@ -436,7 +489,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
     }
 
     final ext = item.fileExtension.toLowerCase();
-    
+
     if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].contains(ext)) {
       return Icons.image;
     } else if (['.mp4', '.avi', '.mov', '.mkv', '.webm'].contains(ext)) {
@@ -454,7 +507,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
     } else if (['.zip', '.rar', '.tar', '.gz'].contains(ext)) {
       return Icons.archive;
     }
-    
+
     return Icons.insert_drive_file;
   }
 
@@ -464,7 +517,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
     }
 
     final ext = item.fileExtension.toLowerCase();
-    
+
     if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].contains(ext)) {
       return Colors.blue;
     } else if (['.mp4', '.avi', '.mov', '.mkv', '.webm'].contains(ext)) {
@@ -482,7 +535,7 @@ class _QuickLookDialogState extends State<QuickLookDialog> {
     } else if (['.zip', '.rar', '.tar', '.gz'].contains(ext)) {
       return Colors.brown;
     }
-    
+
     return Colors.blueGrey;
   }
-} 
+}

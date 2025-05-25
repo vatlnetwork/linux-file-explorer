@@ -152,11 +152,18 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Container(
           padding: const EdgeInsets.all(16),
-          child: const Center(
+          child: Center(
             child: SizedBox(
               height: 20,
               width: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  isDarkMode
+                      ? const Color(0xFF8AB4F8)
+                      : const Color(0xFF1A73E8),
+                ),
+              ),
             ),
           ),
         ),
@@ -194,6 +201,10 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
                     ),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    foregroundColor:
+                        isDarkMode
+                            ? const Color(0xFF8AB4F8)
+                            : const Color(0xFF1A73E8),
                   ),
                   child: const Text('Retry', style: TextStyle(fontSize: 14)),
                 ),
@@ -205,9 +216,7 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
     }
 
     return GestureDetector(
-      onTap: () {
-        _toggleLargestFilesPopup();
-      },
+      onTap: _toggleLargestFilesPopup,
       child: Card(
         key: _widgetKey,
         elevation: 4,
@@ -224,7 +233,7 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
                     Icons.storage,
                     size: 18,
                     color:
-                        Theme.of(context).brightness == Brightness.dark
+                        isDarkMode
                             ? const Color(0xFF8AB4F8)
                             : const Color(0xFF1A73E8),
                   ),
@@ -235,10 +244,7 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        color:
-                            Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white
-                                : Colors.black87,
+                        color: isDarkMode ? Colors.white : Colors.black87,
                       ),
                     ),
                   ),
@@ -247,7 +253,7 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
                       Icons.info_outline,
                       size: 18,
                       color:
-                          Theme.of(context).brightness == Brightness.dark
+                          isDarkMode
                               ? Colors.grey.shade400
                               : Colors.grey.shade700,
                     ),
@@ -266,10 +272,7 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
                       '${_diskService.formatBytes(_diskSpace!.usedBytes)} used',
                       style: TextStyle(
                         fontSize: 12,
-                        color:
-                            Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white70
-                                : Colors.black54,
+                        color: isDarkMode ? Colors.white70 : Colors.black54,
                       ),
                     ),
                   ),
@@ -277,10 +280,7 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
                     '${_diskService.formatBytes(_diskSpace!.availableBytes)} free',
                     style: TextStyle(
                       fontSize: 12,
-                      color:
-                          Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white70
-                              : Colors.black54,
+                      color: isDarkMode ? Colors.white70 : Colors.black54,
                     ),
                   ),
                 ],
@@ -290,10 +290,7 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
                 '${_diskSpace!.usagePercentage.toStringAsFixed(1)}%',
                 style: TextStyle(
                   fontSize: 12,
-                  color:
-                      Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white60
-                          : Colors.black45,
+                  color: isDarkMode ? Colors.white60 : Colors.black45,
                 ),
               ),
               const SizedBox(height: 8),
@@ -302,11 +299,14 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
                 child: LinearProgressIndicator(
                   value: _diskSpace!.usagePercentage / 100,
                   backgroundColor:
-                      Theme.of(context).brightness == Brightness.dark
+                      isDarkMode
                           ? const Color(0xFF3C4043)
                           : const Color(0xFFF1F3F4),
                   valueColor: AlwaysStoppedAnimation<Color>(
-                    _getColorForPercentage(_diskSpace!.usagePercentage),
+                    _getColorForPercentage(
+                      _diskSpace!.usagePercentage,
+                      isDarkMode,
+                    ),
                   ),
                   minHeight: 8,
                 ),
@@ -318,15 +318,23 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
     );
   }
 
-  Color _getColorForPercentage(double percentage) {
+  Color _getColorForPercentage(double percentage, bool isDarkMode) {
     if (percentage >= 90) {
-      return Colors.red;
+      return isDarkMode
+          ? const Color(0xFFE67C73)
+          : const Color(0xFFD93025); // Red
     } else if (percentage >= 75) {
-      return Colors.orange;
+      return isDarkMode
+          ? const Color(0xFFF9AB00)
+          : const Color(0xFFEA8600); // Orange
     } else if (percentage >= 60) {
-      return Colors.amber;
+      return isDarkMode
+          ? const Color(0xFFFDD663)
+          : const Color(0xFFFBBC04); // Amber
     } else {
-      return Colors.green;
+      return isDarkMode
+          ? const Color(0xFF81C995)
+          : const Color(0xFF188038); // Green
     }
   }
 }

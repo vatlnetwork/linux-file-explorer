@@ -1,217 +1,119 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../services/theme_service.dart';
 
-class AppearanceSettings extends StatefulWidget {
+class AppearanceSettings extends StatelessWidget {
   const AppearanceSettings({super.key});
 
   @override
-  State<AppearanceSettings> createState() => _AppearanceSettingsState();
-}
-
-class _AppearanceSettingsState extends State<AppearanceSettings> {
-  String _selectedTheme = 'system';
-  Color _selectedAccentColor = Colors.blue;
-
-  final List<Color> _accentColors = [
-    Colors.blue,
-    Colors.purple,
-    Colors.pink,
-    Colors.red,
-    Colors.orange,
-    Colors.amber,
-    Colors.green,
-    Colors.teal,
-    Colors.cyan,
-    Colors.indigo,
-  ];
-
-  @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Appearance',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 24),
+    final themeService = context.watch<ThemeService>();
 
-          // Theme Selection
-          _buildSection(
-            title: 'Theme',
-            child: Column(
-              children: [
-                _buildThemeOption(
-                  title: 'System',
-                  value: 'system',
-                  subtitle: 'Follow system theme',
-                  icon: Icons.brightness_auto,
-                ),
-                const SizedBox(height: 8),
-                _buildThemeOption(
-                  title: 'Light',
-                  value: 'light',
-                  subtitle: 'Light theme',
-                  icon: Icons.light_mode,
-                ),
-                const SizedBox(height: 8),
-                _buildThemeOption(
-                  title: 'Dark',
-                  value: 'dark',
-                  subtitle: 'Dark theme',
-                  icon: Icons.dark_mode,
-                ),
-              ],
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Appearance',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-          ),
-          const SizedBox(height: 32),
-
-          // Accent Color Selection
-          _buildSection(
-            title: 'Accent Color',
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children:
-                  _accentColors.map((color) {
-                    return InkWell(
-                      onTap: () {
-                        setState(() {
-                          _selectedAccentColor = color;
-                        });
-                      },
-                      borderRadius: BorderRadius.circular(24),
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color:
-                                _selectedAccentColor == color
-                                    ? Colors.white
-                                    : Colors.transparent,
-                            width: 2,
-                          ),
-                          boxShadow: [
-                            if (_selectedAccentColor == color)
-                              BoxShadow(
-                                color: color.withOpacity(0.4),
-                                blurRadius: 8,
-                                spreadRadius: 2,
-                              ),
-                          ],
-                        ),
-                        child:
-                            _selectedAccentColor == color
-                                ? const Icon(Icons.check, color: Colors.white)
-                                : null,
-                      ),
-                    );
-                  }).toList(),
-            ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            _buildThemeSelector(context, themeService),
+            const SizedBox(height: 16),
+            _buildAccentColorSelector(context, themeService),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildSection({required String title, required Widget child}) {
+  Widget _buildThemeSelector(BuildContext context, ThemeService themeService) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        const Text('Theme', style: TextStyle(fontWeight: FontWeight.w500)),
+        const SizedBox(height: 8),
+        SegmentedButton<ThemeMode>(
+          segments: const [
+            ButtonSegment<ThemeMode>(
+              value: ThemeMode.system,
+              label: Text('System'),
+              icon: Icon(Icons.brightness_auto),
+            ),
+            ButtonSegment<ThemeMode>(
+              value: ThemeMode.light,
+              label: Text('Light'),
+              icon: Icon(Icons.light_mode),
+            ),
+            ButtonSegment<ThemeMode>(
+              value: ThemeMode.dark,
+              label: Text('Dark'),
+              icon: Icon(Icons.dark_mode),
+            ),
+          ],
+          selected: {themeService.themeMode},
+          onSelectionChanged: (Set<ThemeMode> selected) {
+            themeService.setThemeMode(selected.first);
+          },
         ),
-        const SizedBox(height: 16),
-        child,
       ],
     );
   }
 
-  Widget _buildThemeOption({
-    required String title,
-    required String value,
-    required String subtitle,
-    required IconData icon,
-  }) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final isSelected = _selectedTheme == value;
+  Widget _buildAccentColorSelector(
+    BuildContext context,
+    ThemeService themeService,
+  ) {
+    final colors = [
+      Colors.blue,
+      Colors.indigo,
+      Colors.purple,
+      Colors.pink,
+      Colors.red,
+      Colors.orange,
+      Colors.amber,
+      Colors.green,
+      Colors.teal,
+      Colors.cyan,
+    ];
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _selectedTheme = value;
-          });
-        },
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color:
-                  isSelected
-                      ? Theme.of(context).primaryColor
-                      : isDarkMode
-                      ? Colors.grey.shade800
-                      : Colors.grey.shade300,
-            ),
-            color:
-                isSelected
-                    ? Theme.of(context).primaryColor.withOpacity(0.1)
-                    : Colors.transparent,
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                color:
-                    isSelected
-                        ? Theme.of(context).primaryColor
-                        : isDarkMode
-                        ? Colors.white
-                        : Colors.grey.shade800,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w500,
-                        color:
-                            isSelected
-                                ? Theme.of(context).primaryColor
-                                : isDarkMode
-                                ? Colors.white
-                                : Colors.black87,
-                      ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color:
-                            isDarkMode ? Colors.white70 : Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (isSelected)
-                Icon(Icons.check, color: Theme.of(context).primaryColor),
-            ],
-          ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Accent Color',
+          style: TextStyle(fontWeight: FontWeight.w500),
         ),
-      ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children:
+              colors.map((color) {
+                return InkWell(
+                  onTap: () => themeService.setAccentColor(color),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color:
+                            themeService.accentColor == color
+                                ? Theme.of(context).colorScheme.onSurface
+                                : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+        ),
+      ],
     );
   }
 }

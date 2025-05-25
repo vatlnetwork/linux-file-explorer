@@ -169,11 +169,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeService = context.watch<ThemeService>();
+
     return MaterialApp(
-      title: 'Linux File Manager',
-      theme: GoogleTheme.lightTheme,
-      darkTheme: GoogleTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      title: 'Linux File Explorer',
+      themeMode: themeService.themeMode,
+      theme: themeService.getLightTheme(),
+      darkTheme: themeService.getDarkTheme(),
       debugShowCheckedModeBanner: false,
       home: const FileExplorerScreen(),
       routes: {

@@ -44,15 +44,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Container(
             width: 250,
             decoration: BoxDecoration(
-              color:
-                  isDarkMode
-                      ? const Color(0xFF2C2C2C)
-                      : const Color(0xFFF5F5F5),
               border: Border(
                 right: BorderSide(
                   color:
                       isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
-                  width: 0.5,
                 ),
               ),
             ),
@@ -61,7 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // Header
                 Container(
                   height: 60,
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
                     border: Border(
                       bottom: BorderSide(
@@ -69,33 +64,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             isDarkMode
                                 ? Colors.grey.shade800
                                 : Colors.grey.shade300,
-                        width: 0.5,
                       ),
                     ),
                   ),
                   child: Row(
                     children: [
-                      // Add back button
-                      IconButton(
-                        icon: Icon(
-                          Icons.arrow_back,
-                          color:
-                              isDarkMode
-                                  ? Colors.white70
-                                  : Colors.grey.shade800,
+                      MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: () => Navigator.of(context).pop(),
+                          child: Tooltip(
+                            message: 'Back to File Explorer',
+                            child: Icon(
+                              Icons.arrow_back,
+                              size: 20,
+                              color:
+                                  isDarkMode
+                                      ? Colors.white70
+                                      : Colors.grey.shade800,
+                            ),
+                          ),
                         ),
-                        onPressed: () => Navigator.of(context).pop(),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        tooltip: 'Back to File Explorer',
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       Icon(
                         Icons.settings,
+                        size: 20,
                         color:
                             isDarkMode ? Colors.white70 : Colors.grey.shade800,
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       Text(
                         'Settings',
                         style: TextStyle(
@@ -120,7 +118,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           section.icon,
                           color:
                               isSelected
-                                  ? Theme.of(context).primaryColor
+                                  ? Theme.of(context).colorScheme.primary
                                   : isDarkMode
                                   ? Colors.white70
                                   : Colors.grey.shade800,
@@ -130,7 +128,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           style: TextStyle(
                             color:
                                 isSelected
-                                    ? Theme.of(context).primaryColor
+                                    ? Theme.of(context).colorScheme.primary
                                     : isDarkMode
                                     ? Colors.white
                                     : Colors.black87,
@@ -139,7 +137,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         selected: isSelected,
                         selectedTileColor: Theme.of(
                           context,
-                        ).primaryColor.withOpacity(0.1),
+                        ).colorScheme.primary.withOpacity(0.1),
                         onTap: () {
                           setState(() {
                             _selectedIndex = index;
@@ -153,12 +151,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           // Content Area
-          Expanded(
-            child: Container(
-              color: isDarkMode ? const Color(0xFF202124) : Colors.white,
-              child: _sections[_selectedIndex].widget,
-            ),
-          ),
+          Expanded(child: _sections[_selectedIndex].widget),
         ],
       ),
     );
