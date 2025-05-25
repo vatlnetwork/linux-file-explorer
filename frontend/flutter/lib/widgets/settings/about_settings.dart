@@ -95,6 +95,23 @@ class AboutSettings extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
+                    'Contributors:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: isDarkMode ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'John Gustafson\nJeffrey Gustafson',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDarkMode ? Colors.white70 : Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
                     'Copyright © 2024',
                     style: TextStyle(
                       fontSize: 14,
