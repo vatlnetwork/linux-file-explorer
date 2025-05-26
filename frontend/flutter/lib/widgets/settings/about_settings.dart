@@ -63,7 +63,7 @@ class AboutSettings extends StatelessWidget {
             title: 'Documentation',
             subtitle: 'Learn how to use the app',
             onTap: () {
-              // TODO: Add documentation link
+              // Add documentation link
             },
           ),
           const SizedBox(height: 32),

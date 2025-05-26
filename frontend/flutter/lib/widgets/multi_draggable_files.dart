@@ -40,7 +40,6 @@ class _MultiDraggableFilesState extends State<MultiDraggableFiles> {
     // Check for key down or key up of modifier keys
     if (event is KeyDownEvent || event is KeyUpEvent) {
       // Check current state of modifier keys
-      final isShiftPressed = HardwareKeyboard.instance.isShiftPressed;
       final isControlPressed = HardwareKeyboard.instance.isControlPressed;
       final isAltPressed = HardwareKeyboard.instance.isAltPressed;
 

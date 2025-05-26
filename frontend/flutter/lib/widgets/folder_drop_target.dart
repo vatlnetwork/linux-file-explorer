@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../models/file_item.dart';
 import '../services/drag_drop_service.dart';
 import '../services/file_service.dart';
-import 'dart:async';
 import 'package:provider/provider.dart';
 import '../services/bookmark_service.dart';
 import '../widgets/settings/addons_settings.dart';
@@ -29,7 +28,6 @@ class FolderDropTarget extends StatefulWidget {
 
 class _FolderDropTargetState extends State<FolderDropTarget> {
   final _fileService = FileService();
-  bool _isHovering = false;
 
   @override
   Widget build(BuildContext context) {
@@ -51,19 +49,10 @@ class _FolderDropTargetState extends State<FolderDropTarget> {
       },
 
       // Check if we'll accept this item before it's dropped
-      onWillAcceptWithDetails: (details) {
-        setState(() {
-          _isHovering = true;
-        });
-        return true;
-      },
+      onWillAcceptWithDetails: (details) => true,
 
       // Handle when a drag operation exits this target
-      onLeave: (item) {
-        setState(() {
-          _isHovering = false;
-        });
-      },
+      onLeave: (item) {},
 
       // Handle when a drag operation is accepted
       onAcceptWithDetails: (details) async {
