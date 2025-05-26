@@ -139,12 +139,12 @@ class _PreviewPanelState extends State<PreviewPanel> {
 
   Widget _buildHeader(BuildContext context, FileItem? selectedItem) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final textTheme = Theme.of(context).textTheme;
 
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: isDarkMode ? const Color(0xFF252525) : const Color(0xFFBBDEFB),
+        color: isDarkMode ? Colors.grey[850] : Colors.grey[100],
         border: Border(
           bottom: BorderSide(
             color: isDarkMode ? Colors.black : Colors.grey.shade300,
@@ -161,32 +161,41 @@ class _PreviewPanelState extends State<PreviewPanel> {
             color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
           ),
           const SizedBox(width: 8),
-          Text(
-            'Preview',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: isDarkMode ? Colors.grey.shade200 : Colors.grey.shade800,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          Expanded(child: Container()),
-          if (selectedItem != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: IconButton(
-                icon: const Icon(Icons.settings, size: 18),
-                tooltip: 'Preview Options',
-                padding: EdgeInsets.zero,
-                constraints: BoxConstraints.tight(const Size(24, 24)),
-                onPressed: () => _showPreviewOptions(context, selectedItem),
+          Expanded(
+            child: Text(
+              'Preview',
+              style: textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: isDarkMode ? Colors.grey.shade200 : Colors.grey.shade800,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
+          ),
+          if (selectedItem != null) ...[
+            IconButton(
+              icon: const Icon(Icons.settings, size: 18),
+              tooltip: 'Preview Options',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(
+                minWidth: 32,
+                minHeight: 32,
+                maxWidth: 32,
+                maxHeight: 32,
+              ),
+              onPressed: () => _showPreviewOptions(context, selectedItem),
+            ),
+            const SizedBox(width: 4),
+          ],
           IconButton(
             icon: const Icon(Icons.close, size: 18),
             padding: EdgeInsets.zero,
-            constraints: BoxConstraints.tight(const Size(24, 24)),
+            constraints: const BoxConstraints(
+              minWidth: 32,
+              minHeight: 32,
+              maxWidth: 32,
+              maxHeight: 32,
+            ),
             tooltip: 'Close preview panel',
             onPressed: () {
               Provider.of<PreviewPanelService>(

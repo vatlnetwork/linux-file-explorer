@@ -109,6 +109,7 @@ class _MountedUsbDrivesWidgetState extends State<MountedUsbDrivesWidget> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final textTheme = Theme.of(context).textTheme;
 
     // If no drives are found and we're not loading, don't show the widget
     if (_usbDrives.isEmpty && !_isLoading && !_hasError) {
@@ -139,9 +140,8 @@ class _MountedUsbDrivesWidgetState extends State<MountedUsbDrivesWidget> {
               Expanded(
                 child: Text(
                   'USB Drives',
-                  style: TextStyle(
+                  style: textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    fontSize: 13,
                     color:
                         isDarkMode
                             ? Colors.grey.shade300
@@ -200,12 +200,11 @@ class _MountedUsbDrivesWidgetState extends State<MountedUsbDrivesWidget> {
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: Text(
                   'Failed to load USB drives',
-                  style: TextStyle(
+                  style: textTheme.bodySmall?.copyWith(
                     color:
                         isDarkMode
                             ? Colors.grey.shade400
                             : Colors.grey.shade700,
-                    fontSize: 12,
                   ),
                 ),
               ),
@@ -219,6 +218,7 @@ class _MountedUsbDrivesWidgetState extends State<MountedUsbDrivesWidget> {
 
   Widget _buildUsbDrivesList(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final textTheme = Theme.of(context).textTheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -253,18 +253,8 @@ class _MountedUsbDrivesWidgetState extends State<MountedUsbDrivesWidget> {
                       BoxShadow(
                         color:
                             isDarkMode
-                                ? Colors.black.withValues(
-                                  red: 0,
-                                  green: 0,
-                                  blue: 0,
-                                  alpha: 76.5,
-                                )
-                                : Colors.black.withValues(
-                                  red: 0,
-                                  green: 0,
-                                  blue: 0,
-                                  alpha: 25.5,
-                                ),
+                                ? Colors.black.withAlpha(77)
+                                : Colors.black.withAlpha(26),
                         blurRadius: 2,
                         offset: const Offset(0, 1),
                       ),
@@ -300,9 +290,8 @@ class _MountedUsbDrivesWidgetState extends State<MountedUsbDrivesWidget> {
                               children: [
                                 Text(
                                   driveLabel,
-                                  style: TextStyle(
+                                  style: textTheme.bodyMedium?.copyWith(
                                     fontWeight: FontWeight.w500,
-                                    fontSize: 13,
                                     color:
                                         isDarkMode
                                             ? Colors.grey.shade200
@@ -312,8 +301,7 @@ class _MountedUsbDrivesWidgetState extends State<MountedUsbDrivesWidget> {
                                 ),
                                 Text(
                                   drive.mountPoint,
-                                  style: TextStyle(
-                                    fontSize: 11,
+                                  style: textTheme.bodySmall?.copyWith(
                                     color:
                                         isDarkMode
                                             ? Colors.grey.shade400
@@ -327,8 +315,7 @@ class _MountedUsbDrivesWidgetState extends State<MountedUsbDrivesWidget> {
                           const SizedBox(width: 8),
                           Text(
                             _usbDriveService.formatBytes(drive.totalBytes),
-                            style: TextStyle(
-                              fontSize: 12,
+                            style: textTheme.bodySmall?.copyWith(
                               color:
                                   isDarkMode
                                       ? Colors.grey.shade400
@@ -385,6 +372,8 @@ class _MountedUsbDrivesWidgetState extends State<MountedUsbDrivesWidget> {
     required VoidCallback onPressed,
     required bool isDarkMode,
   }) {
+    final textTheme = Theme.of(context).textTheme;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -405,8 +394,7 @@ class _MountedUsbDrivesWidgetState extends State<MountedUsbDrivesWidget> {
               Flexible(
                 child: Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 11,
+                  style: textTheme.bodySmall?.copyWith(
                     color:
                         isDarkMode
                             ? Colors.grey.shade400
