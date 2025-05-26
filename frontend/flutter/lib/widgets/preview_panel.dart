@@ -121,7 +121,11 @@ class _PreviewPanelState extends State<PreviewPanel> {
                 children: [
                   _buildHeader(context, selectedItem),
                   if (selectedItem != null)
-                    Expanded(child: _buildPreviewContent(context, selectedItem))
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: _buildPreviewContent(context, selectedItem),
+                      ),
+                    )
                   else
                     Expanded(child: _buildNoSelectionView(context)),
                 ],
@@ -739,6 +743,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
           children: [
             // Content preview
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(8),
               color:
                   Theme.of(context).brightness == Brightness.dark
@@ -761,73 +766,71 @@ class _PreviewPanelState extends State<PreviewPanel> {
                 ],
               ),
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SelectableText(
-                            previewText,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color:
-                                  Theme.of(context).brightness ==
-                                          Brightness.dark
-                                      ? Colors.grey.shade300
-                                      : Colors.grey.shade800,
-                            ),
-                          ),
-                          if (_textContent!.length > 500) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              'Preview only. Use Quick Look to view full content.',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontStyle: FontStyle.italic,
-                                color:
-                                    Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.grey.shade500
-                                        : Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
-
-                          const SizedBox(height: 8),
-
-                          // Common info in compact layout
-                          if (options.showSize)
-                            _buildCompactInfoRow('Size', item.formattedSize),
-
-                          if (options.showCreated)
-                            _buildCompactInfoRow(
-                              'Created',
-                              item.formattedCreationTime,
-                            ),
-
-                          if (options.showModified)
-                            _buildCompactInfoRow(
-                              'Modified',
-                              item.formattedModifiedTime,
-                            ),
-
-                          if (options.showWhereFrom && item.whereFrom != null)
-                            _buildCompactInfoRow('Where from', item.whereFrom!),
-
-                          // Tags section
-                          if (options.showTags) ...[
-                            const SizedBox(height: 8),
-                            TagSelector(filePath: item.path),
-                          ],
-                        ],
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color:
+                          Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey.shade900
+                              : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: SelectableText(
+                      previewText,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey.shade300
+                                : Colors.grey.shade800,
+                      ),
+                    ),
+                  ),
+                  if (_textContent!.length > 500) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Preview only. Use Quick Look to view full content.',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontStyle: FontStyle.italic,
+                        color:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey.shade500
+                                : Colors.grey.shade600,
                       ),
                     ),
                   ],
-                ),
+
+                  const SizedBox(height: 8),
+
+                  // Common info in compact layout
+                  if (options.showSize)
+                    _buildCompactInfoRow('Size', item.formattedSize),
+
+                  if (options.showCreated)
+                    _buildCompactInfoRow('Created', item.formattedCreationTime),
+
+                  if (options.showModified)
+                    _buildCompactInfoRow(
+                      'Modified',
+                      item.formattedModifiedTime,
+                    ),
+
+                  if (options.showWhereFrom && item.whereFrom != null)
+                    _buildCompactInfoRow('Where from', item.whereFrom!),
+
+                  // Tags section
+                  if (options.showTags) ...[
+                    const SizedBox(height: 8),
+                    TagSelector(filePath: item.path),
+                  ],
+                ],
               ),
             ),
           ],

@@ -39,6 +39,12 @@ void main() async {
     } else {
       debugPrint(message);
     }
+
+    // Add specific logging for layout overflow issues
+    if (record.message.contains('overflowed') ||
+        record.message.contains('overflow')) {
+      debugPrint('\x1B[33m[OVERFLOW WARNING] $message\x1B[0m');
+    }
   });
 
   final appLogger = Logger('App');
