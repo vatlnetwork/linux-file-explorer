@@ -16,6 +16,7 @@ class ContextMenuSettings extends ChangeNotifier {
     'compress': true, // Compress
     'extract': true, // Extract (compressed files only)
     'markup': false, // Markup Editor (images only)
+    'drag_drop_dialog': true, // Show dialog when dragging and dropping files
   };
 
   bool isEnabled(String key) => _contextMenuItems[key] ?? true;
@@ -68,6 +69,8 @@ class _AddonsSettingsContent extends StatelessWidget {
         return 'Extract compressed files';
       case 'markup':
         return 'Edit images with markup tools';
+      case 'drag_drop_dialog':
+        return 'Show dialog when dragging and dropping files';
       default:
         return '';
     }
@@ -101,6 +104,8 @@ class _AddonsSettingsContent extends StatelessWidget {
         return Icons.unarchive;
       case 'markup':
         return Icons.brush;
+      case 'drag_drop_dialog':
+        return Icons.drag_indicator;
       default:
         return Icons.extension;
     }
@@ -134,6 +139,8 @@ class _AddonsSettingsContent extends StatelessWidget {
         return 'Extract';
       case 'markup':
         return 'Markup Editor';
+      case 'drag_drop_dialog':
+        return 'Drag and Drop Dialog';
       default:
         return key;
     }
