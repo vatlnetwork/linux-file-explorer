@@ -460,14 +460,12 @@ class AppearanceSettings extends StatelessWidget {
             'Enable Animations',
             style: textTheme.titleMedium!.copyWith(
               color: isDarkMode ? Colors.white : Colors.grey[800],
-              inherit: false,
             ),
           ),
           subtitle: Text(
             'Smooth transitions between screens and states',
             style: textTheme.bodyMedium!.copyWith(
               color: isDarkMode ? Colors.white70 : Colors.grey[600],
-              inherit: false,
             ),
           ),
           value: themeService.useAnimations,

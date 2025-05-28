@@ -6,6 +6,7 @@ import 'dart:io';
 import 'screens/file_explorer_screen.dart';
 import 'screens/tags_view_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/disk_manager_screen.dart';
 import 'services/theme_service.dart';
 import 'services/view_mode_service.dart';
 import 'services/bookmark_service.dart';
@@ -186,6 +187,7 @@ class MyApp extends StatelessWidget {
       routes: {
         TagsViewScreen.routeName: (context) => const TagsViewScreen(),
         SettingsScreen.routeName: (context) => const SettingsScreen(),
+        DiskManagerScreen.routeName: (context) => const DiskManagerScreen(),
       },
       scaffoldMessengerKey: NotificationService.messengerKey,
     );

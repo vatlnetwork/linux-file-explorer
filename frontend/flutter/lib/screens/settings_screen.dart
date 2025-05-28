@@ -4,6 +4,7 @@ import '../widgets/settings/appearance_settings.dart';
 import '../widgets/settings/addons_settings.dart';
 import '../widgets/settings/about_settings.dart';
 import '../services/theme_service.dart';
+import 'disk_manager_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   static const String routeName = '/settings';
@@ -23,6 +24,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       icon: Icons.palette_outlined,
       widget: const AppearanceSettings(),
       description: 'Customize the look and feel of your file explorer',
+    ),
+    _SettingsSection(
+      title: 'Disk Manager',
+      icon: Icons.storage_outlined,
+      widget: const DiskManagerScreen(),
+      description: 'Monitor and manage disk usage and storage',
     ),
     _SettingsSection(
       title: 'Addons',

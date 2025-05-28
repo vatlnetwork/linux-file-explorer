@@ -38,6 +38,7 @@ import '../widgets/keyboard_shortcuts_dialog.dart';
 import '../screens/settings_screen.dart';
 import '../widgets/settings/addons_settings.dart';
 import '../widgets/markup_editor.dart';
+import 'disk_manager_screen.dart';
 
 /// A file explorer screen that displays files and folders in a customizable interface.
 ///
@@ -2198,6 +2199,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
             break;
           case 'settings':
             Navigator.pushNamed(context, SettingsScreen.routeName);
+            break;
+          case 'disk_manager':
+            Navigator.pushNamed(context, DiskManagerScreen.routeName);
             break;
         }
       }
