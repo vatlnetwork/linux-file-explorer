@@ -39,6 +39,8 @@ import '../screens/settings_screen.dart';
 import '../widgets/settings/addons_settings.dart';
 import '../widgets/markup_editor.dart';
 import 'disk_manager_screen.dart';
+import '../services/theme_service.dart';
+import '../widgets/window_controls.dart';
 
 /// A file explorer screen that displays files and folders in a customizable interface.
 ///
@@ -3102,6 +3104,8 @@ exit
     final currentTab = tabManager.currentTab;
     final previewPanelService = Provider.of<PreviewPanelService>(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final themeService = Provider.of<ThemeService>(context);
+    final isMacOS = themeService.themePreset == ThemePreset.macos;
 
     // Handle animations
     if (previewPanelService.showPreviewPanel &&
@@ -3423,16 +3427,15 @@ exit
   Widget _buildAppBar(BuildContext context) {
     final previewPanelService = Provider.of<PreviewPanelService>(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final themeService = Provider.of<ThemeService>(context);
+    final isMacOS = themeService.themePreset == ThemePreset.macos;
 
     return GestureDetector(
       onPanStart: (_) => windowManager.startDragging(),
       child: Container(
         height: 40,
         decoration: BoxDecoration(
-          color:
-              isDarkMode
-                  ? const Color(0xFF2C2C2C) // Dark mode toolbar color
-                  : const Color(0xFFF5F5F5), // Light mode toolbar color
+          color: isDarkMode ? const Color(0xFF2C2C2C) : const Color(0xFFF5F5F5),
           border: Border(
             bottom: BorderSide(
               color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
@@ -3442,32 +3445,48 @@ exit
         ),
         child: Row(
           children: [
+            if (isMacOS)
+              const SizedBox(width: 70), // Space for macOS traffic lights
             IconButton(
-              icon: Icon(Icons.arrow_back),
+              icon: Icon(
+                Icons.arrow_back,
+                color: isDarkMode ? Colors.white70 : Colors.black54,
+              ),
               onPressed: _navigationHistory.isEmpty ? null : _navigateBack,
               tooltip: 'Back',
               iconSize: 20,
+              splashRadius: 16,
             ),
             IconButton(
-              icon: Icon(Icons.arrow_forward),
+              icon: Icon(
+                Icons.arrow_forward,
+                color: isDarkMode ? Colors.white70 : Colors.black54,
+              ),
               onPressed: _forwardHistory.isEmpty ? null : _navigateForward,
               tooltip: 'Forward',
               iconSize: 20,
+              splashRadius: 16,
             ),
             IconButton(
-              icon: Icon(Icons.refresh),
+              icon: Icon(
+                Icons.refresh,
+                color: isDarkMode ? Colors.white70 : Colors.black54,
+              ),
               onPressed: () => _loadDirectory(_currentPath),
               tooltip: 'Refresh',
               iconSize: 20,
+              splashRadius: 16,
             ),
-            // Home button
             IconButton(
-              icon: Icon(Icons.home),
+              icon: Icon(
+                Icons.home,
+                color: isDarkMode ? Colors.white70 : Colors.black54,
+              ),
               onPressed: _initHomeDirectory,
               tooltip: 'Home Directory',
               iconSize: 20,
+              splashRadius: 16,
             ),
-            // Breadcrumb navigation bar
             Expanded(
               child: Container(
                 key: _breadcrumbKey,
@@ -3475,112 +3494,78 @@ exit
                 child: _buildBreadcrumbNavigator(),
               ),
             ),
-            // Bookmark toggle
             IconButton(
               icon: Icon(
-                _showBookmarkSidebar ? Icons.bookmark : Icons.bookmark_border,
+                Icons.bookmark_border,
+                color: isDarkMode ? Colors.white70 : Colors.black54,
               ),
               onPressed: () {
                 setState(() {
                   _showBookmarkSidebar = !_showBookmarkSidebar;
                 });
               },
-              tooltip:
-                  _showBookmarkSidebar ? 'Hide Bookmarks' : 'Show Bookmarks',
+              tooltip: 'Toggle Bookmarks',
               iconSize: 20,
+              splashRadius: 16,
             ),
-            // Preview panel toggle
             IconButton(
               icon: Icon(
-                previewPanelService.showPreviewPanel
-                    ? Icons.info
-                    : Icons.info_outline,
+                Icons.search,
+                color: isDarkMode ? Colors.white70 : Colors.black54,
+              ),
+              onPressed:
+                  () => showDialog(
+                    context: context,
+                    builder:
+                        (context) => SearchDialog(
+                          currentDirectory: _currentPath,
+                          onFileSelected: (path) {
+                            Navigator.pop(context);
+                            _navigateToDirectory(path);
+                          },
+                          fileService: Provider.of<FileService>(
+                            context,
+                            listen: false,
+                          ),
+                        ),
+                  ),
+              tooltip: 'Search',
+              iconSize: 20,
+              splashRadius: 16,
+            ),
+            IconButton(
+              icon: Icon(
+                Icons.info_outline,
+                color: isDarkMode ? Colors.white70 : Colors.black54,
               ),
               onPressed: () => previewPanelService.togglePreviewPanel(),
-              tooltip:
-                  previewPanelService.showPreviewPanel
-                      ? 'Hide Preview'
-                      : 'Show Preview',
+              tooltip: 'Toggle Preview Panel',
               iconSize: 20,
+              splashRadius: 16,
             ),
-            // Tags button
             IconButton(
-              icon: Icon(Icons.local_offer_outlined),
-              onPressed:
-                  () => Navigator.pushNamed(context, '/tags').then((result) {
-                    if (result != null && result is Map<String, dynamic>) {
-                      // Handle navigation or file opening from tags view
-                      if (result['action'] == 'navigate') {
-                        final path = result['path'] as String;
-                        final parentDir = p.dirname(path);
-                        _navigateToDirectory(parentDir);
-
-                        // Wait for directory to load, then select the file
-                        Future.delayed(const Duration(milliseconds: 300), () {
-                          setState(() {
-                            _selectedItemsPaths = {path};
-                          });
-                        });
-                      } else if (result['action'] == 'open') {
-                        final path = result['path'] as String;
-                        // Try to find the file item to open it
-                        try {
-                          final file = File(path);
-                          if (file.existsSync()) {
-                            final item = FileItem.fromFile(file);
-                            _handleItemDoubleTap(item);
-                          }
-                        } catch (e) {
-                          debugPrint('Error opening file from tags: $e');
-                        }
-                      }
-                    }
-                  }),
+              icon: Icon(
+                Icons.local_offer_outlined,
+                color: isDarkMode ? Colors.white70 : Colors.black54,
+              ),
+              onPressed: () => Navigator.pushNamed(context, '/tags'),
               tooltip: 'Manage Tags',
               iconSize: 20,
+              splashRadius: 16,
             ),
-            // Settings/options menu
             IconButton(
               key: _optionsButtonKey,
-              icon: Icon(Icons.more_vert),
+              icon: Icon(
+                Icons.more_vert,
+                color: isDarkMode ? Colors.white70 : Colors.black54,
+              ),
               onPressed: _showOptionsMenu,
               tooltip: 'Options',
               iconSize: 20,
+              splashRadius: 16,
             ),
-            // Window title action buttons
-            IconButton(
-              icon: Icon(Icons.remove, size: 18),
-              onPressed: () => windowManager.minimize(),
-              tooltip: 'Minimize',
-              color: isDarkMode ? Colors.white70 : Colors.black54,
-              constraints: const BoxConstraints(minWidth: 46, minHeight: 28),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-            ),
-            IconButton(
-              icon: Icon(
-                _isMaximized ? Icons.filter_none : Icons.crop_square,
-                size: 18,
-              ),
-              onPressed: () async {
-                if (_isMaximized) {
-                  await windowManager.unmaximize();
-                } else {
-                  await windowManager.maximize();
-                }
-              },
-              tooltip: _isMaximized ? 'Restore' : 'Maximize',
-              color: isDarkMode ? Colors.white70 : Colors.black54,
-              constraints: const BoxConstraints(minWidth: 46, minHeight: 28),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-            ),
-            IconButton(
-              icon: Icon(Icons.close, size: 18),
-              onPressed: () => windowManager.close(),
-              tooltip: 'Close',
-              color: isDarkMode ? Colors.white70 : Colors.black54,
-              constraints: const BoxConstraints(minWidth: 46, minHeight: 28),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-            ),
+            const WindowControls(),
+            const SizedBox(width: 8),
           ],
         ),
       ),

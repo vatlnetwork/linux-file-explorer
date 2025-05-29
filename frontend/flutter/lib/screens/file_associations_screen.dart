@@ -6,6 +6,7 @@ import '../services/file_association_service.dart';
 import '../services/notification_service.dart';
 import '../models/app_item.dart';
 import '../widgets/system_icon.dart';
+import '../widgets/window_controls.dart';
 
 class FileAssociationsScreen extends StatefulWidget {
   const FileAssociationsScreen({super.key});
@@ -14,7 +15,8 @@ class FileAssociationsScreen extends StatefulWidget {
   State<FileAssociationsScreen> createState() => _FileAssociationsScreenState();
 }
 
-class _FileAssociationsScreenState extends State<FileAssociationsScreen> with WindowListener {
+class _FileAssociationsScreenState extends State<FileAssociationsScreen>
+    with WindowListener {
   bool _isMaximized = false;
   bool _isLoading = false;
 
@@ -35,7 +37,7 @@ class _FileAssociationsScreenState extends State<FileAssociationsScreen> with Wi
     windowManager.removeListener(this);
     super.dispose();
   }
-  
+
   @override
   void onWindowMaximize() {
     setState(() => _isMaximized = true);
@@ -51,11 +53,12 @@ class _FileAssociationsScreenState extends State<FileAssociationsScreen> with Wi
     final fileAssociationService = Provider.of<FileAssociationService>(context);
     final appService = Provider.of<AppService>(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     // Get all extensions that have default apps
-    final List<String> extensions = fileAssociationService.getAllFileExtensions();
+    final List<String> extensions =
+        fileAssociationService.getAllFileExtensions();
     extensions.sort((a, b) => a.compareTo(b)); // Sort alphabetically
-    
+
     // Ensure the app service has loaded all apps
     if (appService.apps.isEmpty && !_isLoading) {
       setState(() {
@@ -69,26 +72,37 @@ class _FileAssociationsScreenState extends State<FileAssociationsScreen> with Wi
         }
       });
     }
-    
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          color: isDarkMode 
-              ? const Color(0xFF2D2D2D) // Dark gray background for dark mode
-              : const Color(0xFFE8F0FE), // Light blue background for light mode
+          color:
+              isDarkMode
+                  ? const Color(
+                    0xFF2D2D2D,
+                  ) // Dark gray background for dark mode
+                  : const Color(
+                    0xFFE8F0FE,
+                  ), // Light blue background for light mode
         ),
         child: Column(
           children: [
             // Title bar
             _buildTitleBar(context),
-            
+
             // Main content
             Expanded(
-              child: _isLoading || appService.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : extensions.isEmpty
-                  ? _buildEmptyState(isDarkMode)
-                  : _buildAssociationsList(context, extensions, fileAssociationService, appService),
+              child:
+                  _isLoading || appService.isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : extensions.isEmpty
+                      ? _buildEmptyState(isDarkMode)
+                      : _buildAssociationsList(
+                        context,
+                        extensions,
+                        fileAssociationService,
+                        appService,
+                      ),
             ),
           ],
         ),
@@ -98,10 +112,9 @@ class _FileAssociationsScreenState extends State<FileAssociationsScreen> with Wi
 
   Widget _buildTitleBar(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDarkMode 
-        ? const Color(0xFF303030) 
-        : const Color(0xFFBBDEFB);
-    
+    final backgroundColor =
+        isDarkMode ? const Color(0xFF303030) : const Color(0xFFBBDEFB);
+
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -121,11 +134,7 @@ class _FileAssociationsScreenState extends State<FileAssociationsScreen> with Wi
           Row(
             children: [
               const SizedBox(width: 8),
-              Icon(
-                Icons.settings_applications,
-                color: Colors.blue,
-                size: 24,
-              ),
+              Icon(Icons.settings_applications, color: Colors.blue, size: 24),
               const SizedBox(width: 8),
               Text(
                 'File Type Associations',
@@ -137,28 +146,12 @@ class _FileAssociationsScreenState extends State<FileAssociationsScreen> with Wi
               ),
             ],
           ),
-          
+
           const Spacer(),
-          
+
           // Window controls
-          IconButton(
-            icon: Icon(_isMaximized ? Icons.fullscreen_exit : Icons.fullscreen),
-            tooltip: _isMaximized ? 'Restore' : 'Maximize',
-            onPressed: () {
-              if (_isMaximized) {
-                windowManager.unmaximize();
-              } else {
-                windowManager.maximize();
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            tooltip: 'Close',
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-          ),
+          const WindowControls(),
+          const SizedBox(width: 8),
         ],
       ),
     );
@@ -198,10 +191,10 @@ class _FileAssociationsScreenState extends State<FileAssociationsScreen> with Wi
   }
 
   Widget _buildAssociationsList(
-    BuildContext context, 
-    List<String> extensions, 
-    FileAssociationService fileAssociationService, 
-    AppService appService
+    BuildContext context,
+    List<String> extensions,
+    FileAssociationService fileAssociationService,
+    AppService appService,
   ) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -210,18 +203,12 @@ class _FileAssociationsScreenState extends State<FileAssociationsScreen> with Wi
         children: [
           Text(
             'Default Applications by File Type',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
             'Manage which applications open different file types by default.',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 16),
           Expanded(
@@ -230,42 +217,49 @@ class _FileAssociationsScreenState extends State<FileAssociationsScreen> with Wi
               separatorBuilder: (context, index) => const Divider(),
               itemBuilder: (context, index) {
                 final extension = extensions[index];
-                final defaultAppPath = fileAssociationService.fileAssociations[extension];
-                
+                final defaultAppPath =
+                    fileAssociationService.fileAssociations[extension];
+
                 // Find the app from the desktop file path
                 AppItem? defaultApp;
                 if (defaultAppPath != null) {
                   defaultApp = appService.apps.firstWhere(
                     (app) => app.desktopFile == defaultAppPath,
-                    orElse: () => AppItem(name: 'Unknown App', path: '', icon: 'application', desktopFile: ''),
+                    orElse:
+                        () => AppItem(
+                          name: 'Unknown App',
+                          path: '',
+                          icon: 'application',
+                          desktopFile: '',
+                        ),
                   );
                 }
-                
+
                 return ListTile(
-                  leading: Icon(
-                    Icons.description,
-                    color: Colors.blue,
-                  ),
+                  leading: Icon(Icons.description, color: Colors.blue),
                   title: Text(extension),
-                  subtitle: defaultApp != null 
-                    ? Row(
-                        children: [
-                          SizedBox(
-                            width: 16, 
-                            height: 16,
-                            child: SystemIcon(
-                              app: defaultApp,
-                              size: 16,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(defaultApp.name),
-                        ],
-                      )
-                    : Text('No default app set'),
+                  subtitle:
+                      defaultApp != null
+                          ? Row(
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: SystemIcon(app: defaultApp, size: 16),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(defaultApp.name),
+                            ],
+                          )
+                          : Text('No default app set'),
                   trailing: IconButton(
                     icon: Icon(Icons.delete),
-                    onPressed: () => _removeAssociation(context, extension, fileAssociationService),
+                    onPressed:
+                        () => _removeAssociation(
+                          context,
+                          extension,
+                          fileAssociationService,
+                        ),
                     tooltip: 'Remove association',
                   ),
                 );
@@ -277,34 +271,37 @@ class _FileAssociationsScreenState extends State<FileAssociationsScreen> with Wi
     );
   }
 
-  void _removeAssociation(BuildContext context, String extension, FileAssociationService service) {
+  void _removeAssociation(
+    BuildContext context,
+    String extension,
+    FileAssociationService service,
+  ) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Remove Association'),
-        content: Text('Remove default app for $extension files?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: Text('Remove Association'),
+            content: Text('Remove default app for $extension files?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  service.removeDefaultApp(extension);
+                  Navigator.of(context).pop();
+                  NotificationService.showNotification(
+                    context,
+                    message: 'Removed default app for $extension files',
+                    type: NotificationType.success,
+                  );
+                },
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: Text('Remove'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              service.removeDefaultApp(extension);
-              Navigator.of(context).pop();
-              NotificationService.showNotification(
-                context,
-                message: 'Removed default app for $extension files',
-                type: NotificationType.success,
-              );
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-            child: Text('Remove'),
-          ),
-        ],
-      ),
     );
   }
-} 
+}
