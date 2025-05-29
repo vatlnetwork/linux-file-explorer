@@ -58,165 +58,6 @@ class FileExplorerScreen extends StatefulWidget {
   _FileExplorerScreenState createState() => _FileExplorerScreenState();
 }
 
-// Add this class near the top of the file, after the FileExplorerScreen class
-class _ViewModeSubmenu extends PopupMenuEntry<String> {
-  final ViewModeService viewModeService;
-
-  const _ViewModeSubmenu({required this.viewModeService});
-
-  @override
-  double get height => kMinInteractiveDimension;
-
-  @override
-  bool represents(String? value) => false;
-
-  @override
-  _ViewModeSubmenuState createState() => _ViewModeSubmenuState();
-}
-
-class _ViewModeSubmenuState extends State<_ViewModeSubmenu> {
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuItem<String>(
-      child: Row(
-        children: [
-          Icon(Icons.view_list, size: 16),
-          SizedBox(width: 8),
-          Expanded(child: Text('View Mode')),
-          Icon(Icons.arrow_right, size: 16),
-        ],
-      ),
-      onTap: () {
-        // Schedule the submenu to show after the current frame
-        Future.delayed(Duration.zero, () {
-          // Show submenu
-          final RenderBox? button = context.findRenderObject() as RenderBox?;
-          if (button == null) return;
-
-          final position = button.localToGlobal(Offset.zero);
-          final overlay =
-              Overlay.of(context).context.findRenderObject() as RenderBox;
-
-          showMenu<String>(
-            context: context,
-            color:
-                Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0xFF2D2E30)
-                    : Colors.white,
-            position: RelativeRect.fromRect(
-              Rect.fromPoints(
-                position.translate(button.size.width - 8, -4),
-                position.translate(button.size.width - 8, -4),
-              ),
-              Offset.zero & overlay.size,
-            ),
-            items: [
-              PopupMenuItem<String>(
-                value: 'list_view',
-                child: Row(
-                  children: [
-                    Icon(Icons.view_list, size: 16),
-                    SizedBox(width: 8),
-                    Text('List View'),
-                    if (widget.viewModeService.viewMode == ViewMode.list)
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Icon(Icons.check, size: 16),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'grid_view',
-                child: Row(
-                  children: [
-                    Icon(Icons.grid_view, size: 16),
-                    SizedBox(width: 8),
-                    Text('Grid View'),
-                    if (widget.viewModeService.viewMode == ViewMode.grid)
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Icon(Icons.check, size: 16),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'details_view',
-                child: Row(
-                  children: [
-                    Icon(Icons.table_rows, size: 16),
-                    SizedBox(width: 8),
-                    Text('Details View'),
-                    if (widget.viewModeService.viewMode == ViewMode.split)
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Icon(Icons.check, size: 16),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'column_view',
-                child: Row(
-                  children: [
-                    Icon(Icons.view_column, size: 16),
-                    SizedBox(width: 8),
-                    Text('Column View'),
-                    if (widget.viewModeService.viewMode == ViewMode.column)
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Icon(Icons.check, size: 16),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ).then((value) {
-            if (value != null) {
-              switch (value) {
-                case 'list_view':
-                  widget.viewModeService.setViewMode(ViewMode.list);
-                  break;
-                case 'grid_view':
-                  widget.viewModeService.setViewMode(ViewMode.grid);
-                  break;
-                case 'details_view':
-                  widget.viewModeService.setViewMode(ViewMode.split);
-                  break;
-                case 'column_view':
-                  widget.viewModeService.setViewMode(ViewMode.column);
-                  break;
-              }
-            }
-
-            // Show the main menu again
-            Future.delayed(Duration.zero, () {
-              if (context.mounted) {
-                showDialog(
-                  context: context,
-                  barrierColor: Colors.transparent,
-                  builder:
-                      (context) =>
-                          context.findAncestorWidgetOfExactType<Dialog>()!,
-                );
-              }
-            });
-          });
-        });
-      },
-    );
-  }
-}
-
 class _FileExplorerScreenState extends State<FileExplorerScreen>
     with TickerProviderStateMixin, WindowListener {
   final FileService _fileService = FileService();
@@ -1849,7 +1690,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   }
 
   // Show app options menu
-  void _showOptionsMenu() {
+  void _showOptionsMenu(BuildContext context) {
     final viewModeService = Provider.of<ViewModeService>(
       context,
       listen: false,
@@ -1917,7 +1758,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                   ),
                 ),
                 const PopupMenuDivider(),
-                // Add Disk Manager option at the top
+                // Add Disk Manager option
                 PopupMenuItem<String>(
                   value: 'disk_manager',
                   child: Row(
@@ -1929,8 +1770,75 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                   ),
                 ),
                 const PopupMenuDivider(),
-                // Standard menu items
-                _ViewModeSubmenu(viewModeService: viewModeService),
+                // View mode items
+                PopupMenuItem<String>(
+                  value: 'list_view',
+                  child: Row(
+                    children: [
+                      Icon(Icons.view_list, size: 16),
+                      SizedBox(width: 8),
+                      Text('List View'),
+                      if (viewModeService.viewMode == ViewMode.list)
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: Icon(Icons.check, size: 16),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'grid_view',
+                  child: Row(
+                    children: [
+                      Icon(Icons.grid_view, size: 16),
+                      SizedBox(width: 8),
+                      Text('Grid View'),
+                      if (viewModeService.viewMode == ViewMode.grid)
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: Icon(Icons.check, size: 16),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'details_view',
+                  child: Row(
+                    children: [
+                      Icon(Icons.table_rows, size: 16),
+                      SizedBox(width: 8),
+                      Text('Details View'),
+                      if (viewModeService.viewMode == ViewMode.split)
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: Icon(Icons.check, size: 16),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'column_view',
+                  child: Row(
+                    children: [
+                      Icon(Icons.view_column, size: 16),
+                      SizedBox(width: 8),
+                      Text('Column View'),
+                      if (viewModeService.viewMode == ViewMode.column)
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: Icon(Icons.check, size: 16),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
                 const PopupMenuDivider(),
                 // Toggle status bar
                 PopupMenuItem<String>(
@@ -1952,7 +1860,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                     ],
                   ),
                 ),
-
                 // Toggle preview panel
                 PopupMenuItem<String>(
                   value: 'preview_panel',
@@ -1973,7 +1880,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                     ],
                   ),
                 ),
-
                 // Open in Terminal option
                 PopupMenuItem<String>(
                   value: 'terminal',
@@ -1985,7 +1891,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                     ],
                   ),
                 ),
-
                 // Tags View option
                 PopupMenuItem<String>(
                   value: 'tags_view',
@@ -1997,9 +1902,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                     ],
                   ),
                 ),
-
                 const PopupMenuDivider(),
-
                 // File associations
                 PopupMenuItem<String>(
                   value: 'file_associations',
@@ -2011,7 +1914,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                     ],
                   ),
                 ),
-
                 // Refresh application list
                 PopupMenuItem<String>(
                   value: 'refresh_apps',
@@ -2023,7 +1925,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                     ],
                   ),
                 ),
-
                 // Keyboard shortcuts
                 PopupMenuItem<String>(
                   value: 'keyboard_shortcuts',
@@ -2035,10 +1936,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                     ],
                   ),
                 ),
-
-                // Divider before icon size slider
                 const PopupMenuDivider(),
-
                 // Icon size slider section
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -3204,18 +3102,20 @@ exit
                                               : Colors.black54,
                                     ),
                                     const SizedBox(width: 8),
-                                    Text(
-                                      'Linux File Manager',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 14,
-                                        color:
-                                            isDarkMode
-                                                ? Colors.white
-                                                : Colors.black87,
+                                    Expanded(
+                                      child: Text(
+                                        'Linux File Manager',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 14,
+                                          color:
+                                              isDarkMode
+                                                  ? Colors.white
+                                                  : Colors.black87,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    const Spacer(), // Push everything to the left
                                   ],
                                 ),
                               ),
@@ -3447,7 +3347,7 @@ exit
         child: Row(
           children: [
             if (themeService.themePreset == ThemePreset.macos)
-              const SizedBox(width: 70), // Space for macOS traffic lights
+              const SizedBox(width: 8), // Space for macOS traffic lights
             IconButton(
               icon: Icon(
                 Icons.arrow_back,
@@ -3554,16 +3454,417 @@ exit
               iconSize: 20,
               splashRadius: 16,
             ),
-            IconButton(
+            PopupMenuButton<String>(
               key: _optionsButtonKey,
               icon: Icon(
                 Icons.more_vert,
                 color: isDarkMode ? Colors.white70 : Colors.black54,
+                size: 20,
               ),
-              onPressed: _showOptionsMenu,
               tooltip: 'Options',
-              iconSize: 20,
-              splashRadius: 16,
+              itemBuilder: (context) {
+                final viewModeService = Provider.of<ViewModeService>(
+                  context,
+                  listen: false,
+                );
+                final previewPanelService = Provider.of<PreviewPanelService>(
+                  context,
+                  listen: false,
+                );
+                final iconSizeService = Provider.of<IconSizeService>(
+                  context,
+                  listen: false,
+                );
+                final statusBarService = Provider.of<StatusBarService>(
+                  context,
+                  listen: false,
+                );
+                final appService = Provider.of<AppService>(
+                  context,
+                  listen: false,
+                );
+
+                return [
+                  PopupMenuItem<String>(
+                    value: 'settings',
+                    child: Row(
+                      children: [
+                        Icon(Icons.settings_outlined, size: 16),
+                        SizedBox(width: 8),
+                        Text('Settings'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  PopupMenuItem<String>(
+                    value: 'disk_manager',
+                    child: Row(
+                      children: [
+                        Icon(Icons.storage, size: 16),
+                        SizedBox(width: 8),
+                        Text('Disk Manager'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  PopupMenuItem<String>(
+                    value: 'list_view',
+                    child: Row(
+                      children: [
+                        Icon(Icons.view_list, size: 16),
+                        SizedBox(width: 8),
+                        Text('List View'),
+                        if (viewModeService.viewMode == ViewMode.list)
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: Icon(Icons.check, size: 16),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'grid_view',
+                    child: Row(
+                      children: [
+                        Icon(Icons.grid_view, size: 16),
+                        SizedBox(width: 8),
+                        Text('Grid View'),
+                        if (viewModeService.viewMode == ViewMode.grid)
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: Icon(Icons.check, size: 16),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'details_view',
+                    child: Row(
+                      children: [
+                        Icon(Icons.table_rows, size: 16),
+                        SizedBox(width: 8),
+                        Text('Details View'),
+                        if (viewModeService.viewMode == ViewMode.split)
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: Icon(Icons.check, size: 16),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'column_view',
+                    child: Row(
+                      children: [
+                        Icon(Icons.view_column, size: 16),
+                        SizedBox(width: 8),
+                        Text('Column View'),
+                        if (viewModeService.viewMode == ViewMode.column)
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: Icon(Icons.check, size: 16),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  PopupMenuItem<String>(
+                    value: 'status_bar',
+                    child: Row(
+                      children: [
+                        Icon(
+                          statusBarService.showStatusBar
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          size: 16,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          statusBarService.showStatusBar
+                              ? 'Hide Status Bar'
+                              : 'Show Status Bar',
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'preview_panel',
+                    child: Row(
+                      children: [
+                        Icon(
+                          previewPanelService.showPreviewPanel
+                              ? Icons.info
+                              : Icons.info_outline,
+                          size: 16,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          previewPanelService.showPreviewPanel
+                              ? 'Hide Preview Panel'
+                              : 'Show Preview Panel',
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'terminal',
+                    child: Row(
+                      children: [
+                        Icon(Icons.terminal, size: 16),
+                        SizedBox(width: 8),
+                        Text('Open in Terminal'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'tags_view',
+                    child: Row(
+                      children: [
+                        Icon(Icons.local_offer, size: 16),
+                        SizedBox(width: 8),
+                        Text('Manage Tags'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  PopupMenuItem<String>(
+                    value: 'file_associations',
+                    child: Row(
+                      children: [
+                        Icon(Icons.link, size: 16),
+                        SizedBox(width: 8),
+                        Text('File Associations'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'refresh_apps',
+                    child: Row(
+                      children: [
+                        Icon(Icons.refresh, size: 16),
+                        SizedBox(width: 8),
+                        Text('Refresh App List'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'keyboard_shortcuts',
+                    child: Row(
+                      children: [
+                        Icon(Icons.keyboard, size: 16),
+                        SizedBox(width: 8),
+                        Text('Keyboard Shortcuts'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  PopupMenuItem<String>(
+                    value: 'icon_size',
+                    enabled: false,
+                    child: StatefulBuilder(
+                      builder: (context, setState) {
+                        double sliderValue =
+                            viewModeService.isGrid
+                                ? (iconSizeService.gridUIScale -
+                                        IconSizeService.minGridUIScale) /
+                                    (IconSizeService.maxGridUIScale -
+                                        IconSizeService.minGridUIScale)
+                                : (iconSizeService.listUIScale -
+                                        IconSizeService.minListUIScale) /
+                                    (IconSizeService.maxListUIScale -
+                                        IconSizeService.minListUIScale);
+
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.photo_size_select_small, size: 18),
+                                Expanded(
+                                  child: SliderTheme(
+                                    data: SliderThemeData(
+                                      overlayShape:
+                                          SliderComponentShape.noOverlay,
+                                    ),
+                                    child: Slider(
+                                      value: sliderValue,
+                                      onChanged: (newValue) {
+                                        setState(() {
+                                          if (viewModeService.isGrid) {
+                                            double newScale =
+                                                IconSizeService.minGridUIScale +
+                                                newValue *
+                                                    (IconSizeService
+                                                            .maxGridUIScale -
+                                                        IconSizeService
+                                                            .minGridUIScale);
+                                            double steps =
+                                                (newScale -
+                                                    iconSizeService
+                                                        .gridUIScale) /
+                                                IconSizeService.gridUIScaleStep;
+                                            if (steps > 0) {
+                                              for (
+                                                int i = 0;
+                                                i < steps.round();
+                                                i++
+                                              ) {
+                                                iconSizeService
+                                                    .increaseGridIconSize();
+                                              }
+                                            } else if (steps < 0) {
+                                              for (
+                                                int i = 0;
+                                                i < steps.abs().round();
+                                                i++
+                                              ) {
+                                                iconSizeService
+                                                    .decreaseGridIconSize();
+                                              }
+                                            }
+                                          } else {
+                                            double newScale =
+                                                IconSizeService.minListUIScale +
+                                                newValue *
+                                                    (IconSizeService
+                                                            .maxListUIScale -
+                                                        IconSizeService
+                                                            .minListUIScale);
+                                            double steps =
+                                                (newScale -
+                                                    iconSizeService
+                                                        .listUIScale) /
+                                                IconSizeService.listUIScaleStep;
+                                            if (steps > 0) {
+                                              for (
+                                                int i = 0;
+                                                i < steps.round();
+                                                i++
+                                              ) {
+                                                iconSizeService
+                                                    .increaseListIconSize();
+                                              }
+                                            } else if (steps < 0) {
+                                              for (
+                                                int i = 0;
+                                                i < steps.abs().round();
+                                                i++
+                                              ) {
+                                                iconSizeService
+                                                    .decreaseListIconSize();
+                                              }
+                                            }
+                                          }
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                Icon(Icons.photo_size_select_large, size: 18),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Icon Size',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color:
+                                    Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.white70
+                                        : Colors.black54,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ];
+              },
+              onSelected: (value) {
+                if (mounted) {
+                  switch (value) {
+                    case 'list_view':
+                      Provider.of<ViewModeService>(
+                        context,
+                        listen: false,
+                      ).setViewMode(ViewMode.list);
+                      break;
+                    case 'grid_view':
+                      Provider.of<ViewModeService>(
+                        context,
+                        listen: false,
+                      ).setViewMode(ViewMode.grid);
+                      break;
+                    case 'details_view':
+                      Provider.of<ViewModeService>(
+                        context,
+                        listen: false,
+                      ).setViewMode(ViewMode.split);
+                      break;
+                    case 'column_view':
+                      Provider.of<ViewModeService>(
+                        context,
+                        listen: false,
+                      ).setViewMode(ViewMode.column);
+                      break;
+                    case 'status_bar':
+                      Provider.of<StatusBarService>(
+                        context,
+                        listen: false,
+                      ).toggleStatusBar();
+                      break;
+                    case 'preview_panel':
+                      Provider.of<PreviewPanelService>(
+                        context,
+                        listen: false,
+                      ).togglePreviewPanel();
+                      break;
+                    case 'terminal':
+                      _openDirectoryInTerminal();
+                      break;
+                    case 'tags_view':
+                      Navigator.pushNamed(context, '/tags');
+                      break;
+                    case 'file_associations':
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const FileAssociationsScreen(),
+                        ),
+                      );
+                      break;
+                    case 'refresh_apps':
+                      Provider.of<AppService>(
+                        context,
+                        listen: false,
+                      ).refreshApps();
+                      break;
+                    case 'keyboard_shortcuts':
+                      showDialog(
+                        context: context,
+                        builder: (context) => const KeyboardShortcutsDialog(),
+                      );
+                      break;
+                    case 'settings':
+                      Navigator.pushNamed(context, SettingsScreen.routeName);
+                      break;
+                    case 'disk_manager':
+                      Navigator.pushNamed(context, DiskManagerScreen.routeName);
+                      break;
+                  }
+                }
+              },
             ),
             const WindowControls(),
             const SizedBox(width: 8),
