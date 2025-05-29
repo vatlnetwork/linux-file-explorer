@@ -3190,12 +3190,11 @@ exit
                                   ),
                                 ),
                                 child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.start,
                                   children: [
-                                    if (themeService.themePreset ==
-                                        ThemePreset.macos)
-                                      const SizedBox(
-                                        width: 70,
-                                      ), // Space for macOS traffic lights
+                                    const SizedBox(
+                                      width: 8,
+                                    ), // Small margin from the left edge
                                     Icon(
                                       Icons.folder,
                                       size: 18,
@@ -3205,19 +3204,18 @@ exit
                                               : Colors.black54,
                                     ),
                                     const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        'Linux File Manager',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w500,
-                                          fontSize: 14,
-                                          color:
-                                              isDarkMode
-                                                  ? Colors.white
-                                                  : Colors.black87,
-                                        ),
+                                    Text(
+                                      'Linux File Manager',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 14,
+                                        color:
+                                            isDarkMode
+                                                ? Colors.white
+                                                : Colors.black87,
                                       ),
                                     ),
+                                    const Spacer(), // Push everything to the left
                                   ],
                                 ),
                               ),
