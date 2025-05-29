@@ -11,21 +11,16 @@ class MacOSTheme {
       error: const Color(0xFFFF3B30), // macOS red
     ),
     scaffoldBackgroundColor: const Color(0xFFF5F5F7),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: Colors.white,
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: Colors.grey.shade300,
-          width: 1,
-        ),
+        side: BorderSide(color: Colors.grey.shade300, width: 1),
       ),
     ),
-    dialogTheme: DialogTheme(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+    dialogTheme: DialogThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       backgroundColor: Colors.white,
     ),
     appBarTheme: AppBarTheme(
@@ -38,14 +33,11 @@ class MacOSTheme {
         fontWeight: FontWeight.w600,
       ),
     ),
-    tabBarTheme: TabBarTheme(
+    tabBarTheme: TabBarThemeData(
       labelColor: const Color(0xFF007AFF),
       unselectedLabelColor: Colors.grey.shade600,
       indicatorColor: const Color(0xFF007AFF),
-      labelStyle: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w500,
-      ),
+      labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
       unselectedLabelStyle: const TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w400,
@@ -62,14 +54,8 @@ class MacOSTheme {
         fontWeight: FontWeight.w600,
         color: Colors.black,
       ),
-      bodyLarge: TextStyle(
-        fontSize: 13,
-        color: Colors.black,
-      ),
-      bodyMedium: TextStyle(
-        fontSize: 13,
-        color: Colors.black87,
-      ),
+      bodyLarge: TextStyle(fontSize: 13, color: Colors.black),
+      bodyMedium: TextStyle(fontSize: 13, color: Colors.black87),
     ),
     dividerTheme: DividerThemeData(
       color: Colors.grey.shade300,
@@ -78,36 +64,24 @@ class MacOSTheme {
     ),
     listTileTheme: ListTileThemeData(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      titleTextStyle: const TextStyle(
-        fontSize: 13,
-        color: Colors.black,
-      ),
-      subtitleTextStyle: TextStyle(
-        fontSize: 12,
-        color: Colors.grey.shade600,
-      ),
+      titleTextStyle: const TextStyle(fontSize: 13, color: Colors.black),
+      subtitleTextStyle: TextStyle(fontSize: 12, color: Colors.grey.shade600),
     ),
     buttonTheme: ButtonThemeData(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(6),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFF007AFF),
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: const Color(0xFF007AFF),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
     ),
@@ -123,21 +97,16 @@ class MacOSTheme {
       error: const Color(0xFFFF453A), // macOS dark mode red
     ),
     scaffoldBackgroundColor: const Color(0xFF1C1C1E),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: const Color(0xFF2C2C2E),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: Colors.grey.shade800,
-          width: 1,
-        ),
+        side: BorderSide(color: Colors.grey.shade800, width: 1),
       ),
     ),
-    dialogTheme: DialogTheme(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+    dialogTheme: DialogThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       backgroundColor: const Color(0xFF2C2C2E),
     ),
     appBarTheme: AppBarTheme(
@@ -150,14 +119,11 @@ class MacOSTheme {
         fontWeight: FontWeight.w600,
       ),
     ),
-    tabBarTheme: TabBarTheme(
+    tabBarTheme: TabBarThemeData(
       labelColor: const Color(0xFF0A84FF),
       unselectedLabelColor: Colors.grey.shade400,
       indicatorColor: const Color(0xFF0A84FF),
-      labelStyle: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w500,
-      ),
+      labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
       unselectedLabelStyle: const TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w400,
@@ -174,14 +140,8 @@ class MacOSTheme {
         fontWeight: FontWeight.w600,
         color: Colors.white,
       ),
-      bodyLarge: TextStyle(
-        fontSize: 13,
-        color: Colors.white,
-      ),
-      bodyMedium: TextStyle(
-        fontSize: 13,
-        color: Colors.white70,
-      ),
+      bodyLarge: TextStyle(fontSize: 13, color: Colors.white),
+      bodyMedium: TextStyle(fontSize: 13, color: Colors.white70),
     ),
     dividerTheme: DividerThemeData(
       color: Colors.grey.shade800,
@@ -190,38 +150,26 @@ class MacOSTheme {
     ),
     listTileTheme: ListTileThemeData(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      titleTextStyle: const TextStyle(
-        fontSize: 13,
-        color: Colors.white,
-      ),
-      subtitleTextStyle: TextStyle(
-        fontSize: 12,
-        color: Colors.grey.shade400,
-      ),
+      titleTextStyle: const TextStyle(fontSize: 13, color: Colors.white),
+      subtitleTextStyle: TextStyle(fontSize: 12, color: Colors.grey.shade400),
     ),
     buttonTheme: ButtonThemeData(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(6),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFF0A84FF),
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: const Color(0xFF0A84FF),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
     ),
   );
-} 
+}
