@@ -17,35 +17,18 @@ class FileAssociationsScreen extends StatefulWidget {
 
 class _FileAssociationsScreenState extends State<FileAssociationsScreen>
     with WindowListener {
-  bool _isMaximized = false;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     windowManager.addListener(this);
-    _initWindowState();
-  }
-
-  Future<void> _initWindowState() async {
-    _isMaximized = await windowManager.isMaximized();
-    setState(() {});
   }
 
   @override
   void dispose() {
     windowManager.removeListener(this);
     super.dispose();
-  }
-
-  @override
-  void onWindowMaximize() {
-    setState(() => _isMaximized = true);
-  }
-
-  @override
-  void onWindowUnmaximize() {
-    setState(() => _isMaximized = false);
   }
 
   @override

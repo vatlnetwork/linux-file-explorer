@@ -399,7 +399,6 @@ class AppearanceSettings extends StatelessWidget {
     ThemeService themeService,
   ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final textTheme = Theme.of(context).textTheme;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -441,7 +440,6 @@ class AppearanceSettings extends StatelessWidget {
     ThemeService themeService,
   ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final textTheme = Theme.of(context).textTheme;
 
     return Container(
       decoration: BoxDecoration(
@@ -452,19 +450,19 @@ class AppearanceSettings extends StatelessWidget {
         ),
       ),
       child: DefaultTextStyle(
-        style: textTheme.bodyMedium!.copyWith(
+        style: Theme.of(context).textTheme.bodyMedium!.copyWith(
           color: isDarkMode ? Colors.white : Colors.grey[800],
         ),
         child: SwitchListTile(
           title: Text(
             'Enable Animations',
-            style: textTheme.titleMedium!.copyWith(
+            style: Theme.of(context).textTheme.titleMedium!.copyWith(
               color: isDarkMode ? Colors.white : Colors.grey[800],
             ),
           ),
           subtitle: Text(
             'Smooth transitions between screens and states',
-            style: textTheme.bodyMedium!.copyWith(
+            style: Theme.of(context).textTheme.bodyMedium!.copyWith(
               color: isDarkMode ? Colors.white70 : Colors.grey[600],
             ),
           ),
