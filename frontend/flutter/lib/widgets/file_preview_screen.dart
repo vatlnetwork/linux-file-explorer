@@ -4,17 +4,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/file_item.dart';
-import '../services/file_service.dart';
 import 'audio_player_widget.dart';
-import 'package:path/path.dart' as p;
 
 class FilePreviewScreen extends StatefulWidget {
   final FileItem item;
-  
-  const FilePreviewScreen({
-    super.key, 
-    required this.item,
-  });
+
+  const FilePreviewScreen({super.key, required this.item});
 
   @override
   State<FilePreviewScreen> createState() => _FilePreviewScreenState();
@@ -25,19 +20,29 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
   String? _textContent;
   double _zoomLevel = 1.0;
   bool _showControls = true;
-  
+
   @override
   void initState() {
     super.initState();
     _loadPreview();
   }
-  
+
   Future<void> _loadPreview() async {
     if (widget.item.type == FileItemType.file) {
       final ext = widget.item.fileExtension.toLowerCase();
-      
+
       // Load text content for text files
-      if (['.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.html', '.css', '.js'].contains(ext)) {
+      if ([
+        '.txt',
+        '.md',
+        '.json',
+        '.yaml',
+        '.yml',
+        '.xml',
+        '.html',
+        '.css',
+        '.js',
+      ].contains(ext)) {
         try {
           final file = File(widget.item.path);
           if (await file.exists()) {
@@ -91,10 +96,11 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
       ),
     );
   }
-  
+
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: _showControls ? Colors.black.withAlpha(179) : Colors.transparent,
+      backgroundColor:
+          _showControls ? Colors.black.withAlpha(179) : Colors.transparent,
       elevation: 0,
       title: Text(
         widget.item.name,
@@ -115,198 +121,132 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
                 const SnackBar(content: Text('File path copied to clipboard')),
               );
             } catch (e) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error sharing: $e')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('Error sharing: $e')));
             }
           },
         ),
         // Add more options button
         IconButton(
           icon: const Icon(Icons.more_vert, color: Colors.white),
-          onPressed: () {
-            _showOptionsMenu();
-          },
+          onPressed: _onMorePressed,
         ),
       ],
     );
   }
-  
+
+  void _onMorePressed() {
+    _showOptionsMenu();
+  }
+
   void _showOptionsMenu() {
-    final fileService = FileService();
-    
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      builder: (context) => Container(
-        color: Colors.black,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.edit, color: Colors.white),
-              title: const Text('Edit', style: TextStyle(color: Colors.white)),
-              onTap: () async {
-                Navigator.pop(context);
-                // For text files, we could launch an editor
-                final ext = widget.item.fileExtension.toLowerCase();
-                if (['.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.html', '.css', '.js'].contains(ext)) {
-                  try {
-                    // For now, just demonstrate we can read and write the file
-                    final file = File(widget.item.path);
-                    await file.readAsString(); // Just verify we can read it
-                    // In a real app, you would launch an editor here
-                    if (!mounted) return;
-                    final scaffoldMessenger = ScaffoldMessenger.of(context);
-                    scaffoldMessenger.showSnackBar(
-                      const SnackBar(content: Text('Editor would open here')),
-                    );
-                  } catch (e) {
-                    if (!mounted) return;
-                    final scaffoldMessenger = ScaffoldMessenger.of(context);
-                    scaffoldMessenger.showSnackBar(
-                      SnackBar(content: Text('Error: $e')),
-                    );
-                  }
-                } else {
-                  final scaffoldMessenger = ScaffoldMessenger.of(context);
-                  scaffoldMessenger.showSnackBar(
-                    const SnackBar(content: Text('Cannot edit this file type')),
-                  );
-                }
-              },
+      builder:
+          (context) => AlertDialog(
+            title: Text('Options'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: Icon(Icons.info_outline),
+                  title: Text('File Info'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showFileInfo();
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.open_in_new),
+                  title: Text('Open with...'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _openWith();
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.copy),
+                  title: Text('Copy'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _copy();
+                  },
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.file_copy, color: Colors.white),
-              title: const Text('Duplicate', style: TextStyle(color: Colors.white)),
-              onTap: () async {
-                Navigator.pop(context);
-                try {
-                  final parentDir = p.dirname(widget.item.path);
-                  final fileName = widget.item.name;
-                  final baseName = p.basenameWithoutExtension(fileName);
-                  final extension = p.extension(fileName);
-                  final suggestedNewPath = p.join(parentDir, '${baseName}_copy$extension');
-                  
-                  // Copy file with automatic conflict handling
-                  final actualPath = await fileService.copyFileOrDirectory(
-                    widget.item.path, 
-                    parentDir,
-                    targetPath: suggestedNewPath,
-                    handleConflicts: true
-                  );
-                  
-                  // Get the actual file name used (may be different if there was a conflict)
-                  final newName = p.basename(actualPath);
-                  
-                  if (!mounted) return;
-                  final scaffoldMessenger = ScaffoldMessenger.of(context);
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text('File duplicated: $newName')),
-                  );
-                } catch (e) {
-                  if (!mounted) return;
-                  final scaffoldMessenger = ScaffoldMessenger.of(context);
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text('Error duplicating file: $e')),
-                  );
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete, color: Colors.white),
-              title: const Text('Delete', style: TextStyle(color: Colors.white)),
-              onTap: () async {
-                Navigator.pop(context);
-                
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Confirm Delete'),
-                    content: Text('Are you sure you want to delete ${widget.item.name}?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Delete'),
-                      ),
-                    ],
-                  ),
-                );
-                
-                if (confirm == true) {
-                  try {
-                    await fileService.deleteFileOrDirectory(widget.item.path);
-                    if (!mounted) return;
-                    final scaffoldMessenger = ScaffoldMessenger.of(context);
-                    scaffoldMessenger.showSnackBar(
-                      const SnackBar(content: Text('File deleted successfully')),
-                    );
-                    Navigator.pop(context); // Close the preview screen
-                  } catch (e) {
-                    if (!mounted) return;
-                    final scaffoldMessenger = ScaffoldMessenger.of(context);
-                    scaffoldMessenger.showSnackBar(
-                      SnackBar(content: Text('Error deleting file: $e')),
-                    );
-                  }
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.info_outline, color: Colors.white),
-              title: const Text('Info', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                _showFileInfo();
-              },
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
-  
+
+  void _openWith() {
+    // Show dialog to select application
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Open with'),
+            content: Text('Choose an application to open ${widget.item.name}'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancel'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  void _copy() {
+    // Copy file path to clipboard
+    Clipboard.setData(ClipboardData(text: widget.item.path));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Path copied to clipboard')));
+  }
+
   void _showFileInfo() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('File Information'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildInfoRow('Name', widget.item.name),
-            _buildInfoRow('Type', widget.item.fileExtension.toUpperCase().replaceAll('.', '')),
-            _buildInfoRow('Size', widget.item.formattedSize),
-            _buildInfoRow('Created', widget.item.formattedCreationTime),
-            _buildInfoRow('Modified', widget.item.formattedModifiedTime),
-            _buildInfoRow('Path', widget.item.path),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('File Information'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildInfoRow('Name', widget.item.name),
+                _buildInfoRow(
+                  'Type',
+                  widget.item.fileExtension.toUpperCase().replaceAll('.', ''),
+                ),
+                _buildInfoRow('Size', widget.item.formattedSize),
+                _buildInfoRow('Created', widget.item.formattedCreationTime),
+                _buildInfoRow('Modified', widget.item.formattedModifiedTime),
+                _buildInfoRow('Path', widget.item.path),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: widget.item.path));
+                  Navigator.pop(context);
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+                  scaffoldMessenger.showSnackBar(
+                    const SnackBar(content: Text('Path copied to clipboard')),
+                  );
+                },
+                child: const Text('Copy Path'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: widget.item.path));
-              Navigator.pop(context);
-              final scaffoldMessenger = ScaffoldMessenger.of(context);
-              scaffoldMessenger.showSnackBar(
-                const SnackBar(content: Text('Path copied to clipboard')),
-              );
-            },
-            child: const Text('Copy Path'),
-          ),
-        ],
-      ),
     );
   }
-  
+
   Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -329,43 +269,49 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
       ),
     );
   }
-  
+
   Widget _buildPreviewContent() {
     if (_isLoading) {
       return const CircularProgressIndicator(color: Colors.white);
     }
-    
+
     final ext = widget.item.fileExtension.toLowerCase();
-    
+
     // Image preview
     if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].contains(ext)) {
       return _buildImagePreview();
     }
-    
     // Text file preview
-    else if (['.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.html', '.css', '.js'].contains(ext)) {
+    else if ([
+      '.txt',
+      '.md',
+      '.json',
+      '.yaml',
+      '.yml',
+      '.xml',
+      '.html',
+      '.css',
+      '.js',
+    ].contains(ext)) {
       return _buildTextPreview();
     }
-    
     // Video preview
     else if (['.mp4', '.avi', '.mov', '.mkv', '.webm'].contains(ext)) {
       return _buildVideoPreview();
     }
-    
     // PDF preview
     else if (['.pdf'].contains(ext)) {
       return _buildPdfPreview();
     }
-    
     // Audio preview
     else if (['.mp3', '.wav', '.aac', '.flac', '.ogg'].contains(ext)) {
       return _buildAudioPreview();
     }
-    
+
     // Default - show file icon and info
     return _buildDefaultPreview();
   }
-  
+
   Widget _buildImagePreview() {
     return InteractiveViewer(
       minScale: 0.5,
@@ -380,12 +326,12 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
               const Icon(Icons.broken_image, size: 80, color: Colors.white60),
               const SizedBox(height: 16),
               Text(
-                'Could not load image', 
+                'Could not load image',
                 style: TextStyle(color: Colors.grey[400], fontSize: 16),
               ),
               const SizedBox(height: 8),
               Text(
-                error.toString(), 
+                error.toString(),
                 style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
             ],
@@ -394,7 +340,7 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
       ),
     );
   }
-  
+
   Widget _buildTextPreview() {
     if (_textContent == null) {
       return const Text(
@@ -402,7 +348,7 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
         style: TextStyle(color: Colors.white),
       );
     }
-    
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -413,15 +359,12 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
       child: SingleChildScrollView(
         child: SelectableText(
           _textContent!,
-          style: TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 14 * _zoomLevel,
-          ),
+          style: TextStyle(fontFamily: 'monospace', fontSize: 14 * _zoomLevel),
         ),
       ),
     );
   }
-  
+
   Widget _buildVideoPreview() {
     // Simple video preview - in a real app, you'd use a video player
     return Column(
@@ -436,13 +379,21 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: const Center(
-            child: Icon(Icons.play_circle_outline, size: 80, color: Colors.white70),
+            child: Icon(
+              Icons.play_circle_outline,
+              size: 80,
+              color: Colors.white70,
+            ),
           ),
         ),
         const SizedBox(height: 24),
         Text(
-          'Video Preview', 
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey[400]),
+          'Video Preview',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[400],
+          ),
         ),
         const SizedBox(height: 8),
         Text(
@@ -453,7 +404,7 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
       ],
     );
   }
-  
+
   Widget _buildPdfPreview() {
     // Simple PDF preview - in a real app, you'd use a PDF viewer
     return Column(
@@ -462,8 +413,12 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
         Icon(Icons.picture_as_pdf, size: 100, color: Colors.red[400]),
         const SizedBox(height: 24),
         Text(
-          'PDF Viewer', 
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey[400]),
+          'PDF Viewer',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[400],
+          ),
         ),
         const SizedBox(height: 16),
         Text(
@@ -474,18 +429,15 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
       ],
     );
   }
-  
+
   Widget _buildAudioPreview() {
-    return AudioPlayerWidget(
-      audioFile: widget.item, 
-      darkMode: true,
-    );
+    return AudioPlayerWidget(audioFile: widget.item, darkMode: true);
   }
-  
+
   Widget _buildDefaultPreview() {
     IconData iconData;
     Color iconColor;
-    
+
     final ext = widget.item.fileExtension.toLowerCase();
     if (['.doc', '.docx'].contains(ext)) {
       iconData = Icons.description;
@@ -503,15 +455,19 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
       iconData = Icons.insert_drive_file;
       iconColor = Colors.grey;
     }
-    
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Icon(iconData, size: 100, color: iconColor),
         const SizedBox(height: 24),
         Text(
-          widget.item.name, 
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+          widget.item.name,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
         const SizedBox(height: 16),
         Text(
@@ -526,22 +482,32 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
       ],
     );
   }
-  
+
   Widget _buildBottomControls() {
     // File type specific controls
     final ext = widget.item.fileExtension.toLowerCase();
-    
+
     Widget controls = Container(); // Default empty controls
-    
+
     // Image specific controls
     if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].contains(ext)) {
       controls = _buildImageControls();
     }
     // Text file specific controls
-    else if (['.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.html', '.css', '.js'].contains(ext)) {
+    else if ([
+      '.txt',
+      '.md',
+      '.json',
+      '.yaml',
+      '.yml',
+      '.xml',
+      '.html',
+      '.css',
+      '.js',
+    ].contains(ext)) {
       controls = _buildTextControls();
     }
-    
+
     return Positioned(
       left: 0,
       right: 0,
@@ -552,17 +518,14 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Colors.transparent,
-              Colors.black.withAlpha(179),
-            ],
+            colors: [Colors.transparent, Colors.black.withAlpha(179)],
           ),
         ),
         child: controls,
       ),
     );
   }
-  
+
   Widget _buildImageControls() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -570,17 +533,17 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
         IconButton(
           icon: const Icon(Icons.rotate_left, color: Colors.white),
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Rotate left')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Rotate left')));
           },
         ),
         IconButton(
           icon: const Icon(Icons.rotate_right, color: Colors.white),
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Rotate right')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Rotate right')));
           },
         ),
         IconButton(
@@ -602,15 +565,15 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
         IconButton(
           icon: const Icon(Icons.edit, color: Colors.white),
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Edit image')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Edit image')));
           },
         ),
       ],
     );
   }
-  
+
   Widget _buildTextControls() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -634,9 +597,9 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
         IconButton(
           icon: const Icon(Icons.edit, color: Colors.white),
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Edit text')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Edit text')));
           },
         ),
         IconButton(
@@ -653,4 +616,4 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
       ],
     );
   }
-} 
+}

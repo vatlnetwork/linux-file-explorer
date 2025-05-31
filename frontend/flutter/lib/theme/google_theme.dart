@@ -7,19 +7,32 @@ class GoogleTheme {
     colorScheme: ColorScheme.light(
       primary: const Color(0xFF1A73E8), // Google Blue
       secondary: const Color(0xFF34A853), // Google Green
-      surface: const Color(0xFFF8F9FA), // Google Light Gray
+      surface: const Color(0xFFFFFFFF), // Pure white surface
+      surfaceContainerHighest: const Color(
+        0xFFEEF0F2,
+      ), // Slightly darker surface for contrast
       error: const Color(0xFFEA4335), // Google Red
+      onSurface: Colors.black87,
+      onSurfaceVariant: Colors.black54,
     ),
     scaffoldBackgroundColor: const Color(0xFFF8F9FA),
     cardTheme: CardThemeData(
       color: Colors.white,
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 1,
       shadowColor: Colors.black.withValues(alpha: 26),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+    ),
+    listTileTheme: ListTileThemeData(
+      tileColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     ),
     appBarTheme: AppBarTheme(
       elevation: 0,
       backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
       foregroundColor: Colors.black87,
       titleTextStyle: const TextStyle(
         color: Colors.black87,
@@ -41,11 +54,13 @@ class GoogleTheme {
       bodyLarge: TextStyle(fontSize: 14, color: Colors.black87),
       bodyMedium: TextStyle(fontSize: 14, color: Colors.black54),
     ),
+    dividerTheme: DividerThemeData(color: Colors.grey.shade200, thickness: 1),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFF1A73E8),
         foregroundColor: Colors.white,
-        elevation: 0,
+        elevation: 1,
+        shadowColor: const Color(0xFF1A73E8).withValues(alpha: 77),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
@@ -57,9 +72,23 @@ class GoogleTheme {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
     ),
-    iconTheme: const IconThemeData(
-      weight: 200, // Make icons thinner (default is 400)
-      color: Colors.black87, // Light theme icon color
+    iconTheme: const IconThemeData(weight: 200, color: Colors.black87),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFF1A73E8)),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     ),
   );
 

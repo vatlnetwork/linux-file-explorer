@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/tag.dart';
 import '../services/tags_service.dart';
+import '../services/theme_service.dart';
+import 'package:path/path.dart' as p;
 
 class TagSelector extends StatefulWidget {
   final String filePath;
@@ -25,20 +27,24 @@ class _TagSelectorState extends State<TagSelector> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<TagsService>(
-      builder: (context, tagsService, _) {
-        final fileTags = tagsService.getTagsForFile(widget.filePath);
-        final availableTags = tagsService.availableTags;
+    final tagsService = Provider.of<TagsService>(context);
+    final fileTags = tagsService.getTagsForFile(widget.filePath);
+    final availableTags = tagsService.availableTags;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final themeService = Provider.of<ThemeService>(context);
+    final isMacOS = themeService.themePreset == ThemePreset.macos;
 
+    return Consumer<TagsService>(
+      builder: (context, tagsService, child) {
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 1.0),
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.all(isMacOS ? 12.0 : 16.0),
           decoration: BoxDecoration(
             color:
                 Theme.of(context).brightness == Brightness.dark
                     ? const Color(0xFF3C4043) // Dark mode background
                     : Colors.white, // Light mode background
-            borderRadius: BorderRadius.circular(8.0),
+            borderRadius: BorderRadius.circular(isMacOS ? 6.0 : 8.0),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -48,12 +54,12 @@ class _TagSelectorState extends State<TagSelector> {
               if (fileTags.isNotEmpty) ...[
                 const Text(
                   'Tags',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: isMacOS ? 6 : 8,
+                  runSpacing: isMacOS ? 6 : 8,
                   children:
                       fileTags
                           .map(
@@ -61,7 +67,7 @@ class _TagSelectorState extends State<TagSelector> {
                           )
                           .toList(),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
               ],
 
               // Add new tag
@@ -70,14 +76,17 @@ class _TagSelectorState extends State<TagSelector> {
                   Expanded(
                     child: TextField(
                       controller: _tagController,
-                      decoration: const InputDecoration(
-                        hintText: "I'm broken",
+                      style: const TextStyle(fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: "Add new tag",
                         isDense: true,
                         contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
+                          horizontal: isMacOS ? 8 : 12,
                           vertical: 8,
                         ),
-                        border: OutlineInputBorder(),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(isMacOS ? 4 : 6),
+                        ),
                       ),
                       onSubmitted: (value) => _addNewTag(context, tagsService),
                       onChanged: (value) {
@@ -102,28 +111,28 @@ class _TagSelectorState extends State<TagSelector> {
                   ElevatedButton(
                     onPressed: () => _addNewTag(context, tagsService),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMacOS ? 8 : 12,
                         vertical: 0,
                       ),
-                      minimumSize: const Size(0, 36),
+                      minimumSize: const Size(0, 32),
                     ),
-                    child: const Text('Add'),
+                    child: const Text('Add', style: TextStyle(fontSize: 13)),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Available tags
               const Text(
                 'Available Tags',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: isMacOS ? 6 : 8,
+                runSpacing: isMacOS ? 6 : 8,
                 children:
                     availableTags
                         .where((tag) => !fileTags.contains(tag))
@@ -141,16 +150,26 @@ class _TagSelectorState extends State<TagSelector> {
   }
 
   Widget _buildTagChip(BuildContext context, Tag tag, TagsService tagsService) {
+    final themeService = Provider.of<ThemeService>(context);
+    final isMacOS = themeService.themePreset == ThemePreset.macos;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Chip(
-      label: Text(tag.name),
+      label: Text(tag.name, style: TextStyle(fontSize: isMacOS ? 12 : 13)),
       backgroundColor: tag.color.withValues(
-        alpha: tag.color.a * 0.2,
+        alpha: isMacOS ? (isDarkMode ? 0.2 : 0.15) : 0.2,
         red: tag.color.r,
         green: tag.color.g,
         blue: tag.color.b,
       ),
-      labelStyle: TextStyle(color: tag.color),
-      deleteIcon: const Icon(Icons.close, size: 16),
+      labelStyle: TextStyle(
+        color: tag.color,
+        fontWeight: isMacOS ? FontWeight.w500 : FontWeight.normal,
+      ),
+      deleteIcon: Icon(Icons.close, size: isMacOS ? 14 : 16),
+      labelPadding: EdgeInsets.symmetric(horizontal: isMacOS ? 6 : 8),
+      padding: EdgeInsets.symmetric(horizontal: isMacOS ? 6 : 8),
+      side: isMacOS && !isDarkMode ? BorderSide.none : null,
       onDeleted: () async {
         await tagsService.removeTagFromFile(widget.filePath, tag.id);
         if (widget.onTagsChanged != null) {
@@ -165,22 +184,103 @@ class _TagSelectorState extends State<TagSelector> {
     Tag tag,
     TagsService tagsService,
   ) {
-    return InkWell(
-      onTap: () async {
-        await tagsService.addTagToFile(widget.filePath, tag);
-        if (widget.onTagsChanged != null) {
-          widget.onTagsChanged!(tagsService.getTagsForFile(widget.filePath));
-        }
-      },
-      child: Chip(
-        label: Text(tag.name),
-        backgroundColor: tag.color.withValues(
-          alpha: tag.color.a * 0.1,
-          red: tag.color.r,
-          green: tag.color.g,
-          blue: tag.color.b,
+    final themeService = Provider.of<ThemeService>(context);
+    final isMacOS = themeService.themePreset == ThemePreset.macos;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    // Get files for this tag
+    final taggedFiles = tagsService.getFilesWithTag(tag.id);
+    final fileCount = taggedFiles.length;
+
+    // Create tooltip content
+    String tooltipContent = 'No files tagged';
+    if (fileCount > 0) {
+      tooltipContent = 'Tagged files (${taggedFiles.length}):\n';
+      final filesToShow = taggedFiles
+          .take(5)
+          .map((path) => '• ${p.basename(path)}')
+          .join('\n');
+      tooltipContent += filesToShow;
+      if (fileCount > 5) {
+        tooltipContent += '\n...and ${fileCount - 5} more';
+      }
+    }
+
+    return Tooltip(
+      message: tooltipContent,
+      padding: const EdgeInsets.all(8),
+      textStyle: const TextStyle(color: Colors.white, fontSize: 12),
+      decoration: BoxDecoration(
+        color: Colors.black87,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      waitDuration: const Duration(milliseconds: 500),
+      child: InkWell(
+        onTap: () async {
+          await tagsService.addTagToFile(widget.filePath, tag);
+          if (widget.onTagsChanged != null) {
+            widget.onTagsChanged!(tagsService.getTagsForFile(widget.filePath));
+          }
+        },
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: isMacOS ? 6 : 8,
+            vertical: 4,
+          ),
+          decoration: BoxDecoration(
+            color: tag.color.withValues(
+              alpha: isMacOS ? (isDarkMode ? 0.2 : 0.15) : 0.2,
+              red: tag.color.r,
+              green: tag.color.g,
+              blue: tag.color.b,
+            ),
+            borderRadius: BorderRadius.circular(4),
+            border:
+                isMacOS && !isDarkMode
+                    ? null
+                    : Border.all(
+                      color:
+                          Theme.of(context).brightness == Brightness.dark
+                              ? tag.color.withAlpha(100)
+                              : Colors.transparent,
+                      width: 0.5,
+                    ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                tag.name,
+                style: TextStyle(
+                  fontSize: isMacOS ? 12 : 13,
+                  color: tag.color,
+                  fontWeight: isMacOS ? FontWeight.w500 : FontWeight.normal,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: tag.color.withValues(
+                    alpha: isMacOS ? (isDarkMode ? 0.2 : 0.15) : 0.2,
+                    red: tag.color.r,
+                    green: tag.color.g,
+                    blue: tag.color.b,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  fileCount.toString(),
+                  style: TextStyle(
+                    fontSize: isMacOS ? 10 : 11,
+                    color: tag.color,
+                    fontWeight: isMacOS ? FontWeight.w500 : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        labelStyle: TextStyle(color: tag.color),
       ),
     );
   }

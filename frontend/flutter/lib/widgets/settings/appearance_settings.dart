@@ -399,9 +399,11 @@ class AppearanceSettings extends StatelessWidget {
     ThemeService themeService,
   ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final isMacOS = themeService.themePreset == ThemePreset.macos;
+    final switchColor =
+        isMacOS ? const Color(0xFF34C759) : null; // iOS green color
 
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDarkMode ? Colors.grey[800] : Colors.white,
         borderRadius: BorderRadius.circular(8),
@@ -409,27 +411,59 @@ class AppearanceSettings extends StatelessWidget {
           color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
         ),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Icon(
-            Icons.compress,
-            size: 20,
-            color: isDarkMode ? Colors.white70 : Colors.grey[600],
-          ),
-          Expanded(
-            child: Slider(
-              value: themeService.interfaceDensity,
-              min: -2,
-              max: 2,
-              divisions: 4,
-              onChanged: (value) => themeService.setInterfaceDensity(value),
+          SwitchListTile(
+            title: Text(
+              'Compact Mode',
+              style: Theme.of(context).textTheme.titleMedium!.copyWith(
+                color: isDarkMode ? Colors.white : Colors.grey[800],
+              ),
+            ),
+            subtitle: Text(
+              'Reduce spacing between elements',
+              style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                color: isDarkMode ? Colors.white70 : Colors.grey[600],
+              ),
+            ),
+            value: themeService.interfaceDensity > 0,
+            onChanged:
+                (value) => themeService.setInterfaceDensity(value ? 1 : 0),
+            activeColor: switchColor,
+            activeTrackColor: switchColor?.withValues(
+              alpha: 0.5,
+              red: switchColor.r,
+              green: switchColor.g,
+              blue: switchColor.b,
             ),
           ),
-          Icon(
-            Icons.expand,
-            size: 20,
-            color: isDarkMode ? Colors.white70 : Colors.grey[600],
-          ),
+          if (themeService.interfaceDensity > 0) ...[
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Density Level',
+                    style: Theme.of(context).textTheme.titleSmall!.copyWith(
+                      color: isDarkMode ? Colors.white70 : Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Slider(
+                    value: themeService.interfaceDensity,
+                    min: 0,
+                    max: 2,
+                    divisions: 4,
+                    label: themeService.interfaceDensity.toString(),
+                    onChanged:
+                        (value) => themeService.setInterfaceDensity(value),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -440,6 +474,9 @@ class AppearanceSettings extends StatelessWidget {
     ThemeService themeService,
   ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final isMacOS = themeService.themePreset == ThemePreset.macos;
+    final switchColor =
+        isMacOS ? const Color(0xFF34C759) : null; // iOS green color
 
     return Container(
       decoration: BoxDecoration(
@@ -468,6 +505,13 @@ class AppearanceSettings extends StatelessWidget {
           ),
           value: themeService.useAnimations,
           onChanged: (value) => themeService.setUseAnimations(value),
+          activeColor: switchColor,
+          activeTrackColor: switchColor?.withValues(
+            alpha: 0.5,
+            red: switchColor.r,
+            green: switchColor.g,
+            blue: switchColor.b,
+          ),
         ),
       ),
     );

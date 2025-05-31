@@ -66,7 +66,9 @@ class _DiskManagerScreenState extends State<DiskManagerScreen> {
     final isDarkMode = themeService.themeMode == ThemeMode.dark;
 
     return Scaffold(
+      backgroundColor: isDarkMode ? Colors.grey[900] : Colors.grey[100],
       appBar: AppBar(
+        backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
         title: const Text('Disk Manager'),
         actions: [
           IconButton(
@@ -86,7 +88,10 @@ class _DiskManagerScreenState extends State<DiskManagerScreen> {
                   children: [
                     Text(
                       'System Disks',
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: isDarkMode ? Colors.white : Colors.grey[900],
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     ..._buildSystemDisks(isDarkMode),
@@ -109,68 +114,84 @@ class _DiskManagerScreenState extends State<DiskManagerScreen> {
     return _mountedDisks.map((disk) {
       return Card(
         margin: const EdgeInsets.only(bottom: 16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.storage,
-                    color: isDarkMode ? Colors.blue[300] : Colors.blue[700],
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      disk.mountPoint,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text('File System: ${disk.fileSystem}'),
-              const SizedBox(height: 4),
-              Text(
-                'Total: ${_diskService.formatBytes(disk.totalBytes)} | '
-                'Used: ${_diskService.formatBytes(disk.usedBytes)} | '
-                'Available: ${_diskService.formatBytes(disk.availableBytes)}',
-              ),
-              const SizedBox(height: 8),
-              LinearProgressIndicator(
-                value: disk.usagePercentage / 100,
-                backgroundColor:
-                    isDarkMode ? Colors.grey[800] : Colors.grey[200],
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  _getUsageColor(disk.usagePercentage, isDarkMode),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text('${disk.usagePercentage.toStringAsFixed(1)}% used'),
-              if (disk.mountPoint != '/') ...[
-                const SizedBox(height: 8),
+        elevation: isDarkMode ? 1 : 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+            width: isDarkMode ? 1 : 1.5,
+          ),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey[850] : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton.icon(
-                      icon: const Icon(Icons.analytics_outlined),
-                      label: const Text('Analyze'),
-                      onPressed: () => _showDiskAnalysis(disk),
+                    Icon(
+                      Icons.storage,
+                      color: isDarkMode ? Colors.blue[300] : Colors.blue[700],
+                      size: 24,
                     ),
-                    const SizedBox(width: 8),
-                    TextButton.icon(
-                      icon: const Icon(Icons.cleaning_services_outlined),
-                      label: const Text('Clean'),
-                      onPressed: () => _showCleanupOptions(disk),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        disk.mountPoint,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.white : Colors.grey[900],
+                        ),
+                      ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                Text('File System: ${disk.fileSystem}'),
+                const SizedBox(height: 4),
+                Text(
+                  'Total: ${_diskService.formatBytes(disk.totalBytes)} | '
+                  'Used: ${_diskService.formatBytes(disk.usedBytes)} | '
+                  'Available: ${_diskService.formatBytes(disk.availableBytes)}',
+                ),
+                const SizedBox(height: 8),
+                LinearProgressIndicator(
+                  value: disk.usagePercentage / 100,
+                  backgroundColor:
+                      isDarkMode ? Colors.grey[800] : Colors.grey[200],
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    _getUsageColor(disk.usagePercentage, isDarkMode),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text('${disk.usagePercentage.toStringAsFixed(1)}% used'),
+                if (disk.mountPoint != '/') ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton.icon(
+                        icon: const Icon(Icons.analytics_outlined),
+                        label: const Text('Analyze'),
+                        onPressed: () => _showDiskAnalysis(disk),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        icon: const Icon(Icons.cleaning_services_outlined),
+                        label: const Text('Clean'),
+                        onPressed: () => _showCleanupOptions(disk),
+                      ),
+                    ],
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       );
@@ -181,41 +202,73 @@ class _DiskManagerScreenState extends State<DiskManagerScreen> {
     return _usbDrives.map((drive) {
       return Card(
         margin: const EdgeInsets.only(bottom: 16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.usb,
-                    color: isDarkMode ? Colors.green[300] : Colors.green[700],
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      drive.label.isNotEmpty ? drive.label : drive.deviceName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+        elevation: isDarkMode ? 1 : 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+            width: isDarkMode ? 1 : 1.5,
+          ),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey[850] : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.usb,
+                      color: isDarkMode ? Colors.green[300] : Colors.green[700],
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        drive.label.isNotEmpty ? drive.label : drive.deviceName,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.white : Colors.grey[900],
+                        ),
                       ),
                     ),
+                    IconButton(
+                      icon: const Icon(Icons.eject),
+                      onPressed: () => _ejectDrive(drive),
+                      tooltip: 'Eject',
+                      color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Mount Point: ${drive.mountPoint}',
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.eject),
-                    onPressed: () => _ejectDrive(drive),
-                    tooltip: 'Eject',
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Device: ${drive.deviceName}',
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text('Mount Point: ${drive.mountPoint}'),
-              const SizedBox(height: 4),
-              Text('Device: ${drive.deviceName}'),
-              const SizedBox(height: 4),
-              Text('Size: ${_usbDriveService.formatBytes(drive.totalBytes)}'),
-            ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Size: ${_usbDriveService.formatBytes(drive.totalBytes)}',
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );

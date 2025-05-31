@@ -4,6 +4,7 @@ import '../widgets/settings/appearance_settings.dart';
 import '../widgets/settings/addons_settings.dart';
 import '../widgets/settings/about_settings.dart';
 import '../services/theme_service.dart';
+import '../services/settings_view_mode_service.dart';
 import 'disk_manager_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -49,10 +50,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final themeService = context.watch<ThemeService>();
+    final viewModeService = context.watch<SettingsViewModeService>();
+    final viewMode = viewModeService.viewMode;
 
     return Scaffold(
       body: Container(
-        color: isDarkMode ? const Color(0xFF1E1E1E) : const Color(0xFFF8F9FA),
+        color: isDarkMode ? const Color(0xFF1E1E1E) : const Color(0xFFF0F2F5),
         child: Column(
           children: [
             // Custom app bar
@@ -63,8 +66,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 color: isDarkMode ? const Color(0xFF2D2D2D) : Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withAlpha(13),
-                    blurRadius: 1,
+                    color: Colors.black.withAlpha(isDarkMode ? 40 : 20),
+                    blurRadius: 2,
                     offset: const Offset(0, 1),
                   ),
                 ],
@@ -81,7 +84,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           color:
                               isDarkMode
                                   ? const Color(0xFF3D3D3D)
-                                  : const Color(0xFFF0F0F0),
+                                  : const Color(0xFFF5F5F5),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
@@ -105,6 +108,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   const Spacer(),
+                  // View options
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color:
+                          isDarkMode
+                              ? const Color(0xFF3D3D3D)
+                              : const Color(0xFFF5F5F5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            Icons.view_agenda_outlined,
+                            size: 20,
+                            color:
+                                viewMode == SettingsViewMode.comfortable
+                                    ? Theme.of(context).colorScheme.primary
+                                    : isDarkMode
+                                    ? Colors.white70
+                                    : Colors.grey.shade800,
+                          ),
+                          tooltip: 'Comfortable view',
+                          onPressed:
+                              () => viewModeService.setViewMode(
+                                SettingsViewMode.comfortable,
+                              ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.view_compact_outlined,
+                            size: 20,
+                            color:
+                                viewMode == SettingsViewMode.compact
+                                    ? Theme.of(context).colorScheme.primary
+                                    : isDarkMode
+                                    ? Colors.white70
+                                    : Colors.grey.shade800,
+                          ),
+                          tooltip: 'Compact view',
+                          onPressed:
+                              () => viewModeService.setViewMode(
+                                SettingsViewMode.compact,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   // Theme toggle button
                   MouseRegion(
                     cursor: SystemMouseCursors.click,
@@ -116,7 +169,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           color:
                               isDarkMode
                                   ? const Color(0xFF3D3D3D)
-                                  : const Color(0xFFF0F0F0),
+                                  : const Color(0xFFF5F5F5),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
@@ -138,30 +191,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Row(
                 children: [
                   // Navigation rail
-                  NavigationRail(
-                    backgroundColor:
-                        isDarkMode ? const Color(0xFF2D2D2D) : Colors.white,
-                    selectedIndex: _selectedIndex,
-                    onDestinationSelected: (index) {
-                      setState(() => _selectedIndex = index);
-                    },
-                    labelType: NavigationRailLabelType.none,
-                    useIndicator: true,
-                    indicatorColor: Theme.of(
-                      context,
-                    ).colorScheme.primary.withAlpha(26),
-                    destinations:
-                        _sections.map((section) {
-                          return NavigationRailDestination(
-                            icon: Icon(section.icon),
-                            selectedIcon: Icon(
-                              section.icon,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            label: Text(section.title),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                          );
-                        }).toList(),
+                  Container(
+                    decoration: BoxDecoration(
+                      color:
+                          isDarkMode ? const Color(0xFF2D2D2D) : Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(isDarkMode ? 40 : 20),
+                          blurRadius: 2,
+                          offset: const Offset(1, 0),
+                        ),
+                      ],
+                    ),
+                    child: NavigationRail(
+                      backgroundColor: Colors.transparent,
+                      selectedIndex: _selectedIndex,
+                      onDestinationSelected: (index) {
+                        setState(() => _selectedIndex = index);
+                      },
+                      labelType: NavigationRailLabelType.none,
+                      useIndicator: true,
+                      indicatorColor: Theme.of(
+                        context,
+                      ).colorScheme.primary.withAlpha(26),
+                      destinations:
+                          _sections.map((section) {
+                            return NavigationRailDestination(
+                              icon: Icon(section.icon),
+                              selectedIcon: Icon(
+                                section.icon,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              label: Text(section.title),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                            );
+                          }).toList(),
+                    ),
                   ),
                   // Section title and content
                   Expanded(
@@ -173,9 +238,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withAlpha(13),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
+                            color: Colors.black.withAlpha(isDarkMode ? 40 : 20),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
@@ -183,8 +248,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Section header
-                          Padding(
-                            padding: const EdgeInsets.all(24),
+                          Container(
+                            padding: viewModeService.getContentPadding(),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color:
+                                      isDarkMode
+                                          ? Colors.grey[700]!
+                                          : Colors.grey[200]!,
+                                  width: 1,
+                                ),
+                              ),
+                            ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -192,15 +268,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   children: [
                                     Icon(
                                       _sections[_selectedIndex].icon,
-                                      size: 24,
+                                      size: viewModeService.getIconSize(),
                                       color:
                                           Theme.of(context).colorScheme.primary,
                                     ),
-                                    const SizedBox(width: 12),
+                                    SizedBox(
+                                      width:
+                                          viewMode ==
+                                                  SettingsViewMode.comfortable
+                                              ? 12
+                                              : 8,
+                                    ),
                                     Text(
                                       _sections[_selectedIndex].title,
                                       style: TextStyle(
-                                        fontSize: 24,
+                                        fontSize:
+                                            viewModeService.getTitleFontSize(),
                                         fontWeight: FontWeight.bold,
                                         color:
                                             isDarkMode
@@ -210,11 +293,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
+                                SizedBox(
+                                  height:
+                                      viewMode == SettingsViewMode.comfortable
+                                          ? 8
+                                          : 4,
+                                ),
                                 Text(
                                   _sections[_selectedIndex].description,
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize:
+                                        viewMode == SettingsViewMode.comfortable
+                                            ? 14
+                                            : 12,
                                     color:
                                         isDarkMode
                                             ? Colors.white70

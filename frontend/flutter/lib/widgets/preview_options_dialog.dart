@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/file_item.dart';
 import '../models/preview_options.dart';
+import 'package:provider/provider.dart';
+import '../services/theme_service.dart';
 
 class PreviewOptionsDialog extends StatefulWidget {
   final PreviewOptions options;
@@ -317,20 +319,33 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
     void Function(bool) onChanged,
   ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final themeService = Provider.of<ThemeService>(context);
+    final isMacOS = themeService.themePreset == ThemePreset.macos;
+    final switchColor =
+        isMacOS ? const Color(0xFF34C759) : null; // iOS green color
 
     return SwitchListTile(
       title: Text(title, style: const TextStyle(fontSize: 13)),
       value: value,
       onChanged: onChanged,
       dense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 0),
+      contentPadding: EdgeInsets.symmetric(horizontal: isMacOS ? 4.0 : 0),
       visualDensity: VisualDensity.compact,
       controlAffinity: ListTileControlAffinity.trailing,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      activeColor: isDarkMode ? Colors.grey.shade300 : null,
-      activeTrackColor: isDarkMode ? Colors.grey.shade700 : null,
+      activeColor: switchColor ?? (isDarkMode ? Colors.grey.shade300 : null),
+      activeTrackColor:
+          switchColor?.withOpacity(0.5) ??
+          (isDarkMode ? Colors.grey.shade700 : null),
       inactiveThumbColor: isDarkMode ? Colors.grey.shade400 : null,
       inactiveTrackColor: isDarkMode ? Colors.grey.shade800 : null,
+      tileColor: Colors.transparent,
+      hoverColor:
+          isMacOS
+              ? (isDarkMode
+                  ? Colors.white.withOpacity(0.05)
+                  : Colors.black.withOpacity(0.05))
+              : null,
     );
   }
 }

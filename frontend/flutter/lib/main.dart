@@ -18,6 +18,7 @@ import 'services/app_service.dart';
 import 'services/file_association_service.dart';
 import 'package:flutter/services.dart';
 import 'services/tags_service.dart';
+import 'services/settings_view_mode_service.dart';
 import 'utils/audio_init.dart';
 import 'services/drag_drop_service.dart';
 import 'services/tab_manager_service.dart';
@@ -136,6 +137,7 @@ void main() async {
           ChangeNotifierProvider(create: (_) => TabManagerService()),
           Provider(create: (_) => FileService()),
           ChangeNotifierProvider(create: (_) => ContextMenuSettings()),
+          ChangeNotifierProvider(create: (_) => SettingsViewModeService()),
         ],
         child: const MyApp(),
       ),

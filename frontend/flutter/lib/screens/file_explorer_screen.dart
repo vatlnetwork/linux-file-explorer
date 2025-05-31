@@ -62,6 +62,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     with TickerProviderStateMixin, WindowListener {
   final FileService _fileService = FileService();
   final ScrollController _scrollController = ScrollController();
+  final GlobalKey _optionsButtonKey = GlobalKey();
   late FocusNode _focusNode; // Changed from final to late
   late TextEditingController _searchController;
   late FocusNode _searchFocusNode;
@@ -105,9 +106,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   bool _mightStartDragging = false;
   bool _showHiddenFiles =
       false; // Add state variable for hidden files visibility
-
-  // Add GlobalKey for options button
-  final GlobalKey _optionsButtonKey = GlobalKey();
 
   @override
   void initState() {
@@ -1585,8 +1583,10 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         );
 
         if (defaultApp != null) {
-          final appService = Provider.of<AppService>(context, listen: false);
-          await appService.openFileWithApp(result.path, defaultApp);
+          await Provider.of<AppService>(
+            context,
+            listen: false,
+          ).openFileWithApp(result.path, defaultApp);
         } else {
           // If no default app is set, show the app selection dialog
           _showAppSelectionDialog(result);
@@ -1891,17 +1891,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                     ],
                   ),
                 ),
-                // Tags View option
-                PopupMenuItem<String>(
-                  value: 'tags_view',
-                  child: Row(
-                    children: [
-                      Icon(Icons.local_offer, size: 16),
-                      SizedBox(width: 8),
-                      Text('Manage Tags'),
-                    ],
-                  ),
-                ),
+                // Remove tags view option and its divider
                 const PopupMenuDivider(),
                 // File associations
                 PopupMenuItem<String>(
@@ -2076,9 +2066,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
             break;
           case 'terminal':
             _openDirectoryInTerminal();
-            break;
-          case 'tags_view':
-            Navigator.pushNamed(context, '/tags');
             break;
           case 'file_associations':
             Navigator.push(
@@ -3102,20 +3089,19 @@ exit
                                               : Colors.black54,
                                     ),
                                     const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        'Linux File Manager',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w500,
-                                          fontSize: 14,
-                                          color:
-                                              isDarkMode
-                                                  ? Colors.white
-                                                  : Colors.black87,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
+                                    Text(
+                                      'Linux File Manager',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 14,
+                                        color:
+                                            isDarkMode
+                                                ? Colors.white
+                                                : Colors.black87,
                                       ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
+                                    const Spacer(),
                                   ],
                                 ),
                               ),
@@ -3455,7 +3441,6 @@ exit
               splashRadius: 16,
             ),
             PopupMenuButton<String>(
-              key: _optionsButtonKey,
               icon: Icon(
                 Icons.more_vert,
                 color: isDarkMode ? Colors.white70 : Colors.black54,
@@ -3621,16 +3606,6 @@ exit
                         Icon(Icons.terminal, size: 16),
                         SizedBox(width: 8),
                         Text('Open in Terminal'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'tags_view',
-                    child: Row(
-                      children: [
-                        Icon(Icons.local_offer, size: 16),
-                        SizedBox(width: 8),
-                        Text('Manage Tags'),
                       ],
                     ),
                   ),
@@ -3832,9 +3807,6 @@ exit
                       break;
                     case 'terminal':
                       _openDirectoryInTerminal();
-                      break;
-                    case 'tags_view':
-                      Navigator.pushNamed(context, '/tags');
                       break;
                     case 'file_associations':
                       Navigator.push(

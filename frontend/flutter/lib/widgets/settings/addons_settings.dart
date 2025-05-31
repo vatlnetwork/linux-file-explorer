@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../services/theme_service.dart';
 
 class ContextMenuSettings extends ChangeNotifier {
   final Map<String, bool> _contextMenuItems = {
@@ -148,8 +149,12 @@ class _AddonsSettingsContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final settings = Provider.of<ContextMenuSettings>(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final settings = context.watch<ContextMenuSettings>();
+    final themeService = Provider.of<ThemeService>(context);
+    final isMacOS = themeService.themePreset == ThemePreset.macos;
+    final switchColor =
+        isMacOS ? const Color(0xFF34C759) : null; // iOS green color
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -177,46 +182,84 @@ class _AddonsSettingsContent extends StatelessWidget {
                       isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
                 ),
               ),
-              child: ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: settings._contextMenuItems.length,
-                separatorBuilder:
-                    (context, index) => Divider(
-                      height: 1,
-                      color:
-                          isDarkMode
-                              ? Colors.grey.shade800
-                              : Colors.grey.shade300,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Context Menu Items',
+                          style: Theme.of(
+                            context,
+                          ).textTheme.titleMedium!.copyWith(
+                            color: isDarkMode ? Colors.white : Colors.grey[800],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Customize which items appear in the context menu',
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium!.copyWith(
+                            color:
+                                isDarkMode ? Colors.white70 : Colors.grey[600],
+                          ),
+                        ),
+                      ],
                     ),
-                itemBuilder: (context, index) {
-                  final key = settings._contextMenuItems.keys.elementAt(index);
-                  final isEnabled = settings._contextMenuItems[key]!;
+                  ),
+                  const Divider(),
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: settings._contextMenuItems.length,
+                    separatorBuilder:
+                        (context, index) => Divider(
+                          height: 1,
+                          color:
+                              isDarkMode
+                                  ? Colors.grey.shade800
+                                  : Colors.grey.shade300,
+                        ),
+                    itemBuilder: (context, index) {
+                      final key = settings._contextMenuItems.keys.elementAt(
+                        index,
+                      );
+                      final isEnabled = settings._contextMenuItems[key]!;
 
-                  return ListTile(
-                    leading: Icon(
-                      _getItemIcon(key),
-                      color:
-                          isEnabled
-                              ? Theme.of(context).primaryColor
-                              : Theme.of(context).disabledColor,
-                    ),
-                    title: Text(_getItemTitle(key)),
-                    subtitle: Text(
-                      _getItemDescription(key),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color:
-                            isDarkMode ? Colors.white70 : Colors.grey.shade600,
-                      ),
-                    ),
-                    trailing: Switch(
-                      value: isEnabled,
-                      onChanged: (value) => settings.toggleOption(key),
-                      activeColor: Theme.of(context).primaryColor,
-                    ),
-                  );
-                },
+                      return ListTile(
+                        leading: Icon(
+                          _getItemIcon(key),
+                          color:
+                              isEnabled
+                                  ? Theme.of(context).primaryColor
+                                  : Theme.of(context).disabledColor,
+                        ),
+                        title: Text(_getItemTitle(key)),
+                        subtitle: Text(
+                          _getItemDescription(key),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color:
+                                isDarkMode
+                                    ? Colors.white70
+                                    : Colors.grey.shade600,
+                          ),
+                        ),
+                        trailing: Switch(
+                          value: isEnabled,
+                          onChanged: (value) => settings.toggleOption(key),
+                          activeColor:
+                              switchColor ?? Theme.of(context).primaryColor,
+                          activeTrackColor: switchColor?.withOpacity(0.5),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
           ),

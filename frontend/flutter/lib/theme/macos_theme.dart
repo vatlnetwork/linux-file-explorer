@@ -7,8 +7,13 @@ class MacOSTheme {
     colorScheme: ColorScheme.light(
       primary: const Color(0xFF007AFF), // macOS blue
       secondary: const Color(0xFF5856D6), // macOS purple
-      surface: const Color(0xFFF5F5F7), // macOS light gray background
+      surface: const Color(0xFFFFFFFF), // Pure white surface
+      surfaceContainerHighest: const Color(
+        0xFFEBEBED,
+      ), // Slightly darker surface for contrast
       error: const Color(0xFFFF3B30), // macOS red
+      onSurface: Colors.black,
+      onSurfaceVariant: Colors.black87,
     ),
     scaffoldBackgroundColor: const Color(0xFFF5F5F7),
     cardTheme: CardThemeData(
@@ -16,16 +21,20 @@ class MacOSTheme {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade300, width: 1),
+        side: BorderSide(color: Colors.grey.shade200, width: 1),
       ),
+      shadowColor: Colors.black.withValues(alpha: 13),
     ),
     dialogTheme: DialogThemeData(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       backgroundColor: Colors.white,
+      elevation: 0,
+      surfaceTintColor: Colors.white,
     ),
     appBarTheme: AppBarTheme(
       elevation: 0,
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
       foregroundColor: Colors.black,
       titleTextStyle: const TextStyle(
         color: Colors.black,
@@ -42,6 +51,7 @@ class MacOSTheme {
         fontSize: 13,
         fontWeight: FontWeight.w400,
       ),
+      dividerColor: Colors.grey.shade200,
     ),
     textTheme: const TextTheme(
       titleLarge: TextStyle(
@@ -58,12 +68,17 @@ class MacOSTheme {
       bodyMedium: TextStyle(fontSize: 13, color: Colors.black87),
     ),
     dividerTheme: DividerThemeData(
-      color: Colors.grey.shade300,
+      color: Colors.grey.shade200,
       thickness: 1,
       space: 1,
     ),
     listTileTheme: ListTileThemeData(
+      tileColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
       titleTextStyle: const TextStyle(fontSize: 13, color: Colors.black),
       subtitleTextStyle: TextStyle(fontSize: 12, color: Colors.grey.shade600),
     ),
@@ -74,7 +89,12 @@ class MacOSTheme {
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFF007AFF),
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        elevation: 0,
+        shadowColor: const Color(0xFF007AFF).withValues(alpha: 51),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+          side: BorderSide(color: Colors.grey.shade200),
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
     ),
@@ -84,6 +104,23 @@ class MacOSTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: const BorderSide(color: Color(0xFF007AFF)),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     ),
   );
 
