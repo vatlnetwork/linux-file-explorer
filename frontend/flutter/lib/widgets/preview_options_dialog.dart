@@ -335,7 +335,7 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       activeColor: switchColor ?? (isDarkMode ? Colors.grey.shade300 : null),
       activeTrackColor:
-          switchColor?.withOpacity(0.5) ??
+          switchColor?.withValues(alpha: 128) ??
           (isDarkMode ? Colors.grey.shade700 : null),
       inactiveThumbColor: isDarkMode ? Colors.grey.shade400 : null,
       inactiveTrackColor: isDarkMode ? Colors.grey.shade800 : null,
@@ -343,8 +343,8 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
       hoverColor:
           isMacOS
               ? (isDarkMode
-                  ? Colors.white.withOpacity(0.05)
-                  : Colors.black.withOpacity(0.05))
+                  ? Colors.white.withValues(alpha: 13)
+                  : Colors.black.withValues(alpha: 13))
               : null,
     );
   }

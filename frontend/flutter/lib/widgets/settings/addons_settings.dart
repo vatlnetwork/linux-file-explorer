@@ -254,7 +254,7 @@ class _AddonsSettingsContent extends StatelessWidget {
                           onChanged: (value) => settings.toggleOption(key),
                           activeColor:
                               switchColor ?? Theme.of(context).primaryColor,
-                          activeTrackColor: switchColor?.withOpacity(0.5),
+                          activeTrackColor: switchColor?.withValues(alpha: 128),
                         ),
                       );
                     },

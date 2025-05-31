@@ -30,7 +30,6 @@ class _TagSelectorState extends State<TagSelector> {
     final tagsService = Provider.of<TagsService>(context);
     final fileTags = tagsService.getTagsForFile(widget.filePath);
     final availableTags = tagsService.availableTags;
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final themeService = Provider.of<ThemeService>(context);
     final isMacOS = themeService.themePreset == ThemePreset.macos;
 
