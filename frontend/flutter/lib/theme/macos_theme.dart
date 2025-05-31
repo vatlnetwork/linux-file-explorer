@@ -122,6 +122,27 @@ class MacOSTheme {
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.selected)) {
+          return Colors.white;
+        }
+        return Colors.white;
+      }),
+      trackColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.selected)) {
+          return const Color(0xFF34C759).withOpacity(0.3);
+        }
+        return Colors.grey.shade300;
+      }),
+      overlayColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.hovered)) {
+          return Colors.grey.shade200.withOpacity(0.1);
+        }
+        return Colors.transparent;
+      }),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    ),
   );
 
   static ThemeData darkTheme = ThemeData(
@@ -207,6 +228,27 @@ class MacOSTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.selected)) {
+          return Colors.white;
+        }
+        return Colors.grey.shade400;
+      }),
+      trackColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.selected)) {
+          return const Color(0xFF34C759).withOpacity(0.3);
+        }
+        return Colors.grey.shade800;
+      }),
+      overlayColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.hovered)) {
+          return Colors.grey.shade200.withOpacity(0.1);
+        }
+        return Colors.transparent;
+      }),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     ),
   );
 }

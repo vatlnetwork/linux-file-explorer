@@ -253,8 +253,30 @@ class _AddonsSettingsContent extends StatelessWidget {
                           value: isEnabled,
                           onChanged: (value) => settings.toggleOption(key),
                           activeColor:
-                              switchColor ?? Theme.of(context).primaryColor,
-                          activeTrackColor: switchColor?.withValues(alpha: 128),
+                              isMacOS
+                                  ? Colors.white
+                                  : Theme.of(context).primaryColor,
+                          activeTrackColor:
+                              isMacOS
+                                  ? const Color(0xFF34C759).withOpacity(0.5)
+                                  : null,
+                          inactiveThumbColor:
+                              isDarkMode ? Colors.grey.shade400 : Colors.white,
+                          inactiveTrackColor:
+                              isDarkMode
+                                  ? Colors.grey.shade800
+                                  : Colors.grey.shade300,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          overlayColor:
+                              MaterialStateProperty.resolveWith<Color>((
+                                states,
+                              ) {
+                                if (states.contains(MaterialState.hovered)) {
+                                  return Colors.grey.shade200.withOpacity(0.1);
+                                }
+                                return Colors.transparent;
+                              }),
                         ),
                       );
                     },

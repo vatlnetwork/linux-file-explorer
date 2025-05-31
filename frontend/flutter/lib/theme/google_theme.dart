@@ -90,6 +90,27 @@ class GoogleTheme {
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.selected)) {
+          return Colors.white;
+        }
+        return Colors.white;
+      }),
+      trackColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.selected)) {
+          return const Color(0xFF1A73E8).withOpacity(0.5);
+        }
+        return Colors.grey.shade300;
+      }),
+      overlayColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.hovered)) {
+          return Colors.grey.shade200.withOpacity(0.1);
+        }
+        return Colors.transparent;
+      }),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    ),
   );
 
   static ThemeData darkTheme = ThemeData(
@@ -151,6 +172,27 @@ class GoogleTheme {
     iconTheme: const IconThemeData(
       weight: 200, // Make icons thinner (default is 400)
       color: Colors.white, // Dark theme icon color
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.selected)) {
+          return Colors.white;
+        }
+        return Colors.grey.shade400;
+      }),
+      trackColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.selected)) {
+          return const Color(0xFF8AB4F8).withOpacity(0.5);
+        }
+        return Colors.grey.shade800;
+      }),
+      overlayColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.hovered)) {
+          return Colors.grey.shade200.withOpacity(0.1);
+        }
+        return Colors.transparent;
+      }),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     ),
   );
 }

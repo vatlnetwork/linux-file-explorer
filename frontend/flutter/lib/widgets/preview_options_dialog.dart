@@ -321,8 +321,13 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final themeService = Provider.of<ThemeService>(context);
     final isMacOS = themeService.themePreset == ThemePreset.macos;
-    final switchColor =
-        isMacOS ? const Color(0xFF34C759) : null; // iOS green color
+
+    // macOS green color with proper opacity for track
+    final switchColor = isMacOS ? const Color(0xFF34C759) : null;
+    final trackColor =
+        isMacOS
+            ? switchColor?.withOpacity(0.3) // Reduced opacity for track
+            : null;
 
     return SwitchListTile(
       title: Text(title, style: const TextStyle(fontSize: 13)),
@@ -333,19 +338,20 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
       visualDensity: VisualDensity.compact,
       controlAffinity: ListTileControlAffinity.trailing,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      activeColor: switchColor ?? (isDarkMode ? Colors.grey.shade300 : null),
-      activeTrackColor:
-          switchColor?.withValues(alpha: 128) ??
-          (isDarkMode ? Colors.grey.shade700 : null),
-      inactiveThumbColor: isDarkMode ? Colors.grey.shade400 : null,
-      inactiveTrackColor: isDarkMode ? Colors.grey.shade800 : null,
-      tileColor: Colors.transparent,
-      hoverColor:
+      activeColor:
           isMacOS
-              ? (isDarkMode
-                  ? Colors.white.withValues(alpha: 13)
-                  : Colors.black.withValues(alpha: 13))
-              : null,
+              ? Colors.white
+              : (isDarkMode
+                  ? Colors.grey.shade300
+                  : null), // Thumb color when active
+      activeTrackColor:
+          trackColor ?? (isDarkMode ? Colors.grey.shade700 : null),
+      inactiveThumbColor: isDarkMode ? Colors.grey.shade400 : Colors.white,
+      inactiveTrackColor:
+          isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
+      tileColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      hoverColor: Colors.grey.shade200.withOpacity(0.1),
     );
   }
 }

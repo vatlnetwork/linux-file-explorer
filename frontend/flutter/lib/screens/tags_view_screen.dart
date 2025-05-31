@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
+import 'package:path/path.dart' as p;
 
 import '../models/tag.dart';
 import '../services/tags_service.dart';
@@ -160,14 +161,7 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
                                                       ? const Color(0xFF3C4043)
                                                       : const Color(0xFFF5F5F5),
                                             ),
-                                            child: ListTile(
-                                              visualDensity:
-                                                  VisualDensity.compact,
-                                              contentPadding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 16.0,
-                                                    vertical: 2.0,
-                                                  ),
+                                            child: ExpansionTile(
                                               leading: Icon(
                                                 Icons.local_offer,
                                                 color: tag.color,
@@ -185,42 +179,107 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
                                                   fontSize: 12,
                                                 ),
                                               ),
-                                              selected:
-                                                  _selectedTagId == tag.id,
-                                              selectedTileColor:
-                                                  Theme.of(
-                                                            context,
-                                                          ).brightness ==
-                                                          Brightness.dark
-                                                      ? const Color(0xFF202124)
-                                                      : const Color(0xFFE8F0FE),
-                                              onTap: () {
-                                                setState(() {
-                                                  _selectedTagId = tag.id;
-                                                });
-                                              },
-                                              trailing: IconButton(
-                                                icon: const Icon(
-                                                  Icons.delete_outline,
-                                                  size: 18,
-                                                ),
-                                                padding: EdgeInsets.zero,
-                                                constraints:
-                                                    const BoxConstraints(),
-                                                onPressed:
-                                                    count > 0
-                                                        ? null
-                                                        : () =>
-                                                            _confirmDeleteTag(
-                                                              context,
-                                                              tagsService,
-                                                              tag,
-                                                            ),
-                                                tooltip:
-                                                    count > 0
-                                                        ? 'Cannot delete tag in use'
-                                                        : 'Delete tag',
+                                              trailing: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  IconButton(
+                                                    icon: const Icon(
+                                                      Icons.delete_outline,
+                                                      size: 18,
+                                                    ),
+                                                    padding: EdgeInsets.zero,
+                                                    constraints:
+                                                        const BoxConstraints(),
+                                                    onPressed:
+                                                        count > 0
+                                                            ? null
+                                                            : () =>
+                                                                _confirmDeleteTag(
+                                                                  context,
+                                                                  tagsService,
+                                                                  tag,
+                                                                ),
+                                                    tooltip:
+                                                        count > 0
+                                                            ? 'Cannot delete tag in use'
+                                                            : 'Delete tag',
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Icon(
+                                                    Icons.expand_more,
+                                                    size: 18,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurface
+                                                        .withOpacity(0.5),
+                                                  ),
+                                                ],
                                               ),
+                                              children: [
+                                                if (count > 0)
+                                                  ...tagsService
+                                                      .getFilesWithTag(tag.id)
+                                                      .map((path) {
+                                                        final file = File(path);
+                                                        if (!file.existsSync())
+                                                          return const SizedBox.shrink();
+
+                                                        return ListTile(
+                                                          dense: true,
+                                                          contentPadding:
+                                                              const EdgeInsets.only(
+                                                                left: 56,
+                                                                right: 16,
+                                                              ),
+                                                          leading: Icon(
+                                                            Icons
+                                                                .insert_drive_file,
+                                                            size: 16,
+                                                            color:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .primary,
+                                                          ),
+                                                          title: Text(
+                                                            p.basename(path),
+                                                            style:
+                                                                const TextStyle(
+                                                                  fontSize: 12,
+                                                                ),
+                                                          ),
+                                                          subtitle: Text(
+                                                            p.dirname(path),
+                                                            style: TextStyle(
+                                                              fontSize: 10,
+                                                              color: Theme.of(
+                                                                    context,
+                                                                  )
+                                                                  .colorScheme
+                                                                  .onSurface
+                                                                  .withOpacity(
+                                                                    0.5,
+                                                                  ),
+                                                            ),
+                                                          ),
+                                                          onTap: () {
+                                                            setState(() {
+                                                              _selectedTagId =
+                                                                  tag.id;
+                                                            });
+                                                          },
+                                                        );
+                                                      })
+                                                      .toList(),
+                                              ],
+                                              onExpansionChanged: (expanded) {
+                                                if (expanded) {
+                                                  setState(() {
+                                                    _selectedTagId = tag.id;
+                                                  });
+                                                }
+                                              },
                                             ),
                                           ),
                                           if (index < tags.length - 1)

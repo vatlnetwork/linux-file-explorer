@@ -62,13 +62,12 @@ class _DiskManagerScreenState extends State<DiskManagerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeService = context.watch<ThemeService>();
-    final isDarkMode = themeService.themeMode == ThemeMode.dark;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDarkMode ? Colors.grey[900] : Colors.grey[100],
+      backgroundColor: isDarkMode ? const Color(0xFF202124) : Colors.grey[100],
       appBar: AppBar(
-        backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
+        backgroundColor: isDarkMode ? const Color(0xFF2D2E30) : Colors.white,
         title: const Text('Disk Manager'),
         actions: [
           IconButton(
@@ -118,13 +117,13 @@ class _DiskManagerScreenState extends State<DiskManagerScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
-            color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+            color: isDarkMode ? const Color(0xFF3C4043) : Colors.grey[300]!,
             width: isDarkMode ? 1 : 1.5,
           ),
         ),
         child: Container(
           decoration: BoxDecoration(
-            color: isDarkMode ? Colors.grey[850] : Colors.white,
+            color: isDarkMode ? const Color(0xFF2D2E30) : Colors.white,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Padding(
@@ -136,7 +135,10 @@ class _DiskManagerScreenState extends State<DiskManagerScreen> {
                   children: [
                     Icon(
                       Icons.storage,
-                      color: isDarkMode ? Colors.blue[300] : Colors.blue[700],
+                      color:
+                          isDarkMode
+                              ? const Color(0xFF8AB4F8)
+                              : const Color(0xFF1A73E8),
                       size: 24,
                     ),
                     const SizedBox(width: 12),
@@ -146,31 +148,46 @@ class _DiskManagerScreenState extends State<DiskManagerScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: isDarkMode ? Colors.white : Colors.grey[900],
+                          color: isDarkMode ? Colors.white : Colors.black87,
                         ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text('File System: ${disk.fileSystem}'),
+                Text(
+                  'File System: ${disk.fileSystem}',
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.white70 : Colors.black54,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   'Total: ${_diskService.formatBytes(disk.totalBytes)} | '
                   'Used: ${_diskService.formatBytes(disk.usedBytes)} | '
                   'Available: ${_diskService.formatBytes(disk.availableBytes)}',
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.white70 : Colors.black54,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 LinearProgressIndicator(
                   value: disk.usagePercentage / 100,
                   backgroundColor:
-                      isDarkMode ? Colors.grey[800] : Colors.grey[200],
+                      isDarkMode
+                          ? const Color(0xFF3C4043)
+                          : const Color(0xFFF1F3F4),
                   valueColor: AlwaysStoppedAnimation<Color>(
                     _getUsageColor(disk.usagePercentage, isDarkMode),
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text('${disk.usagePercentage.toStringAsFixed(1)}% used'),
+                Text(
+                  '${disk.usagePercentage.toStringAsFixed(1)}% used',
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.white60 : Colors.black45,
+                  ),
+                ),
                 if (disk.mountPoint != '/') ...[
                   const SizedBox(height: 8),
                   Row(
@@ -206,13 +223,13 @@ class _DiskManagerScreenState extends State<DiskManagerScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
-            color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+            color: isDarkMode ? const Color(0xFF3C4043) : Colors.grey[300]!,
             width: isDarkMode ? 1 : 1.5,
           ),
         ),
         child: Container(
           decoration: BoxDecoration(
-            color: isDarkMode ? Colors.grey[850] : Colors.white,
+            color: isDarkMode ? const Color(0xFF2D2E30) : Colors.white,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Padding(
@@ -224,7 +241,10 @@ class _DiskManagerScreenState extends State<DiskManagerScreen> {
                   children: [
                     Icon(
                       Icons.usb,
-                      color: isDarkMode ? Colors.green[300] : Colors.green[700],
+                      color:
+                          isDarkMode
+                              ? const Color(0xFF81C995)
+                              : const Color(0xFF34A853),
                       size: 24,
                     ),
                     const SizedBox(width: 12),
@@ -234,7 +254,7 @@ class _DiskManagerScreenState extends State<DiskManagerScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: isDarkMode ? Colors.white : Colors.grey[900],
+                          color: isDarkMode ? Colors.white : Colors.black87,
                         ),
                       ),
                     ),
@@ -242,7 +262,7 @@ class _DiskManagerScreenState extends State<DiskManagerScreen> {
                       icon: const Icon(Icons.eject),
                       onPressed: () => _ejectDrive(drive),
                       tooltip: 'Eject',
-                      color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
+                      color: isDarkMode ? Colors.white70 : Colors.black54,
                     ),
                   ],
                 ),
@@ -250,21 +270,21 @@ class _DiskManagerScreenState extends State<DiskManagerScreen> {
                 Text(
                   'Mount Point: ${drive.mountPoint}',
                   style: TextStyle(
-                    color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                    color: isDarkMode ? Colors.white70 : Colors.black54,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Device: ${drive.deviceName}',
                   style: TextStyle(
-                    color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                    color: isDarkMode ? Colors.white70 : Colors.black54,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Size: ${_usbDriveService.formatBytes(drive.totalBytes)}',
                   style: TextStyle(
-                    color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                    color: isDarkMode ? Colors.white70 : Colors.black54,
                   ),
                 ),
               ],

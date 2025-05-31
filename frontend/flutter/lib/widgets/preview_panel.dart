@@ -469,6 +469,9 @@ class _PreviewPanelState extends State<PreviewPanel> {
                     ),
                     child: ListTile(
                       dense: true,
+                      minLeadingWidth: 24,
+                      horizontalTitleGap: 8,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                       leading: const Icon(
                         Icons.folder,
                         color: Colors.amber,
@@ -532,6 +535,9 @@ class _PreviewPanelState extends State<PreviewPanel> {
                   ),
                   child: ListTile(
                     dense: true,
+                    minLeadingWidth: 24,
+                    horizontalTitleGap: 8,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                     leading: const Icon(
                       Icons.insert_drive_file,
                       color: Colors.blue,
