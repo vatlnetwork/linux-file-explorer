@@ -326,7 +326,7 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
     final switchColor = isMacOS ? const Color(0xFF34C759) : null;
     final trackColor =
         isMacOS
-            ? switchColor?.withOpacity(0.3) // Reduced opacity for track
+            ? switchColor?.withValues(alpha: 77) // Reduced opacity for track
             : null;
 
     return SwitchListTile(
@@ -351,7 +351,7 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
           isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
       tileColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      hoverColor: Colors.grey.shade200.withOpacity(0.1),
+      hoverColor: Colors.grey.shade200.withValues(alpha: 26),
     );
   }
 }

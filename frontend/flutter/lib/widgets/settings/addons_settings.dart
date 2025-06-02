@@ -153,8 +153,6 @@ class _AddonsSettingsContent extends StatelessWidget {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final themeService = Provider.of<ThemeService>(context);
     final isMacOS = themeService.themePreset == ThemePreset.macos;
-    final switchColor =
-        isMacOS ? const Color(0xFF34C759) : null; // iOS green color
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -258,7 +256,9 @@ class _AddonsSettingsContent extends StatelessWidget {
                                   : Theme.of(context).primaryColor,
                           activeTrackColor:
                               isMacOS
-                                  ? const Color(0xFF34C759).withOpacity(0.5)
+                                  ? const Color(
+                                    0xFF34C759,
+                                  ).withValues(alpha: 128)
                                   : null,
                           inactiveThumbColor:
                               isDarkMode ? Colors.grey.shade400 : Colors.white,
@@ -268,15 +268,14 @@ class _AddonsSettingsContent extends StatelessWidget {
                                   : Colors.grey.shade300,
                           materialTapTargetSize:
                               MaterialTapTargetSize.shrinkWrap,
-                          overlayColor:
-                              MaterialStateProperty.resolveWith<Color>((
-                                states,
-                              ) {
-                                if (states.contains(MaterialState.hovered)) {
-                                  return Colors.grey.shade200.withOpacity(0.1);
-                                }
-                                return Colors.transparent;
-                              }),
+                          overlayColor: WidgetStateProperty.resolveWith<Color>((
+                            states,
+                          ) {
+                            if (states.contains(WidgetState.hovered)) {
+                              return Colors.grey.shade200.withValues(alpha: 26);
+                            }
+                            return Colors.transparent;
+                          }),
                         ),
                       );
                     },

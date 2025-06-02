@@ -131,13 +131,13 @@ class MacOSTheme {
       }),
       trackColor: WidgetStateProperty.resolveWith<Color>((states) {
         if (states.contains(WidgetState.selected)) {
-          return const Color(0xFF34C759).withOpacity(0.3);
+          return const Color(0xFF34C759).withValues(alpha: 77);
         }
         return Colors.grey.shade300;
       }),
       overlayColor: WidgetStateProperty.resolveWith<Color>((states) {
         if (states.contains(WidgetState.hovered)) {
-          return Colors.grey.shade200.withOpacity(0.1);
+          return Colors.grey.shade200.withValues(alpha: 26);
         }
         return Colors.transparent;
       }),
@@ -238,13 +238,13 @@ class MacOSTheme {
       }),
       trackColor: WidgetStateProperty.resolveWith<Color>((states) {
         if (states.contains(WidgetState.selected)) {
-          return const Color(0xFF34C759).withOpacity(0.3);
+          return const Color(0xFF34C759).withValues(alpha: 77);
         }
         return Colors.grey.shade800;
       }),
       overlayColor: WidgetStateProperty.resolveWith<Color>((states) {
         if (states.contains(WidgetState.hovered)) {
-          return Colors.grey.shade200.withOpacity(0.1);
+          return Colors.grey.shade200.withValues(alpha: 26);
         }
         return Colors.transparent;
       }),

@@ -99,13 +99,13 @@ class GoogleTheme {
       }),
       trackColor: WidgetStateProperty.resolveWith<Color>((states) {
         if (states.contains(WidgetState.selected)) {
-          return const Color(0xFF1A73E8).withOpacity(0.5);
+          return const Color(0xFF1A73E8).withValues(alpha: 128);
         }
         return Colors.grey.shade300;
       }),
       overlayColor: WidgetStateProperty.resolveWith<Color>((states) {
         if (states.contains(WidgetState.hovered)) {
-          return Colors.grey.shade200.withOpacity(0.1);
+          return Colors.grey.shade200.withValues(alpha: 26);
         }
         return Colors.transparent;
       }),
@@ -182,13 +182,13 @@ class GoogleTheme {
       }),
       trackColor: WidgetStateProperty.resolveWith<Color>((states) {
         if (states.contains(WidgetState.selected)) {
-          return const Color(0xFF8AB4F8).withOpacity(0.5);
+          return const Color(0xFF8AB4F8).withValues(alpha: 128);
         }
         return Colors.grey.shade800;
       }),
       overlayColor: WidgetStateProperty.resolveWith<Color>((states) {
         if (states.contains(WidgetState.hovered)) {
-          return Colors.grey.shade200.withOpacity(0.1);
+          return Colors.grey.shade200.withValues(alpha: 26);
         }
         return Colors.transparent;
       }),

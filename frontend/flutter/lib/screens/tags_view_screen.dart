@@ -130,9 +130,10 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
                                     child: Text(
                                       'No available tags',
                                       style: TextStyle(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurface.withAlpha(153),
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 153),
                                         fontStyle: FontStyle.italic,
                                       ),
                                     ),
@@ -211,7 +212,7 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
                                                     color: Theme.of(context)
                                                         .colorScheme
                                                         .onSurface
-                                                        .withOpacity(0.5),
+                                                        .withValues(alpha: 128),
                                                   ),
                                                 ],
                                               ),
@@ -221,8 +222,10 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
                                                       .getFilesWithTag(tag.id)
                                                       .map((path) {
                                                         final file = File(path);
-                                                        if (!file.existsSync())
+                                                        if (!file
+                                                            .existsSync()) {
                                                           return const SizedBox.shrink();
+                                                        }
 
                                                         return ListTile(
                                                           dense: true,
@@ -258,8 +261,8 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
                                                                   )
                                                                   .colorScheme
                                                                   .onSurface
-                                                                  .withOpacity(
-                                                                    0.5,
+                                                                  .withValues(
+                                                                    alpha: 128,
                                                                   ),
                                                             ),
                                                           ),
@@ -270,8 +273,7 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
                                                             });
                                                           },
                                                         );
-                                                      })
-                                                      .toList(),
+                                                      }),
                                               ],
                                               onExpansionChanged: (expanded) {
                                                 if (expanded) {
