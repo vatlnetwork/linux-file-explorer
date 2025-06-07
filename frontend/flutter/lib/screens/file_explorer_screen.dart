@@ -3035,8 +3035,11 @@ exit
                           decoration: BoxDecoration(
                             color:
                                 isDarkMode
-                                    ? const Color(0xFF2C2C2C)
-                                    : const Color(0xFFF5F5F5),
+                                    ? const Color(
+                                      0xFF252525,
+                                    ) // Match bookmarks bar background
+                                    : Colors
+                                        .white, // Match bookmarks bar background
                             border: Border(
                               right: BorderSide(
                                 color:
@@ -3059,20 +3062,10 @@ exit
                                   color:
                                       isDarkMode
                                           ? const Color(
-                                            0xFF2C2C2C,
-                                          ) // Dark mode background
-                                          : const Color(
-                                            0xFFF5F5F5,
-                                          ), // Light mode background
-                                  border: Border(
-                                    bottom: BorderSide(
-                                      color:
-                                          isDarkMode
-                                              ? Colors.grey.shade800
-                                              : Colors.grey.shade300,
-                                      width: 0.5,
-                                    ),
-                                  ),
+                                            0xFF252525,
+                                          ) // Match bookmarks bar background
+                                          : Colors
+                                              .white, // Match bookmarks bar background
                                 ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.start,
@@ -3089,19 +3082,20 @@ exit
                                               : Colors.black54,
                                     ),
                                     const SizedBox(width: 8),
-                                    Text(
-                                      'Linux File Manager',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 14,
-                                        color:
-                                            isDarkMode
-                                                ? Colors.white
-                                                : Colors.black87,
+                                    Flexible(
+                                      child: Text(
+                                        'Linux File Manager',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 14,
+                                          color:
+                                              isDarkMode
+                                                  ? Colors.white
+                                                  : Colors.black87,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    const Spacer(),
                                   ],
                                 ),
                               ),

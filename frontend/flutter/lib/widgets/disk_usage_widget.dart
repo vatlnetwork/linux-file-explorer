@@ -221,7 +221,7 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
         key: _widgetKey,
         elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: isDarkMode ? const Color(0xFF3C4043) : const Color(0xFFF5F5F5),
+        color: isDarkMode ? const Color(0xFF3C4043) : const Color(0xFFEEEEEE),
         child: Container(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -294,21 +294,33 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
                 ),
               ),
               const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: _diskSpace!.usagePercentage / 100,
-                  backgroundColor:
-                      isDarkMode
-                          ? const Color(0xFF3C4043)
-                          : const Color(0xFFF1F3F4),
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    _getColorForPercentage(
-                      _diskSpace!.usagePercentage,
-                      isDarkMode,
-                    ),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color:
+                        isDarkMode
+                            ? Colors.grey.shade700
+                            : Colors.grey.shade300,
+                    width: 1,
                   ),
-                  minHeight: 8,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(3),
+                  child: LinearProgressIndicator(
+                    value: _diskSpace!.usagePercentage / 100,
+                    backgroundColor:
+                        isDarkMode
+                            ? const Color(0xFF3C4043)
+                            : const Color(0xFFF1F3F4),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      _getColorForPercentage(
+                        _diskSpace!.usagePercentage,
+                        isDarkMode,
+                      ),
+                    ),
+                    minHeight: 8,
+                  ),
                 ),
               ),
             ],

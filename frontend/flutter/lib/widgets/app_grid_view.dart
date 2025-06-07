@@ -5,112 +5,158 @@ import '../services/app_service.dart';
 import 'system_icon.dart';
 
 class AppGridView extends StatefulWidget {
-  const AppGridView({super.key});
+  final String searchQuery;
+  final String selectedCategory;
+
+  const AppGridView({
+    super.key,
+    this.searchQuery = '',
+    this.selectedCategory = 'All',
+  });
 
   @override
   State<AppGridView> createState() => _AppGridViewState();
 }
 
-class _AppGridViewState extends State<AppGridView> with SingleTickerProviderStateMixin {
+class _AppGridViewState extends State<AppGridView>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
   final ScrollController _scrollController = ScrollController();
-  late AnimationController _staggeredAnimationController;
 
   @override
   void initState() {
     super.initState();
-    _staggeredAnimationController = AnimationController(
-      vsync: this,
+    _controller = AnimationController(
       duration: const Duration(milliseconds: 800),
-    );
-    
-    // Delay slightly to coordinate with parent animations
-    Future.delayed(const Duration(milliseconds: 200), () {
-      _staggeredAnimationController.forward();
-    });
+      vsync: this,
+    )..forward();
   }
 
   @override
   void dispose() {
-    _staggeredAnimationController.dispose();
+    _controller.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  // Create a staggered animation for a specific item index
   Animation<double> _createStaggeredAnimation(int index, int total) {
-    // Calculate a staggered start time based on index 
-    // We want animations to cascade, so each item starts a bit after the previous one
-    final startInterval = 0.05 * (index % 12); // Group by rows of 12 for better performance
-    final endInterval = startInterval + 0.4; // Each animation lasts 40% of the total duration
-    
+    final double start = index / total;
+    final double end = start + 0.2;
     return Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _staggeredAnimationController,
-        curve: Interval(
-          startInterval.clamp(0.0, 0.6), // Don't start too late
-          endInterval.clamp(0.2, 1.0), // Ensure animations complete
-          curve: Curves.easeOutQuint,
-        ),
+        parent: _controller,
+        curve: Interval(start, end.clamp(0.0, 1.0), curve: Curves.easeOut),
       ),
     );
+  }
+
+  // Helper method to determine app category
+  String _getAppCategory(AppItem app) {
+    final name = app.name.toLowerCase();
+    final path = app.path.toLowerCase();
+    final desktop = app.desktopFile.toLowerCase();
+
+    if (path.contains('system') || desktop.contains('system')) return 'System';
+    if (path.contains('internet') ||
+        name.contains('browser') ||
+        name.contains('web')) {
+      return 'Internet';
+    }
+    if (path.contains('dev') ||
+        name.contains('code') ||
+        name.contains('editor')) {
+      return 'Development';
+    }
+    if (path.contains('graphics') ||
+        name.contains('image') ||
+        name.contains('photo')) {
+      return 'Graphics';
+    }
+    if (path.contains('office') ||
+        name.contains('doc') ||
+        name.contains('calc')) {
+      return 'Office';
+    }
+    if (path.contains('game') || desktop.contains('game')) return 'Games';
+    return 'Other';
+  }
+
+  // Filter apps based on search query and category
+  List<AppItem> _filterApps(List<AppItem> apps) {
+    return apps.where((app) {
+      // Apply search filter
+      final searchMatch =
+          widget.searchQuery.isEmpty ||
+          app.name.toLowerCase().contains(widget.searchQuery.toLowerCase()) ||
+          app.path.toLowerCase().contains(widget.searchQuery.toLowerCase());
+
+      // Apply category filter
+      final categoryMatch =
+          widget.selectedCategory == 'All' ||
+          _getAppCategory(app) == widget.selectedCategory;
+
+      return searchMatch && categoryMatch;
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final appService = Provider.of<AppService>(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    // Use a fixed small icon size instead of the one from iconSizeService
-    final double fixedIconSize = 36.0;
-    
+
+    // Fixed item size for the grid
+    const double fixedItemWidth = 120.0;
+    const double fixedItemHeight =
+        fixedItemWidth * 1.4; // Increased height ratio for better text fit
+
+    // Filter the apps
+    final filteredApps = _filterApps(appService.apps);
+
     // If apps are loading and we don't have cached data
     if (appService.isLoading && appService.apps.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
-    
-    // If no apps found
-    if (appService.apps.isEmpty) {
+
+    // If no apps found after filtering
+    if (filteredApps.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.apps,
+              widget.searchQuery.isNotEmpty
+                  ? Icons.search_off
+                  : Icons.apps_outlined,
               size: 64,
               color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
             ),
             const SizedBox(height: 16),
             Text(
-              'No applications found',
+              widget.searchQuery.isNotEmpty
+                  ? 'No applications found matching "${widget.searchQuery}"'
+                  : 'No applications found in category "${widget.selectedCategory}"',
               style: TextStyle(
                 fontSize: 16,
                 color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
               ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
       );
     }
-    
-    // Fixed item size for the grid (keeps icons the same size regardless of window size)
-    final double fixedItemWidth = 120.0;
-    final double fixedItemHeight = fixedItemWidth * 1.25; // Slightly taller than wide for labels
-    
+
     // Calculate the number of items per row based on available width
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Calculate how many items can fit in a row based on the fixed item size
-        final int crossAxisCount = (constraints.maxWidth / fixedItemWidth).floor().clamp(1, 12);
-        
-        // Consistent padding regardless of window size
-        final gridPadding = const EdgeInsets.all(12.0);
-        
+        final int crossAxisCount = (constraints.maxWidth / fixedItemWidth)
+            .floor()
+            .clamp(1, 12);
+
         return RefreshIndicator(
           onRefresh: () => appService.refreshApps(),
           child: GridView.builder(
-            padding: gridPadding,
+            padding: const EdgeInsets.all(12.0),
             controller: _scrollController,
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: crossAxisCount,
@@ -118,24 +164,23 @@ class _AppGridViewState extends State<AppGridView> with SingleTickerProviderStat
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
             ),
-            itemCount: appService.apps.length,
+            itemCount: filteredApps.length,
             itemBuilder: (context, index) {
-              final app = appService.apps[index];
-              // Create staggered animation for this specific item
-              final animation = _createStaggeredAnimation(index, appService.apps.length);
-              
+              final app = filteredApps[index];
+              final animation = _createStaggeredAnimation(
+                index,
+                filteredApps.length,
+              );
+
               return AnimatedBuilder(
                 animation: animation,
                 builder: (context, child) {
                   return Transform.scale(
                     scale: animation.value,
-                    child: Opacity(
-                      opacity: animation.value,
-                      child: child,
-                    ),
+                    child: Opacity(opacity: animation.value, child: child),
                   );
                 },
-                child: _buildAppItem(app, fixedIconSize, isDarkMode),
+                child: _buildAppItem(app, 36.0, isDarkMode),
               );
             },
           ),
@@ -143,57 +188,93 @@ class _AppGridViewState extends State<AppGridView> with SingleTickerProviderStat
       },
     );
   }
-  
+
   Widget _buildAppItem(AppItem app, double iconSize, bool isDarkMode) {
-    // Fixed size values for consistent appearance regardless of window size
-    const double iconContainerSize = 48.0;
-    const double actualIconSize = 32.0;
-    const double fontSize = 12.0;
-    
+    // Fixed size values for consistent appearance
+    const double iconContainerSize = 56.0;
+    const double actualIconSize = 36.0;
+    const double fontSize = 13.0;
+
     return Card(
-      elevation: 2,
-      color: isDarkMode ? const Color(0xFF202124) : Colors.white,
+      elevation: 0,
+      color: isDarkMode ? const Color(0xFF2C2C2C) : Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200,
+          width: 1,
+        ),
       ),
       child: InkWell(
         onTap: () => _launchApp(app),
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
+        hoverColor: isDarkMode ? const Color(0xFF3C4043) : Colors.grey.shade100,
+        splashColor:
+            isDarkMode ? const Color(0xFF4C5054) : Colors.grey.shade200,
+        highlightColor:
+            isDarkMode ? const Color(0xFF4C5054) : Colors.grey.shade200,
+        child: Container(
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // App icon - use SystemIcon instead of default icon
+              // App icon with gradient background
               Container(
                 width: iconContainerSize,
                 height: iconContainerSize,
-                padding: const EdgeInsets.all(8.0),
                 decoration: BoxDecoration(
-                  color: isDarkMode 
-                      ? const Color(0xFF202124) // Match header bar color in dark mode
-                      : const Color(0xFFF1F3F4),
-                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors:
+                        isDarkMode
+                            ? [Color(0xFF3C4043), Color(0xFF202124)]
+                            : [Color(0xFFE8F0FE), Color(0xFFE3E8F4)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color:
+                          isDarkMode
+                              ? Colors.black.withAlpha((0.2 * 255).round())
+                              : Colors.grey.withAlpha((0.1 * 255).round()),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
                 ),
-                child: SystemIcon(
-                  app: app,
-                  size: actualIconSize,
-                  fallbackColor: isDarkMode ? const Color(0xFF8AB4F8) : const Color(0xFF1A73E8),
+                child: Center(
+                  child: SystemIcon(
+                    app: app,
+                    size: actualIconSize,
+                    fallbackColor:
+                        isDarkMode
+                            ? const Color(0xFF8AB4F8)
+                            : const Color(0xFF1A73E8),
+                  ),
                 ),
               ),
-              
+
               const SizedBox(height: 12),
-              
-              // App name
-              Text(
-                app.name,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 2,
-                style: TextStyle(
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.w500,
-                  color: isDarkMode ? Colors.white : Colors.black87,
+
+              // App name with improved typography
+              Flexible(
+                child: Text(
+                  app.name,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                  style: TextStyle(
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.1,
+                    color:
+                        isDarkMode
+                            ? Colors.grey.shade200
+                            : Colors.grey.shade800,
+                    height: 1.2,
+                  ),
                 ),
               ),
             ],
@@ -202,15 +283,15 @@ class _AppGridViewState extends State<AppGridView> with SingleTickerProviderStat
       ),
     );
   }
-  
+
   void _launchApp(AppItem app) async {
     final appService = Provider.of<AppService>(context, listen: false);
     final success = await appService.launchApp(app);
-    
+
     if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to launch ${app.name}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to launch ${app.name}')));
     }
   }
-} 
+}

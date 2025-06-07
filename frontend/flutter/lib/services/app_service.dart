@@ -9,7 +9,7 @@ class AppService extends ChangeNotifier {
   static const String _storageKey = 'file_explorer_apps_cache';
   bool _isLoading = false;
   DateTime? _lastRefresh;
-  
+
   // Map to store resolved icon paths
   final Map<String, String?> _resolvedIconPaths = {};
 
@@ -27,12 +27,14 @@ class AppService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final String? appsJson = prefs.getString(_storageKey);
-      final String? lastRefreshStr = prefs.getString('${_storageKey}_timestamp');
-      
+      final String? lastRefreshStr = prefs.getString(
+        '${_storageKey}_timestamp',
+      );
+
       if (lastRefreshStr != null) {
         _lastRefresh = DateTime.parse(lastRefreshStr);
       }
-      
+
       if (appsJson != null) {
         final List<dynamic> decoded = jsonDecode(appsJson);
         _apps = decoded.map((item) => AppItem.fromJson(item)).toList();
@@ -49,10 +51,13 @@ class AppService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final String appsJson = jsonEncode(_apps.map((a) => a.toJson()).toList());
       await prefs.setString(_storageKey, appsJson);
-      
+
       // Save timestamp
       _lastRefresh = DateTime.now();
-      await prefs.setString('${_storageKey}_timestamp', _lastRefresh!.toIso8601String());
+      await prefs.setString(
+        '${_storageKey}_timestamp',
+        _lastRefresh!.toIso8601String(),
+      );
     } catch (e) {
       debugPrint('Error saving apps: $e');
     }
@@ -60,136 +65,304 @@ class AppService extends ChangeNotifier {
 
   // Refresh the list of installed applications
   Future<void> refreshApps() async {
-    // Avoid refreshing too frequently
     if (_isLoading) return;
     if (_lastRefresh != null) {
       final difference = DateTime.now().difference(_lastRefresh!);
-      if (difference.inMinutes < 5) return; // Only refresh every 5 minutes
+      if (difference.inMinutes < 5) return;
     }
-    
-    setState(() {
-      _isLoading = true;
-    });
-    
+
+    _isLoading = true;
+    notifyListeners();
+
     try {
-      // For Linux, use the 'gtk-launch' command to get desktop entries
-      final List<AppItem> apps = await _getInstalledApps();
-      
-      _apps = apps;
+      List<AppItem> apps = [];
+
+      // Get traditional desktop entries
+      apps.addAll(await _getDesktopEntries());
+
+      // Get Flatpak applications
+      apps.addAll(await _getFlatpakApps());
+
+      // Get AppImage applications
+      apps.addAll(await _getAppImageApps());
+
+      // Get DNF installed applications
+      apps.addAll(await _getDnfApps());
+
+      // Remove duplicates based on app name
+      final uniqueApps = <String, AppItem>{};
+      for (final app in apps) {
+        if (!uniqueApps.containsKey(app.name)) {
+          uniqueApps[app.name] = app;
+        }
+      }
+
+      _apps =
+          uniqueApps.values.toList()..sort(
+            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+          );
+
       await _saveApps();
-      
-      setState(() {
-        _isLoading = false;
-      });
+
+      _isLoading = false;
       notifyListeners();
     } catch (e) {
       debugPrint('Error refreshing apps: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      _isLoading = false;
+      notifyListeners();
     }
   }
-  
-  // Get installed applications on Linux
-  Future<List<AppItem>> _getInstalledApps() async {
+
+  // Get traditional desktop entries
+  Future<List<AppItem>> _getDesktopEntries() async {
     List<AppItem> apps = [];
-    
-    try {
-      // Look for .desktop files in standard locations
-      final List<String> locations = [
-        '/usr/share/applications',
-        '/usr/local/share/applications',
-        '${Platform.environment['HOME']}/.local/share/applications',
-      ];
-      
-      for (final location in locations) {
-        final directory = Directory(location);
-        if (!directory.existsSync()) continue;
-        
-        await for (final file in directory.list()) {
-          if (file.path.endsWith('.desktop')) {
-            try {
-              final desktopFile = File(file.path);
-              final content = await desktopFile.readAsString();
-              
-              // Parse the .desktop file
-              String? name;
-              String? exec;
-              String? icon;
-              bool noDisplay = false;
-              
-              for (final line in content.split('\n')) {
-                if (line.startsWith('Name=')) {
-                  name = line.substring(5);
-                } else if (line.startsWith('Exec=')) {
-                  exec = line.substring(5);
-                  // Remove any arguments
-                  exec = exec.split(' ').first.replaceAll(RegExp(r'%[a-zA-Z]'), '');
-                } else if (line.startsWith('Icon=')) {
-                  icon = line.substring(5);
-                } else if (line.startsWith('NoDisplay=true')) {
-                  noDisplay = true;
-                }
+    final List<String> locations = [
+      '/usr/share/applications',
+      '/usr/local/share/applications',
+      '${Platform.environment['HOME']}/.local/share/applications',
+    ];
+
+    for (final location in locations) {
+      final directory = Directory(location);
+      if (!directory.existsSync()) continue;
+
+      await for (final file in directory.list()) {
+        if (file.path.endsWith('.desktop')) {
+          try {
+            final desktopFile = File(file.path);
+            final content = await desktopFile.readAsString();
+
+            String? name;
+            String? exec;
+            String? icon;
+            bool noDisplay = false;
+            bool isSystemApp = false;
+
+            for (final line in content.split('\n')) {
+              if (line.startsWith('Name=')) {
+                name = line.substring(5);
+              } else if (line.startsWith('Exec=')) {
+                exec = line.substring(5);
+                exec = exec
+                    .split(' ')
+                    .first
+                    .replaceAll(RegExp(r'%[a-zA-Z]'), '');
+              } else if (line.startsWith('Icon=')) {
+                icon = line.substring(5);
+              } else if (line.startsWith('NoDisplay=true')) {
+                noDisplay = true;
+              } else if (line.startsWith('Categories=')) {
+                isSystemApp =
+                    line.contains('System') || line.contains('Settings');
               }
-              
-              // Only add applications that should be displayed
-              if (name != null && exec != null && !noDisplay) {
-                apps.add(AppItem(
+            }
+
+            if (name != null && exec != null && !noDisplay) {
+              apps.add(
+                AppItem(
                   name: name,
                   path: exec,
                   icon: icon ?? 'application',
                   desktopFile: file.path,
-                ));
+                  isSystemApp: isSystemApp,
+                ),
+              );
+            }
+          } catch (e) {
+            debugPrint('Error parsing desktop file ${file.path}: $e');
+          }
+        }
+      }
+    }
+
+    return apps;
+  }
+
+  // Get Flatpak applications
+  Future<List<AppItem>> _getFlatpakApps() async {
+    List<AppItem> apps = [];
+    try {
+      final result = await Process.run('flatpak', [
+        'list',
+        '--app',
+        '--columns=name,application,version',
+      ]);
+      if (result.exitCode == 0) {
+        final lines = result.stdout.toString().split('\n');
+        for (final line in lines) {
+          if (line.trim().isEmpty) continue;
+          final parts = line.split('\t');
+          if (parts.length >= 2) {
+            final name = parts[0].trim();
+            final appId = parts[1].trim();
+            apps.add(
+              AppItem(
+                name: name,
+                path: 'flatpak run $appId',
+                icon: appId,
+                desktopFile: '/var/lib/flatpak/app/$appId',
+                isFlatpak: true,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error getting Flatpak apps: $e');
+    }
+    return apps;
+  }
+
+  // Get AppImage applications
+  Future<List<AppItem>> _getAppImageApps() async {
+    List<AppItem> apps = [];
+    final appImageLocations = [
+      '${Platform.environment['HOME']}/.local/bin',
+      '${Platform.environment['HOME']}/Applications',
+      '/opt',
+    ];
+
+    for (final location in appImageLocations) {
+      final directory = Directory(location);
+      if (!directory.existsSync()) continue;
+
+      try {
+        await for (final file in directory.list(recursive: true)) {
+          if (file.path.endsWith('.AppImage')) {
+            final name = file.path.split('/').last.replaceAll('.AppImage', '');
+            apps.add(
+              AppItem(
+                name: name,
+                path: file.path,
+                icon: 'application',
+                desktopFile: file.path,
+                isAppImage: true,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('Error scanning for AppImages in $location: $e');
+      }
+    }
+
+    return apps;
+  }
+
+  // Get DNF installed applications
+  Future<List<AppItem>> _getDnfApps() async {
+    List<AppItem> apps = [];
+    try {
+      final result = await Process.run('dnf', ['list', 'installed']);
+      if (result.exitCode == 0) {
+        final lines = result.stdout.toString().split('\n');
+        bool startParsing = false;
+
+        for (final line in lines) {
+          if (line.contains('Installed Packages')) {
+            startParsing = true;
+            continue;
+          }
+
+          if (startParsing && line.trim().isNotEmpty) {
+            final parts = line.split(RegExp(r'\s+'));
+            if (parts.length >= 2) {
+              final name = parts[0].split('.').first;
+              // Only add if it's likely to be an application
+              if (_isLikelyApplication(name)) {
+                apps.add(
+                  AppItem(
+                    name: _formatAppName(name),
+                    path: name,
+                    icon: 'application',
+                    desktopFile: '',
+                    isDnfPackage: true,
+                  ),
+                );
               }
-            } catch (e) {
-              debugPrint('Error parsing desktop file ${file.path}: $e');
             }
           }
         }
       }
-      
-      // Sort by name
-      apps.sort((a, b) => a.name.compareTo(b.name));
-      
     } catch (e) {
-      debugPrint('Error getting installed apps: $e');
+      debugPrint('Error getting DNF apps: $e');
     }
-    
     return apps;
   }
-  
+
+  // Helper method to determine if a package is likely an application
+  bool _isLikelyApplication(String packageName) {
+    final keywords = [
+      'app',
+      'gui',
+      'desktop',
+      'game',
+      'editor',
+      'browser',
+      'viewer',
+      'player',
+      'office',
+      'ide',
+      'tool',
+      'suite',
+    ];
+
+    return keywords.any(
+      (keyword) => packageName.toLowerCase().contains(keyword),
+    );
+  }
+
+  // Helper method to format package names into readable app names
+  String _formatAppName(String packageName) {
+    // Split by hyphens and underscores
+    final parts = packageName.split(RegExp(r'[-_]'));
+
+    // Capitalize each part
+    final formattedParts = parts.map((part) {
+      if (part.isEmpty) return '';
+      return part[0].toUpperCase() + part.substring(1).toLowerCase();
+    });
+
+    return formattedParts.join(' ');
+  }
+
   // Launch application by desktop file
   Future<bool> launchApp(AppItem app) async {
     try {
-      final result = await Process.run('gtk-launch', [app.desktopFile.split('/').last]);
+      final result = await Process.run('gtk-launch', [
+        app.desktopFile.split('/').last,
+      ]);
       return result.exitCode == 0;
     } catch (e) {
       debugPrint('Error launching app: $e');
       return false;
     }
   }
-  
+
   // Open a file with a specific application
   Future<bool> openFileWithApp(String filePath, String desktopFilePath) async {
     try {
       final desktopFileName = desktopFilePath.split('/').last;
-      final result = await Process.run('gtk-launch', [desktopFileName, filePath]);
+      final result = await Process.run('gtk-launch', [
+        desktopFileName,
+        filePath,
+      ]);
       return result.exitCode == 0;
     } catch (e) {
       debugPrint('Error opening file with app: $e');
       return false;
     }
   }
-  
+
   // Find the actual path for an icon by name
   Future<String?> getIconPath(String iconName) async {
     // Check if we've already resolved this icon
     if (_resolvedIconPaths.containsKey(iconName)) {
       return _resolvedIconPaths[iconName];
     }
-    
+
     String? resolvedPath;
-    
+
     try {
       // First check if the iconName is an absolute path and exists
       if (iconName.startsWith('/') && File(iconName).existsSync()) {
@@ -201,77 +374,115 @@ class AppService extends ChangeNotifier {
           '/usr/share/pixmaps',
           '/usr/local/share/icons',
           '${Platform.environment['HOME']}/.local/share/icons',
+          '/usr/share/icons/gnome',
+          '/usr/share/icons/hicolor',
         ];
-        
+
         // Common theme names and sizes to check
         final List<String> themes = [
+          'Adwaita', // Prioritize Adwaita theme
           'hicolor',
-          'Adwaita',
           'gnome',
+          'Papirus',
           'oxygen',
           'breeze',
-          'Papirus',
           'elementary',
           'ubuntu-mono-dark',
           'ubuntu-mono-light',
         ];
-        
+
         final List<String> sizes = [
-          '48x48',
-          '64x64',
-          '32x32',
+          'scalable', // Prioritize scalable icons
+          '256x256',
           '128x128',
-          'scalable',
           '96x96',
-          '72x72',
+          '64x64',
+          '48x48',
+          '32x32',
         ];
-        
+
         // Common file extensions
-        final List<String> extensions = [
-          '.png', 
-          '.svg', 
-          '.xpm',
-        ];
-        
-        // Check theme icon directories
-        for (final iconPath in iconPaths) {
-          // First check for direct matches in pixmaps
-          if (iconPath.contains('pixmaps')) {
-            for (final ext in extensions) {
-              final String testPath = '$iconPath/$iconName$ext';
-              if (File(testPath).existsSync()) {
-                resolvedPath = testPath;
-                break;
-              }
-            }
-          }
-          
-          // Check in theme directories
-          for (final theme in themes) {
-            for (final size in sizes) {
-              // For most themes, icons are in {theme}/{size}/{category}
-              // Common categories
-              for (final category in ['apps', 'actions', 'mimetypes', 'places', 'devices', 'emblems']) {
-                for (final ext in extensions) {
-                  final String testPath = '$iconPath/$theme/$size/$category/$iconName$ext';
-                  if (File(testPath).existsSync()) {
-                    resolvedPath = testPath;
-                    break;
+        final List<String> extensions = ['.svg', '.png', '.xpm'];
+
+        // Check for symbolic icons first
+        if (!iconName.endsWith('-symbolic')) {
+          final symbolicName = '$iconName-symbolic';
+          for (final iconPath in iconPaths) {
+            for (final theme in themes) {
+              for (final size in sizes) {
+                for (final category in [
+                  'apps',
+                  'actions',
+                  'mimetypes',
+                  'places',
+                  'devices',
+                  'emblems',
+                ]) {
+                  for (final ext in extensions) {
+                    final String testPath =
+                        '$iconPath/$theme/$size/$category/$symbolicName$ext';
+                    if (File(testPath).existsSync()) {
+                      resolvedPath = testPath;
+                      break;
+                    }
                   }
+                  if (resolvedPath != null) break;
                 }
-                
                 if (resolvedPath != null) break;
               }
-              
               if (resolvedPath != null) break;
             }
-            
             if (resolvedPath != null) break;
           }
-          
-          if (resolvedPath != null) break;
         }
-        
+
+        // If symbolic icon not found, try regular icon
+        if (resolvedPath == null) {
+          // First check for direct matches in pixmaps
+          for (final iconPath in iconPaths) {
+            if (iconPath.contains('pixmaps')) {
+              for (final ext in extensions) {
+                final String testPath = '$iconPath/$iconName$ext';
+                if (File(testPath).existsSync()) {
+                  resolvedPath = testPath;
+                  break;
+                }
+              }
+            }
+          }
+
+          // Then check theme directories
+          if (resolvedPath == null) {
+            for (final iconPath in iconPaths) {
+              for (final theme in themes) {
+                for (final size in sizes) {
+                  for (final category in [
+                    'apps',
+                    'actions',
+                    'mimetypes',
+                    'places',
+                    'devices',
+                    'emblems',
+                  ]) {
+                    for (final ext in extensions) {
+                      final String testPath =
+                          '$iconPath/$theme/$size/$category/$iconName$ext';
+                      if (File(testPath).existsSync()) {
+                        resolvedPath = testPath;
+                        break;
+                      }
+                    }
+                    if (resolvedPath != null) break;
+                  }
+                  if (resolvedPath != null) break;
+                }
+                if (resolvedPath != null) break;
+              }
+              if (resolvedPath != null) break;
+            }
+          }
+        }
+
         // If still not found, try to find a similar icon name
         if (resolvedPath == null) {
           for (final iconPath in iconPaths) {
@@ -282,7 +493,8 @@ class AppService extends ChangeNotifier {
                 for (final file in files) {
                   if (file is File) {
                     final fileName = file.path.split('/').last;
-                    if (fileName.startsWith(iconName) || fileName.contains(iconName)) {
+                    if (fileName.startsWith(iconName) ||
+                        fileName.contains(iconName)) {
                       resolvedPath = file.path;
                       break;
                     }
@@ -290,7 +502,6 @@ class AppService extends ChangeNotifier {
                 }
               }
             }
-            
             if (resolvedPath != null) break;
           }
         }
@@ -298,26 +509,26 @@ class AppService extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error resolving icon path for $iconName: $e');
     }
-    
+
     // Cache the result
     _resolvedIconPaths[iconName] = resolvedPath;
     return resolvedPath;
   }
-  
+
   // Check if an icon file exists and is readable
   Future<bool> hasValidIcon(AppItem app) async {
     final iconPath = await getIconPath(app.icon);
     if (iconPath == null) return false;
-    
+
     try {
       return File(iconPath).existsSync();
     } catch (e) {
       return false;
     }
   }
-  
+
   void setState(Function() fn) {
     fn();
     notifyListeners();
   }
-} 
+}

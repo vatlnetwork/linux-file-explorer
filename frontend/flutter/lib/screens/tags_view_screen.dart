@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
-import 'package:path/path.dart' as p;
-
 import '../models/tag.dart';
 import '../services/tags_service.dart';
-import '../widgets/file_list_tile.dart';
 import '../widgets/empty_state.dart';
+import 'package:path/path.dart' as p;
 
 class TagsViewScreen extends StatefulWidget {
   static const String routeName = '/tags';
@@ -17,400 +15,630 @@ class TagsViewScreen extends StatefulWidget {
   State<TagsViewScreen> createState() => _TagsViewScreenState();
 }
 
-class _TagsViewScreenState extends State<TagsViewScreen> {
+class _TagsViewScreenState extends State<TagsViewScreen>
+    with SingleTickerProviderStateMixin {
   String? _selectedTagId;
   String _searchQuery = '';
   bool _sortByUsage = false;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
 
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+    _animationController.forward();
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor =
+        isDarkMode ? const Color(0xFF1E1E1E) : const Color(0xFFF8F9FA);
+    final cardColor = isDarkMode ? const Color(0xFF2D2E31) : Colors.white;
+    final borderColor =
+        isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300;
+
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          color:
-              Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFF202124) // Dark mode background
-                  : const Color(0xFFE8F0FE), // Light blue background
+      backgroundColor: backgroundColor,
+      appBar: AppBar(
+        backgroundColor: isDarkMode ? const Color(0xFF2D2E31) : Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
         ),
-        child: Column(
-          children: [
-            AppBar(
-              title: const Text('Tags', style: TextStyle(fontSize: 16)),
-              toolbarHeight: 40,
-              elevation: 0,
-              backgroundColor:
-                  Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFF2D2E30)
-                      : const Color(0xFFF1F3F4),
-              foregroundColor:
-                  Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white
-                      : Colors.black87,
-              leadingWidth: 40,
-              titleSpacing: 0,
-              actions: [
-                IconButton(
-                  icon: Icon(
-                    _sortByUsage ? Icons.sort : Icons.sort_by_alpha,
-                    size: 20,
-                  ),
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                  onPressed: () {
-                    setState(() {
-                      _sortByUsage = !_sortByUsage;
-                    });
-                  },
-                  tooltip:
-                      _sortByUsage ? 'Sort by usage' : 'Sort alphabetically',
+        title: const Text(
+          'Tags',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(_sortByUsage ? Icons.sort : Icons.sort_by_alpha),
+            tooltip: _sortByUsage ? 'Sort by usage' : 'Sort alphabetically',
+            onPressed: () => setState(() => _sortByUsage = !_sortByUsage),
+          ),
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'Create new tag',
+            onPressed: () => _showCreateTagDialog(context),
+          ),
+        ],
+      ),
+      body: Consumer<TagsService>(
+        builder: (context, tagsService, _) {
+          var tags = tagsService.availableTags;
+          final tagUsageCounts = _getTagUsageCounts(tagsService, tags);
+
+          tags = _sortTags(tags, tagUsageCounts);
+          if (_searchQuery.isNotEmpty) {
+            tags = _filterTags(tags);
+          }
+
+          return Column(
+            children: [
+              _buildSearchBar(isDarkMode),
+              Expanded(
+                child: Row(
+                  children: [
+                    _buildTagsList(
+                      tags,
+                      tagUsageCounts,
+                      isDarkMode,
+                      cardColor,
+                      borderColor,
+                      tagsService,
+                    ),
+                    _buildTagContent(tagsService, isDarkMode, cardColor),
+                  ],
                 ),
-              ],
-            ),
-            Expanded(
-              child: Consumer<TagsService>(
-                builder: (context, tagsService, _) {
-                  var tags = tagsService.availableTags;
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 
-                  // Get tag usage counts for sorting and display
-                  final Map<String, int> tagUsageCounts = {};
-                  for (final tag in tags) {
-                    tagUsageCounts[tag.id] =
-                        tagsService.getFilesWithTag(tag.id).length;
-                  }
+  Widget _buildSearchBar(bool isDarkMode) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: TextField(
+        controller: _searchController,
+        style: TextStyle(
+          color: isDarkMode ? Colors.white : Colors.black87,
+          fontSize: 14,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Search tags...',
+          prefixIcon: const Icon(Icons.search, size: 20),
+          suffixIcon:
+              _searchQuery.isNotEmpty
+                  ? IconButton(
+                    icon: const Icon(Icons.clear, size: 20),
+                    onPressed: () {
+                      setState(() {
+                        _searchController.clear();
+                        _searchQuery = '';
+                      });
+                    },
+                  )
+                  : null,
+          filled: true,
+          fillColor:
+              isDarkMode ? const Color(0xFF2D2E31) : Colors.grey.shade100,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
+          ),
+        ),
+        onChanged: (value) => setState(() => _searchQuery = value),
+      ),
+    );
+  }
 
-                  // Sort tags
-                  if (_sortByUsage) {
-                    tags = List.from(tags)..sort(
-                      (a, b) => tagUsageCounts[b.id]!.compareTo(
-                        tagUsageCounts[a.id]!,
-                      ),
-                    );
-                  } else {
-                    tags = List.from(tags)..sort(
-                      (a, b) =>
-                          a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-                    );
-                  }
+  Widget _buildTagsList(
+    List<Tag> tags,
+    Map<String, int> tagUsageCounts,
+    bool isDarkMode,
+    Color cardColor,
+    Color borderColor,
+    TagsService tagsService,
+  ) {
+    if (tags.isEmpty) {
+      return SizedBox(
+        width: 280,
+        child: Center(
+          child: EmptyState(
+            icon: Icons.local_offer_outlined,
+            title: 'No Tags Found',
+            message:
+                _searchQuery.isNotEmpty
+                    ? 'No tags match your search'
+                    : 'Create your first tag to get started',
+          ),
+        ),
+      );
+    }
 
-                  // Filter tags if search is active
-                  if (_searchQuery.isNotEmpty) {
-                    tags =
-                        tags
-                            .where(
-                              (tag) => tag.name.toLowerCase().contains(
-                                _searchQuery.toLowerCase(),
-                              ),
-                            )
-                            .toList();
-                  }
+    return Container(
+      width: 280,
+      decoration: BoxDecoration(
+        border: Border(right: BorderSide(color: borderColor, width: 1)),
+      ),
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        itemCount: tags.length,
+        itemBuilder: (context, index) {
+          final tag = tags[index];
+          final count = tagUsageCounts[tag.id] ?? 0;
+          final isSelected = tag.id == _selectedTagId;
 
-                  return Row(
-                    children: [
-                      SizedBox(
-                        width: 300.0,
-                        child: Material(
-                          elevation: 1,
-                          color:
-                              Theme.of(context).brightness == Brightness.dark
-                                  ? const Color(
-                                    0xFF3C4043,
-                                  ) // Lighter gray for dark mode
-                                  : Colors.white, // White for light mode
-                          child:
-                              tags.isEmpty
-                                  ? Center(
-                                    child: Text(
-                                      'No available tags',
-                                      style: TextStyle(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface
-                                            .withValues(alpha: 153),
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                    ),
-                                  )
-                                  : ListView.builder(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 8.0,
-                                    ),
-                                    itemCount: tags.length,
-                                    itemBuilder: (context, index) {
-                                      final tag = tags[index];
-                                      final count = tagUsageCounts[tag.id] ?? 0;
-
-                                      return Column(
-                                        children: [
-                                          Container(
-                                            margin: const EdgeInsets.symmetric(
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color:
-                                                  Theme.of(
-                                                            context,
-                                                          ).brightness ==
-                                                          Brightness.dark
-                                                      ? const Color(0xFF3C4043)
-                                                      : const Color(0xFFF5F5F5),
-                                            ),
-                                            child: ExpansionTile(
-                                              leading: Icon(
-                                                Icons.local_offer,
-                                                color: tag.color,
-                                                size: 20,
-                                              ),
-                                              title: Text(
-                                                tag.name,
-                                                style: const TextStyle(
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                              subtitle: Text(
-                                                '$count ${count == 1 ? 'file' : 'files'}',
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                              trailing: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  IconButton(
-                                                    icon: const Icon(
-                                                      Icons.delete_outline,
-                                                      size: 18,
-                                                    ),
-                                                    padding: EdgeInsets.zero,
-                                                    constraints:
-                                                        const BoxConstraints(),
-                                                    onPressed:
-                                                        count > 0
-                                                            ? null
-                                                            : () =>
-                                                                _confirmDeleteTag(
-                                                                  context,
-                                                                  tagsService,
-                                                                  tag,
-                                                                ),
-                                                    tooltip:
-                                                        count > 0
-                                                            ? 'Cannot delete tag in use'
-                                                            : 'Delete tag',
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Icon(
-                                                    Icons.expand_more,
-                                                    size: 18,
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .onSurface
-                                                        .withValues(alpha: 128),
-                                                  ),
-                                                ],
-                                              ),
-                                              children: [
-                                                if (count > 0)
-                                                  ...tagsService
-                                                      .getFilesWithTag(tag.id)
-                                                      .map((path) {
-                                                        final file = File(path);
-                                                        if (!file
-                                                            .existsSync()) {
-                                                          return const SizedBox.shrink();
-                                                        }
-
-                                                        return ListTile(
-                                                          dense: true,
-                                                          contentPadding:
-                                                              const EdgeInsets.only(
-                                                                left: 56,
-                                                                right: 16,
-                                                              ),
-                                                          leading: Icon(
-                                                            Icons
-                                                                .insert_drive_file,
-                                                            size: 16,
-                                                            color:
-                                                                Theme.of(
-                                                                      context,
-                                                                    )
-                                                                    .colorScheme
-                                                                    .primary,
-                                                          ),
-                                                          title: Text(
-                                                            p.basename(path),
-                                                            style:
-                                                                const TextStyle(
-                                                                  fontSize: 12,
-                                                                ),
-                                                          ),
-                                                          subtitle: Text(
-                                                            p.dirname(path),
-                                                            style: TextStyle(
-                                                              fontSize: 10,
-                                                              color: Theme.of(
-                                                                    context,
-                                                                  )
-                                                                  .colorScheme
-                                                                  .onSurface
-                                                                  .withValues(
-                                                                    alpha: 128,
-                                                                  ),
-                                                            ),
-                                                          ),
-                                                          onTap: () {
-                                                            setState(() {
-                                                              _selectedTagId =
-                                                                  tag.id;
-                                                            });
-                                                          },
-                                                        );
-                                                      }),
-                                              ],
-                                              onExpansionChanged: (expanded) {
-                                                if (expanded) {
-                                                  setState(() {
-                                                    _selectedTagId = tag.id;
-                                                  });
-                                                }
-                                              },
-                                            ),
-                                          ),
-                                          if (index < tags.length - 1)
-                                            const Divider(height: 1),
-                                        ],
-                                      );
-                                    },
-                                  ),
+          return FadeTransition(
+            opacity: _fadeAnimation,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color:
+                    isSelected
+                        ? (isDarkMode
+                            ? const Color(0xFF3D4A5C)
+                            : const Color(0xFFE8F0FE))
+                        : cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color:
+                      isSelected
+                          ? (isDarkMode
+                              ? Colors.blue.shade700
+                              : Colors.blue.shade300)
+                          : borderColor,
+                  width: 1,
+                ),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => setState(() => _selectedTagId = tag.id),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: tag.color.withAlpha((0.2 * 255).round()),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.local_offer,
+                            color: tag.color,
+                            size: 18,
+                          ),
                         ),
-                      ),
-
-                      Expanded(
-                        flex: 2,
-                        child: Material(
-                          color:
-                              Theme.of(context).brightness == Brightness.dark
-                                  ? const Color(
-                                    0xFF202124,
-                                  ) // Dark mode background
-                                  : const Color(
-                                    0xFFE8F0FE,
-                                  ), // Light blue background
+                        const SizedBox(width: 12),
+                        Expanded(
                           child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  16.0,
-                                  16.0,
-                                  16.0,
-                                  8.0,
-                                ),
-                                child: Container(
-                                  constraints: const BoxConstraints(
-                                    maxHeight: 36,
-                                  ),
-                                  child: TextField(
-                                    controller: _searchController,
-                                    decoration: InputDecoration(
-                                      hintText: 'Search tags...',
-                                      hintStyle: const TextStyle(fontSize: 13),
-                                      prefixIcon: const Icon(
-                                        Icons.search,
-                                        size: 18,
-                                      ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(
-                                          8.0,
-                                        ),
-                                        borderSide: BorderSide(
-                                          width: 0.5,
-                                          color: Colors.grey.shade400,
-                                        ),
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(
-                                          8.0,
-                                        ),
-                                        borderSide: BorderSide(
-                                          width: 0.5,
-                                          color: Colors.grey.shade400,
-                                        ),
-                                      ),
-                                      contentPadding: EdgeInsets.zero,
-                                      isDense: true,
-                                      filled: true,
-                                      fillColor:
-                                          Theme.of(context).brightness ==
-                                                  Brightness.dark
-                                              ? Colors.grey[800]
-                                              : Colors.grey[200],
-                                    ),
-                                    style: const TextStyle(fontSize: 13),
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _searchQuery = value;
-                                        // Clear selection if the selected tag is filtered out
-                                        if (_selectedTagId != null &&
-                                            !tags.any(
-                                              (tag) => tag.id == _selectedTagId,
-                                            )) {
-                                          _selectedTagId = null;
-                                        }
-                                      });
-                                    },
-                                  ),
+                              Text(
+                                tag.name,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight:
+                                      isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                  color:
+                                      isDarkMode
+                                          ? Colors.white
+                                          : Colors.black87,
                                 ),
                               ),
-
-                              Expanded(
-                                child:
-                                    _selectedTagId == null
-                                        ? const Center(
-                                          child: Text(
-                                            'Select a tag to view associated files',
-                                          ),
-                                        )
-                                        : Column(
-                                          children: [
-                                            _buildTagInfoWidget(
-                                              tagsService,
-                                              _selectedTagId!,
-                                            ),
-                                            Expanded(
-                                              child: _buildFilesForTag(
-                                                tagsService,
-                                                _selectedTagId!,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '$count ${count == 1 ? 'file' : 'files'}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color:
+                                      isDarkMode
+                                          ? Colors.grey.shade400
+                                          : Colors.grey.shade600,
+                                ),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                    ],
-                  );
-                },
+                        IconButton(
+                          icon: const Icon(Icons.more_vert, size: 18),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed:
+                              () => _showTagOptions(context, tagsService, tag),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.small(
-        onPressed: () => _showCreateTagDialog(context),
-        tooltip: 'Create New Tag',
-        child: const Icon(Icons.add, size: 20),
+          );
+        },
       ),
     );
+  }
+
+  Widget _buildTagContent(
+    TagsService tagsService,
+    bool isDarkMode,
+    Color cardColor,
+  ) {
+    if (_selectedTagId == null) {
+      return Expanded(
+        child: Center(
+          child: EmptyState(
+            icon: Icons.folder_outlined,
+            title: 'No Tag Selected',
+            message: 'Select a tag to view tagged files',
+          ),
+        ),
+      );
+    }
+
+    final tag = tagsService.availableTags.firstWhere(
+      (t) => t.id == _selectedTagId,
+    );
+    final files = tagsService.getFilesWithTag(_selectedTagId!);
+
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: cardColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: tag.color.withAlpha((0.2 * 255).round()),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.local_offer, color: tag.color),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        tag.name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${files.length} ${files.length == 1 ? 'file' : 'files'} tagged',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color:
+                              isDarkMode
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Tagged Files',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: isDarkMode ? Colors.white : Colors.black87,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child:
+                files.isEmpty
+                    ? Center(
+                      child: EmptyState(
+                        icon: Icons.insert_drive_file_outlined,
+                        title: 'No Files Tagged',
+                        message: 'No files have been tagged with "${tag.name}"',
+                      ),
+                    )
+                    : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: files.length,
+                      itemBuilder: (context, index) {
+                        final path = files[index];
+                        final file = File(path);
+
+                        if (!file.existsSync()) {
+                          return const SizedBox.shrink();
+                        }
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            color: cardColor,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color:
+                                  isDarkMode
+                                      ? Colors.grey.shade800
+                                      : Colors.grey.shade200,
+                            ),
+                          ),
+                          child: ListTile(
+                            leading: _getFileIcon(file),
+                            title: Text(
+                              p.basename(file.path),
+                              style: TextStyle(
+                                color:
+                                    isDarkMode ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            subtitle: Text(
+                              p.dirname(file.path),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color:
+                                    isDarkMode
+                                        ? Colors.grey.shade400
+                                        : Colors.grey.shade600,
+                              ),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.folder_open_outlined),
+                                  tooltip: 'Open containing folder',
+                                  onPressed: () {
+                                    // Navigate to the folder containing this file
+                                    Navigator.pushNamed(
+                                      context,
+                                      '/',
+                                      arguments: {
+                                        'initialPath': p.dirname(file.path),
+                                      },
+                                    );
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.local_offer_outlined),
+                                  tooltip: 'Manage tags',
+                                  onPressed: () {
+                                    _showFileTagsDialog(
+                                      context,
+                                      file,
+                                      tagsService,
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                            onTap: () {
+                              // Open the file using default application
+                              Process.start('xdg-open', [file.path]);
+                            },
+                          ),
+                        );
+                      },
+                    ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _getFileIcon(File file) {
+    final ext = p.extension(file.path).toLowerCase();
+    IconData iconData;
+    Color iconColor;
+
+    if (FileSystemEntity.isDirectorySync(file.path)) {
+      iconData = Icons.folder;
+      iconColor = Colors.amber;
+    } else if ([
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.gif',
+      '.bmp',
+      '.webp',
+    ].contains(ext)) {
+      iconData = Icons.image;
+      iconColor = Colors.blue;
+    } else if (['.mp4', '.avi', '.mov', '.mkv', '.webm'].contains(ext)) {
+      iconData = Icons.movie;
+      iconColor = Colors.red;
+    } else if (['.mp3', '.wav', '.ogg', '.flac'].contains(ext)) {
+      iconData = Icons.music_note;
+      iconColor = Colors.purple;
+    } else if (['.pdf'].contains(ext)) {
+      iconData = Icons.picture_as_pdf;
+      iconColor = Colors.red;
+    } else if (['.doc', '.docx'].contains(ext)) {
+      iconData = Icons.description;
+      iconColor = Colors.blue;
+    } else if (['.xls', '.xlsx', '.csv'].contains(ext)) {
+      iconData = Icons.table_chart;
+      iconColor = Colors.green;
+    } else if (['.ppt', '.pptx'].contains(ext)) {
+      iconData = Icons.slideshow;
+      iconColor = Colors.orange;
+    } else if (['.zip', '.rar', '.tar', '.gz'].contains(ext)) {
+      iconData = Icons.archive;
+      iconColor = Colors.brown;
+    } else {
+      iconData = Icons.insert_drive_file;
+      iconColor = Colors.blueGrey;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: iconColor.withAlpha((0.2 * 255).round()),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(iconData, color: iconColor, size: 24),
+    );
+  }
+
+  Map<String, int> _getTagUsageCounts(TagsService tagsService, List<Tag> tags) {
+    final Map<String, int> counts = {};
+    for (final tag in tags) {
+      counts[tag.id] = tagsService.getFilesWithTag(tag.id).length;
+    }
+    return counts;
+  }
+
+  List<Tag> _sortTags(List<Tag> tags, Map<String, int> tagUsageCounts) {
+    final sortedTags = List<Tag>.from(tags);
+    if (_sortByUsage) {
+      sortedTags.sort(
+        (a, b) =>
+            (tagUsageCounts[b.id] ?? 0).compareTo(tagUsageCounts[a.id] ?? 0),
+      );
+    } else {
+      sortedTags.sort(
+        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      );
+    }
+    return sortedTags;
+  }
+
+  List<Tag> _filterTags(List<Tag> tags) {
+    return tags
+        .where(
+          (tag) => tag.name.toLowerCase().contains(_searchQuery.toLowerCase()),
+        )
+        .toList();
+  }
+
+  void _showTagOptions(BuildContext context, TagsService tagsService, Tag tag) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor:
+                isDarkMode ? const Color(0xFF2D2E31) : Colors.white,
+            surfaceTintColor: Colors.transparent,
+            title: Text('Tag Options: ${tag.name}'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.edit),
+                  title: const Text('Rename Tag'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showRenameTagDialog(context, tagsService, tag);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.red),
+                  title: const Text(
+                    'Delete Tag',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _confirmDeleteTag(context, tagsService, tag);
+                  },
+                ),
+              ],
+            ),
+          ),
+    );
+  }
+
+  void _showRenameTagDialog(
+    BuildContext context,
+    TagsService tagsService,
+    Tag tag,
+  ) {
+    final TextEditingController controller = TextEditingController(
+      text: tag.name,
+    );
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Rename Tag'),
+            content: TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                labelText: 'Tag Name',
+                border: OutlineInputBorder(),
+              ),
+              autofocus: true,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final newName = controller.text.trim();
+                  if (newName.isNotEmpty && newName != tag.name) {
+                    tagsService.renameTag(tag.id, newName);
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Text('Rename'),
+              ),
+            ],
+          ),
+    ).then((_) => controller.dispose());
   }
 
   void _confirmDeleteTag(
@@ -431,17 +659,15 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
                 onPressed: () => Navigator.pop(context),
                 child: const Text('Cancel'),
               ),
-              TextButton(
+              FilledButton(
                 onPressed: () {
                   tagsService.deleteTag(tag.id);
+                  if (_selectedTagId == tag.id) {
+                    setState(() => _selectedTagId = null);
+                  }
                   Navigator.pop(context);
-                  setState(() {
-                    if (_selectedTagId == tag.id) {
-                      _selectedTagId = null;
-                    }
-                  });
                 },
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
                 child: const Text('Delete'),
               ),
             ],
@@ -479,49 +705,49 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
                       runSpacing: 8,
                       children:
                           [
-                            Colors.blue,
-                            Colors.red,
-                            Colors.green,
-                            Colors.orange,
-                            Colors.purple,
-                            Colors.teal,
-                            Colors.pink,
-                            Colors.amber,
-                            Colors.cyan,
-                            Colors.indigo,
-                          ].map((color) {
-                            return GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  selectedColor = color;
-                                });
-                              },
-                              child: Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  color: color,
-                                  shape: BoxShape.circle,
-                                  border:
-                                      color == selectedColor
-                                          ? Border.all(
-                                            color: Colors.white,
-                                            width: 2,
-                                          )
-                                          : null,
-                                  boxShadow:
-                                      color == selectedColor
-                                          ? [
-                                            BoxShadow(
-                                              color: Colors.black38,
-                                              blurRadius: 2,
-                                            ),
-                                          ]
-                                          : null,
+                                Colors.blue,
+                                Colors.green,
+                                Colors.red,
+                                Colors.orange,
+                                Colors.purple,
+                                Colors.cyan,
+                                Colors.pink,
+                                Colors.amber,
+                                Colors.indigo,
+                                Colors.teal,
+                              ]
+                              .map(
+                                (color) => InkWell(
+                                  onTap:
+                                      () =>
+                                          setState(() => selectedColor = color),
+                                  child: Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: color,
+                                      shape: BoxShape.circle,
+                                      border:
+                                          color == selectedColor
+                                              ? Border.all(
+                                                color: Colors.white,
+                                                width: 2,
+                                              )
+                                              : null,
+                                      boxShadow:
+                                          color == selectedColor
+                                              ? [
+                                                BoxShadow(
+                                                  color: Colors.black38,
+                                                  blurRadius: 4,
+                                                ),
+                                              ]
+                                              : null,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            );
-                          }).toList(),
+                              )
+                              .toList(),
                     ),
                   ],
                 ),
@@ -530,7 +756,7 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
                     onPressed: () => Navigator.pop(context),
                     child: const Text('Cancel'),
                   ),
-                  ElevatedButton(
+                  FilledButton(
                     onPressed: () {
                       final name = nameController.text.trim();
                       if (name.isNotEmpty) {
@@ -551,128 +777,222 @@ class _TagsViewScreenState extends State<TagsViewScreen> {
     ).then((_) => nameController.dispose());
   }
 
-  Widget _buildFilesForTag(TagsService tagsService, String tagId) {
-    final files = tagsService.getFilesWithTag(tagId);
-    final tag = tagsService.availableTags.firstWhere((t) => t.id == tagId);
+  void _showFileTagsDialog(
+    BuildContext context,
+    File file,
+    TagsService tagsService,
+  ) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDarkMode ? const Color(0xFF2D2E31) : Colors.white;
 
-    if (files.isEmpty) {
-      return EmptyState(
-        icon: Icons.insert_drive_file_outlined,
-        title: 'No Files',
-        message: 'No files have been tagged with "${tag.name}"',
-      );
-    }
+    showDialog(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder: (context, setState) {
+              final fileTags = tagsService.getTagsForFile(file.path);
+              final availableTags = tagsService.availableTags;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 12.0),
-          child: Row(
-            children: [
-              Icon(Icons.local_offer, color: tag.color, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                'Files tagged with "${tag.name}" (${files.length})',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+              return AlertDialog(
+                backgroundColor: cardColor,
+                surfaceTintColor: Colors.transparent,
+                title: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Manage Tags',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: isDarkMode ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      file.path,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color:
+                            isDarkMode
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-            itemCount: files.length,
-            itemBuilder: (context, index) {
-              final path = files[index];
-              final file = File(path);
-
-              if (!file.existsSync()) {
-                // Skip files that no longer exist
-                return const SizedBox.shrink();
-              }
-
-              return Card(
-                elevation: 0,
-                margin: const EdgeInsets.symmetric(vertical: 4.0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4.0),
-                  side: BorderSide(
-                    color:
-                        Theme.of(context).brightness == Brightness.dark
-                            ? Colors.grey.shade800
-                            : Colors.transparent,
-                    width: 0.5,
+                content: SizedBox(
+                  width: 400,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (fileTags.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Text(
+                            'No tags assigned to this file',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontStyle: FontStyle.italic,
+                              color:
+                                  isDarkMode
+                                      ? Colors.grey.shade400
+                                      : Colors.grey.shade600,
+                            ),
+                          ),
+                        )
+                      else
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children:
+                              fileTags
+                                  .map(
+                                    (tag) => Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: tag.color.withAlpha(
+                                          (0.2 * 255).round(),
+                                        ),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: tag.color.withAlpha(
+                                            (0.3 * 255).round(),
+                                          ),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.local_offer,
+                                            color: tag.color,
+                                            size: 16,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            tag.name,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: tag.color,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          InkWell(
+                                            onTap: () async {
+                                              await tagsService
+                                                  .removeTagFromFile(
+                                                    file.path,
+                                                    tag.id,
+                                                  );
+                                              setState(() {});
+                                            },
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(4),
+                                              child: Icon(
+                                                Icons.close,
+                                                color: tag.color,
+                                                size: 16,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                        ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Add Tags',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: isDarkMode ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children:
+                            availableTags
+                                .where((tag) => !fileTags.contains(tag))
+                                .map(
+                                  (tag) => InkWell(
+                                    onTap: () async {
+                                      await tagsService.addTagToFile(
+                                        file.path,
+                                        tag,
+                                      );
+                                      setState(() {});
+                                    },
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            isDarkMode
+                                                ? const Color(0xFF3C4043)
+                                                : Colors.grey.shade100,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color:
+                                              isDarkMode
+                                                  ? Colors.grey.shade700
+                                                  : Colors.grey.shade300,
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.add,
+                                            color: tag.color,
+                                            size: 16,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            tag.name,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color:
+                                                  isDarkMode
+                                                      ? Colors.white
+                                                      : Colors.black87,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                      ),
+                    ],
                   ),
                 ),
-                child: FileListTile(
-                  file: file,
-                  onTap: () {
-                    // Navigate to the file in the explorer
-                    Navigator.pop(context, {
-                      'action': 'navigate',
-                      'path': path,
-                    });
-                  },
-                  onDoubleTap: () {
-                    // Open the file and return
-                    Navigator.pop(context, {'action': 'open', 'path': path});
-                  },
-                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Close'),
+                  ),
+                ],
               );
             },
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTagInfoWidget(TagsService tagsService, String tagId) {
-    final tag = tagsService.availableTags.firstWhere((t) => t.id == tagId);
-    final files = tagsService.getFilesWithTag(tagId);
-
-    return Container(
-      margin: const EdgeInsets.all(16.0),
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color:
-            Theme.of(context).brightness == Brightness.dark
-                ? const Color(0xFF3C4043)
-                : Colors.white,
-        borderRadius: BorderRadius.circular(12.0),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.local_offer, color: tag.color, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                tag.name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '${files.length} ${files.length == 1 ? 'file' : 'files'} tagged',
-            style: TextStyle(
-              fontSize: 14,
-              color:
-                  Theme.of(context).brightness == Brightness.dark
-                      ? Colors.grey.shade400
-                      : Colors.grey.shade600,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
