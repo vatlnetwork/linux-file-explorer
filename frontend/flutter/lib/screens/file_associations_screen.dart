@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:window_manager/window_manager.dart';
 import '../services/app_service.dart';
 import '../services/file_association_service.dart';
 import '../services/notification_service.dart';
 import '../models/app_item.dart';
 import '../widgets/system_icon.dart';
-import '../widgets/window_controls.dart';
 
 class FileAssociationsScreen extends StatefulWidget {
   const FileAssociationsScreen({super.key});
@@ -15,21 +13,8 @@ class FileAssociationsScreen extends StatefulWidget {
   State<FileAssociationsScreen> createState() => _FileAssociationsScreenState();
 }
 
-class _FileAssociationsScreenState extends State<FileAssociationsScreen>
-    with WindowListener {
+class _FileAssociationsScreenState extends State<FileAssociationsScreen> {
   bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    windowManager.addListener(this);
-  }
-
-  @override
-  void dispose() {
-    windowManager.removeListener(this);
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,19 +44,60 @@ class _FileAssociationsScreenState extends State<FileAssociationsScreen>
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          color:
-              isDarkMode
-                  ? const Color(
-                    0xFF2D2D2D,
-                  ) // Dark gray background for dark mode
-                  : const Color(
-                    0xFFE8F0FE,
-                  ), // Light blue background for light mode
+          color: isDarkMode ? const Color(0xFF2D2D2D) : const Color(0xFFE8F0FE),
         ),
         child: Column(
           children: [
             // Title bar
-            _buildTitleBar(context),
+            Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color:
+                    isDarkMode
+                        ? const Color(0xFF303030)
+                        : const Color(0xFFE8F0FE),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(26),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  // Title and icon
+                  Row(
+                    children: [
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.settings_applications,
+                        color: Colors.blue,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'File Type Associations',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  // Close button
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                    tooltip: 'Close',
+                    color: isDarkMode ? Colors.white70 : Colors.black54,
+                  ),
+                ],
+              ),
+            ),
 
             // Main content
             Expanded(
@@ -89,53 +115,6 @@ class _FileAssociationsScreenState extends State<FileAssociationsScreen>
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildTitleBar(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor =
-        isDarkMode ? const Color(0xFF303030) : const Color(0xFFBBDEFB);
-
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(26),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Title and icon
-          Row(
-            children: [
-              const SizedBox(width: 8),
-              Icon(Icons.settings_applications, color: Colors.blue, size: 24),
-              const SizedBox(width: 8),
-              Text(
-                'File Type Associations',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isDarkMode ? Colors.white : Colors.black87,
-                ),
-              ),
-            ],
-          ),
-
-          const Spacer(),
-
-          // Window controls
-          const WindowControls(),
-          const SizedBox(width: 8),
-        ],
       ),
     );
   }

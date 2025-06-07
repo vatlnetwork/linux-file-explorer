@@ -3061,11 +3061,15 @@ exit
                                 decoration: BoxDecoration(
                                   color:
                                       isDarkMode
-                                          ? const Color(
-                                            0xFF252525,
-                                          ) // Match bookmarks bar background
-                                          : Colors
-                                              .white, // Match bookmarks bar background
+                                          ? const Color(0xFF252525)
+                                          : Colors.white,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      offset: const Offset(1, 0),
+                                      blurRadius: 4,
+                                    ),
+                                  ],
                                 ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.start,
@@ -3316,13 +3320,7 @@ exit
       child: Container(
         height: 40,
         decoration: BoxDecoration(
-          color: isDarkMode ? const Color(0xFF2C2C2C) : const Color(0xFFF5F5F5),
-          border: Border(
-            bottom: BorderSide(
-              color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
-              width: 0.5,
-            ),
-          ),
+          color: isDarkMode ? const Color(0xFF202124) : const Color(0xFFE8F0FE),
         ),
         child: Row(
           children: [

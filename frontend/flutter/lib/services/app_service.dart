@@ -7,17 +7,131 @@ import '../models/app_item.dart';
 class AppService extends ChangeNotifier {
   List<AppItem> _apps = [];
   static const String _storageKey = 'file_explorer_apps_cache';
+  static const String _categoryStorageKey = 'file_explorer_app_categories';
   bool _isLoading = false;
   DateTime? _lastRefresh;
+  Map<String, String> _appCategories = {};
 
   // Map to store resolved icon paths
   final Map<String, String?> _resolvedIconPaths = {};
 
+  final Map<String, String> _iconMappings = {
+    'Add Water': 'water',
+    'Adobe Flash Player': 'flash',
+    'Audio Player': 'audio',
+    'Celluloid': 'celluloid',
+    'Discord': 'discord',
+    'Dolphin Emulator': 'dolphin-emu',
+    'Extension Manager': 'org.gnome.Extensions',
+    'Flatsweep': 'flatsweep',
+    'Gear Lever': 'gear-lever',
+    'GNOME Network Displays': 'org.gnome.NetworkDisplays',
+    'Google Chrome': 'google-chrome',
+    'Inspector': 'org.gnome.Info',
+    'JamesDSP': 'jamesdsp',
+    'Mission Center': 'org.gnome.SystemMonitor',
+    'Mousam': 'org.gnome.Weather',
+    'OnlyOffice': 'onlyoffice',
+    'Planify': 'com.github.alainm23.planify',
+    "Rosaline's Mupen GUI": 'mupen64plus',
+    'Sly': 'org.gnome.Photos',
+    'Visual Studio Code': 'code',
+    'Windows Installer': 'wine',
+    'Zen Browser': 'zen-browser',
+    // Add more mappings as needed
+  };
+
   List<AppItem> get apps => _apps;
   bool get isLoading => _isLoading;
 
+  // Get the category for an app
+  String getAppCategory(AppItem app) {
+    // First check if there's a custom category assignment
+    if (_appCategories.containsKey(app.desktopFile)) {
+      return _appCategories[app.desktopFile]!;
+    }
+
+    // Otherwise use the default category logic
+    final name = app.name.toLowerCase();
+    final path = app.path.toLowerCase();
+    final desktop = app.desktopFile.toLowerCase();
+
+    if (path.contains('system') || desktop.contains('system')) return 'System';
+    if (path.contains('internet') ||
+        name.contains('browser') ||
+        name.contains('web')) {
+      return 'Internet';
+    }
+    if (path.contains('dev') ||
+        name.contains('code') ||
+        name.contains('editor')) {
+      return 'Development';
+    }
+    if (path.contains('graphics') ||
+        name.contains('image') ||
+        name.contains('photo')) {
+      return 'Graphics';
+    }
+    if (name.contains('media') ||
+        name.contains('video') ||
+        name.contains('audio') ||
+        name.contains('music') ||
+        name.contains('player') ||
+        name.contains('sound') ||
+        name.contains('recorder')) {
+      return 'Media';
+    }
+    if (path.contains('office') ||
+        name.contains('doc') ||
+        name.contains('calc')) {
+      return 'Office';
+    }
+    if (path.contains('game') || desktop.contains('game')) return 'Games';
+    return 'Other';
+  }
+
+  // Set a custom category for an app
+  Future<void> setAppCategory(AppItem app, String category) async {
+    _appCategories[app.desktopFile] = category;
+    await _saveCategories();
+    notifyListeners();
+  }
+
+  // Load saved category assignments
+  Future<void> _loadCategories() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final categoriesJson = prefs.getString(_categoryStorageKey);
+      if (categoriesJson != null) {
+        final Map<String, dynamic> decoded = json.decode(categoriesJson);
+        _appCategories = Map<String, String>.from(decoded);
+      }
+    } catch (e) {
+      debugPrint('Error loading app categories: $e');
+    }
+  }
+
+  // Save category assignments
+  Future<void> _saveCategories() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_categoryStorageKey, json.encode(_appCategories));
+    } catch (e) {
+      debugPrint('Error saving app categories: $e');
+    }
+  }
+
+  // Reset an app's category to default
+  Future<void> resetAppCategory(AppItem app) async {
+    _appCategories.remove(app.desktopFile);
+    await _saveCategories();
+    notifyListeners();
+  }
+
   // Initialize the service and load apps
+  @override
   Future<void> init() async {
+    await _loadCategories();
     _loadCachedApps();
     await refreshApps();
   }
@@ -362,6 +476,20 @@ class AppService extends ChangeNotifier {
     }
 
     String? resolvedPath;
+
+    // Check if we have a mapping for this app
+    final appName =
+        _apps
+            .firstWhere(
+              (app) => app.icon == iconName,
+              orElse:
+                  () => AppItem(name: '', path: '', icon: '', desktopFile: ''),
+            )
+            .name;
+
+    if (_iconMappings.containsKey(appName)) {
+      iconName = _iconMappings[appName]!;
+    }
 
     try {
       // First check if the iconName is an absolute path and exists

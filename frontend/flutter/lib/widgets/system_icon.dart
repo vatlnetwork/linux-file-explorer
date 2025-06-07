@@ -92,7 +92,9 @@ class _SystemIconState extends State<SystemIcon> {
     }
 
     if (_hasError || _iconPath == null) {
-      return Icon(Icons.apps, size: widget.size, color: fallbackColor);
+      // Use Font Awesome icons as fallbacks based on app name
+      IconData fallbackIcon = _getFallbackIcon(widget.app.name.toLowerCase());
+      return Icon(fallbackIcon, size: widget.size, color: fallbackColor);
     }
 
     // Use Image widget to display icon from file
@@ -174,5 +176,103 @@ class _SystemIconState extends State<SystemIcon> {
       debugPrint('Error checking SVG color: $e');
       return false;
     }
+  }
+
+  IconData _getFallbackIcon(String appName) {
+    // Add specific mappings for known apps
+    if (appName.contains('water')) {
+      return Icons.water_drop;
+    }
+    if (appName.contains('flash')) {
+      return Icons.flash_on;
+    }
+    if (appName.contains('audio') || appName.contains('music')) {
+      return Icons.music_note;
+    }
+    if (appName.contains('video') || appName.contains('celluloid')) {
+      return Icons.movie;
+    }
+    if (appName.contains('dolphin') || appName.contains('emulator')) {
+      return Icons.sports_esports;
+    }
+    if (appName.contains('terminal')) {
+      return Icons.terminal;
+    }
+    if (appName.contains('settings')) {
+      return Icons.settings;
+    }
+    if (appName.contains('browser')) {
+      return Icons.public;
+    }
+    if (appName.contains('discord')) {
+      return Icons.chat;
+    }
+    if (appName.contains('zen')) {
+      return Icons.language;
+    }
+
+    // Development tools
+    if (appName.contains('visual studio') || appName.contains('code')) {
+      return Icons.code;
+    }
+
+    // System tools
+    if (appName.contains('windows') || appName.contains('wine')) {
+      return Icons.window;
+    }
+    if (appName.contains('extension')) {
+      return Icons.extension;
+    }
+    if (appName.contains('network')) {
+      return Icons.network_wifi;
+    }
+    if (appName.contains('inspector')) {
+      return Icons.info;
+    }
+    if (appName.contains('mission') || appName.contains('task manager')) {
+      return Icons.memory;
+    }
+    if (appName.contains('flatsweep')) {
+      return Icons.cleaning_services;
+    }
+    if (appName.contains('gear lever')) {
+      return Icons.system_update;
+    }
+
+    // Media and Office
+    if (appName.contains('sly') || appName.contains('photo')) {
+      return Icons.image;
+    }
+    if (appName.contains('onlyoffice')) {
+      return Icons.description;
+    }
+
+    // Games
+    if (appName.contains('mupen') || appName.contains('n64')) {
+      return Icons.gamepad;
+    }
+
+    // Productivity
+    if (appName.contains('planify')) {
+      return Icons.event;
+    }
+
+    // Weather and System Info
+    if (appName.contains('mousam') || appName.contains('weather')) {
+      return Icons.wb_sunny;
+    }
+
+    // Audio
+    if (appName.contains('jamesdsp') || appName.contains('equalizer')) {
+      return Icons.equalizer;
+    }
+
+    // Browsers
+    if (appName.contains('chrome')) {
+      return Icons.web;
+    }
+
+    // Default icon
+    return Icons.apps;
   }
 }

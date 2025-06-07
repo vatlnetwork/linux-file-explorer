@@ -21,6 +21,7 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
     'Internet',
     'Development',
     'Graphics',
+    'Media',
     'Office',
     'Games',
     'Other',
