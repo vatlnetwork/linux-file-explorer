@@ -3035,25 +3035,14 @@ exit
                           decoration: BoxDecoration(
                             color:
                                 isDarkMode
-                                    ? const Color(
-                                      0xFF252525,
-                                    ) // Match bookmarks bar background
-                                    : Colors
-                                        .white, // Match bookmarks bar background
-                            border: Border(
-                              right: BorderSide(
-                                color:
-                                    isDarkMode
-                                        ? Colors.grey.shade800
-                                        : Colors.grey.shade300,
-                                width: 0.5,
-                              ),
-                            ),
+                                    ? const Color(0xFF252525)
+                                    : Colors.white,
                           ),
                           child: Column(
                             children: [
                               // Window title in bookmarks sidebar
                               Container(
+                                width: 200,
                                 height: 40,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12.0,
@@ -3063,13 +3052,6 @@ exit
                                       isDarkMode
                                           ? const Color(0xFF252525)
                                           : Colors.white,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      offset: const Offset(1, 0),
-                                      blurRadius: 4,
-                                    ),
-                                  ],
                                 ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.start,

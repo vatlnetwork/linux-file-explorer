@@ -24,6 +24,7 @@ import 'services/drag_drop_service.dart';
 import 'services/tab_manager_service.dart';
 import 'services/file_service.dart';
 import 'widgets/settings/addons_settings.dart';
+import 'services/disk_usage_widget_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -138,6 +139,7 @@ void main() async {
           Provider(create: (_) => FileService()),
           ChangeNotifierProvider(create: (_) => ContextMenuSettings()),
           ChangeNotifierProvider(create: (_) => SettingsViewModeService()),
+          ChangeNotifierProvider(create: (_) => DiskUsageWidgetService()),
         ],
         child: const MyApp(),
       ),

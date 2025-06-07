@@ -5,6 +5,7 @@ import '../utils/color_extensions.dart' show ColorExtensions;
 import '../models/bookmark_item.dart';
 import '../models/file_item.dart';
 import '../services/bookmark_service.dart';
+import '../services/disk_usage_widget_service.dart';
 import 'disk_usage_widget.dart';
 import 'mounted_usb_drives_widget.dart';
 import 'apps_bookmark_button.dart';
@@ -66,20 +67,12 @@ class BookmarkSidebarState extends State<BookmarkSidebar>
       builder: (context, bookmarkService, child) {
         final bookmarks = bookmarkService.bookmarks;
         final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+        final diskUsageService = Provider.of<DiskUsageWidgetService>(context);
 
         return Container(
           width: 200,
           decoration: BoxDecoration(
-            color:
-                isDarkMode
-                    ? const Color(0xFF252525) // Dark mode background
-                    : Colors.white, // White background
-            border: Border(
-              right: BorderSide(
-                color: isDarkMode ? Colors.black : Colors.grey.shade300,
-                width: 1,
-              ),
-            ),
+            color: isDarkMode ? const Color(0xFF252525) : Colors.white,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -88,18 +81,13 @@ class BookmarkSidebarState extends State<BookmarkSidebar>
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
                 child: const AppsBookmarkButton(),
               ),
-              Divider(
-                height: 1,
-                thickness: 0.5,
-                indent: 8,
-                endIndent: 8,
-                color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
-              ),
+              const SizedBox(height: 4),
               Expanded(
                 child: _buildBookmarksList(context, bookmarks, bookmarkService),
               ),
               MountedUsbDrivesWidget(onNavigate: widget.onNavigate),
-              DiskUsageWidget(path: widget.currentPath),
+              if (diskUsageService.showDiskUsageWidget)
+                DiskUsageWidget(path: widget.currentPath),
             ],
           ),
         );
