@@ -51,9 +51,9 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
             Container(
               decoration: BoxDecoration(
                 color: headerColor.withValues(
-                  red: headerColor.red.toDouble(),
-                  green: headerColor.green.toDouble(),
-                  blue: headerColor.blue.toDouble(),
+                  red: (headerColor.r * 255.0).round().toDouble(),
+                  green: (headerColor.g * 255.0).round().toDouble(),
+                  blue: (headerColor.b * 255.0).round().toDouble(),
                   alpha: 230.0,
                 ), // 0.9 * 255 ≈ 230
                 border: Border(
