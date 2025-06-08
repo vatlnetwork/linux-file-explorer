@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:ui';
 import '../models/app_item.dart';
 import '../services/app_service.dart';
 import 'system_icon.dart';
@@ -87,8 +88,7 @@ class _AppGridViewState extends State<AppGridView>
 
     // Fixed item size for the grid
     const double fixedItemWidth = 120.0;
-    const double fixedItemHeight =
-        fixedItemWidth * 1.4; // Increased height ratio for better text fit
+    const double fixedItemHeight = fixedItemWidth * 1.4;
 
     // Filter the apps
     final filteredApps = _filterApps(appService.apps, appService);
@@ -134,75 +134,90 @@ class _AppGridViewState extends State<AppGridView>
             .floor()
             .clamp(1, 12);
 
-        return RefreshIndicator(
-          onRefresh: () => appService.refreshApps(),
-          child: Stack(
-            children: [
-              GridView.builder(
-                padding: const EdgeInsets.all(12.0),
-                controller: _scrollController,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  childAspectRatio: fixedItemWidth / fixedItemHeight,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                ),
-                itemCount: filteredApps.length,
-                itemBuilder: (context, index) {
-                  final app = filteredApps[index];
-                  final animation = _createStaggeredAnimation(
-                    index,
-                    filteredApps.length,
-                  );
-
-                  return AnimatedBuilder(
-                    animation: animation,
-                    builder: (context, child) {
-                      return Transform.scale(
-                        scale: animation.value,
-                        child: Opacity(opacity: animation.value, child: child),
-                      );
-                    },
-                    child: _buildDraggableAppItem(
-                      app,
-                      36.0,
-                      isDarkMode,
-                      appService,
-                    ),
-                  );
-                },
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(color: Colors.transparent),
               ),
-              if (_isDragging)
-                Container(
-                  color:
-                      isDarkMode
-                          ? Colors.black.withAlpha(179)
-                          : Colors.white.withAlpha(179),
-                  child: Center(
-                    child: Container(
-                      constraints: BoxConstraints(maxWidth: 600),
-                      child: GridView.count(
-                        shrinkWrap: true,
-                        crossAxisCount: 3,
-                        childAspectRatio: 2,
-                        mainAxisSpacing: 8,
-                        crossAxisSpacing: 8,
-                        padding: const EdgeInsets.all(24),
-                        children:
-                            _categories
-                                .map(
-                                  (category) => _buildCategoryDropTarget(
-                                    category,
-                                    isDarkMode,
-                                  ),
-                                )
-                                .toList(),
+            ),
+            RefreshIndicator(
+              onRefresh: () => appService.refreshApps(),
+              child: Stack(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: GridView.builder(
+                      controller: _scrollController,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        childAspectRatio: fixedItemWidth / fixedItemHeight,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
                       ),
+                      itemCount: filteredApps.length,
+                      itemBuilder: (context, index) {
+                        final app = filteredApps[index];
+                        final animation = _createStaggeredAnimation(
+                          index,
+                          filteredApps.length,
+                        );
+
+                        return AnimatedBuilder(
+                          animation: animation,
+                          builder: (context, child) {
+                            return Transform.scale(
+                              scale: animation.value,
+                              child: Opacity(
+                                opacity: animation.value,
+                                child: child,
+                              ),
+                            );
+                          },
+                          child: _buildDraggableAppItem(
+                            app,
+                            36.0,
+                            isDarkMode,
+                            appService,
+                          ),
+                        );
+                      },
                     ),
                   ),
-                ),
-            ],
-          ),
+                  if (_isDragging)
+                    Container(
+                      color:
+                          isDarkMode
+                              ? Colors.black.withAlpha(179)
+                              : Colors.white.withAlpha(179),
+                      child: Center(
+                        child: Container(
+                          constraints: const BoxConstraints(maxWidth: 600),
+                          child: GridView.count(
+                            shrinkWrap: true,
+                            crossAxisCount: 3,
+                            childAspectRatio: 2,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                            padding: const EdgeInsets.all(24),
+                            children:
+                                _categories
+                                    .map(
+                                      (category) => _buildCategoryDropTarget(
+                                        category,
+                                        isDarkMode,
+                                      ),
+                                    )
+                                    .toList(),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
         );
       },
     );
@@ -226,8 +241,58 @@ class _AppGridViewState extends State<AppGridView>
           width: 120,
           height: 120 * 1.4,
           decoration: BoxDecoration(
-            color: isDarkMode ? const Color(0xFF2C2C2C) : Colors.white,
+            color:
+                isDarkMode
+                    ? Colors.white.withValues(
+                      red: 255,
+                      green: 255,
+                      blue: 255,
+                      alpha: 25,
+                    )
+                    : Colors.white.withValues(
+                      red: 255,
+                      green: 255,
+                      blue: 255,
+                      alpha: 51,
+                    ),
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color:
+                  isDarkMode
+                      ? Colors.white.withValues(
+                        red: 255,
+                        green: 255,
+                        blue: 255,
+                        alpha: 51,
+                      )
+                      : Colors.black.withValues(
+                        red: 0,
+                        green: 0,
+                        blue: 0,
+                        alpha: 26,
+                      ),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color:
+                    isDarkMode
+                        ? Colors.black.withValues(
+                          red: 0,
+                          green: 0,
+                          blue: 0,
+                          alpha: 51,
+                        )
+                        : Colors.black.withValues(
+                          red: 0,
+                          green: 0,
+                          blue: 0,
+                          alpha: 25,
+                        ),
+                blurRadius: 8,
+                spreadRadius: -2,
+              ),
+            ],
           ),
           child: _buildAppItem(app, iconSize, isDarkMode),
         ),
@@ -250,85 +315,100 @@ class _AppGridViewState extends State<AppGridView>
       onSecondaryTapUp: (details) {
         _showContextMenu(details.globalPosition, app);
       },
-      child: Card(
-        elevation: 0,
-        color: isDarkMode ? const Color(0xFF2C2C2C) : Colors.white,
-        shape: RoundedRectangleBorder(
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDarkMode ? const Color(0xFF2C2C2C) : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
-            color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200,
+          border: Border.all(
+            color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
             width: 1,
           ),
+          boxShadow: [
+            BoxShadow(
+              color:
+                  isDarkMode
+                      ? Colors.black.withValues(
+                        red: 0,
+                        green: 0,
+                        blue: 0,
+                        alpha: 51,
+                      )
+                      : Colors.black.withValues(
+                        red: 0,
+                        green: 0,
+                        blue: 0,
+                        alpha: 25,
+                      ),
+              blurRadius: 8,
+              spreadRadius: -2,
+            ),
+          ],
         ),
         child: InkWell(
           onTap: () => _launchApp(app),
           borderRadius: BorderRadius.circular(12),
-          hoverColor:
-              isDarkMode ? const Color(0xFF3C4043) : Colors.grey.shade100,
-          splashColor:
-              isDarkMode ? const Color(0xFF4C5054) : Colors.grey.shade200,
-          highlightColor:
-              isDarkMode ? const Color(0xFF4C5054) : Colors.grey.shade200,
-          child: Container(
-            padding: const EdgeInsets.all(16.0),
+          hoverColor: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200,
+          splashColor: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          highlightColor: Colors.transparent,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
               children: [
-                // App icon with gradient background
+                const Spacer(),
                 Container(
                   width: iconContainerSize,
                   height: iconContainerSize,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors:
-                          isDarkMode
-                              ? [Color(0xFF3C4043), Color(0xFF202124)]
-                              : [Color(0xFFE8F0FE), Color(0xFFE3E8F4)],
-                    ),
+                    color:
+                        isDarkMode
+                            ? const Color(0xFF3C4043)
+                            : const Color(0xFFE8F0FE),
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
                         color:
                             isDarkMode
-                                ? Colors.black.withAlpha((0.2 * 255).round())
-                                : Colors.grey.withAlpha((0.1 * 255).round()),
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
+                                ? Colors.black.withValues(
+                                  red: 0,
+                                  green: 0,
+                                  blue: 0,
+                                  alpha: 51,
+                                )
+                                : Colors.black.withValues(
+                                  red: 0,
+                                  green: 0,
+                                  blue: 0,
+                                  alpha: 25,
+                                ),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
-                  child: Center(
-                    child: SystemIcon(
-                      app: app,
-                      size: actualIconSize,
-                      fallbackColor:
-                          isDarkMode
-                              ? const Color(0xFF8AB4F8)
-                              : const Color(0xFF1A73E8),
-                    ),
+                  padding: const EdgeInsets.all(10),
+                  child: SystemIcon(
+                    app: app,
+                    size: actualIconSize,
+                    fallbackColor:
+                        isDarkMode
+                            ? const Color(0xFF8AB4F8)
+                            : const Color(0xFF1A73E8),
                   ),
                 ),
                 const SizedBox(height: 12),
-                // App name with improved typography
-                Expanded(
-                  child: Text(
-                    app.name,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: fontSize,
-                      color:
-                          isDarkMode
-                              ? Colors.grey.shade300
-                              : Colors.grey.shade800,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                Text(
+                  app.name,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: fontSize,
+                    color: isDarkMode ? Colors.white : Colors.black87,
+                    fontWeight: FontWeight.w500,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
+                const Spacer(),
               ],
             ),
           ),
