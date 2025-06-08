@@ -145,7 +145,12 @@ class _AddonsSettingsContent extends StatelessWidget {
                               : Theme.of(context).primaryColor,
                       activeTrackColor:
                           isMacOS
-                              ? const Color(0xFF34C759).withOpacity(0.5)
+                              ? const Color(0xFF34C759).withValues(
+                                red: 52,
+                                green: 199,
+                                blue: 89,
+                                alpha: 0.5,
+                              )
                               : null,
                       inactiveThumbColor:
                           isDarkMode ? Colors.grey.shade400 : Colors.white,
@@ -179,7 +184,12 @@ class _AddonsSettingsContent extends StatelessWidget {
                               : Theme.of(context).primaryColor,
                       activeTrackColor:
                           isMacOS
-                              ? const Color(0xFF34C759).withOpacity(0.5)
+                              ? const Color(0xFF34C759).withValues(
+                                red: 52,
+                                green: 199,
+                                blue: 89,
+                                alpha: 0.5,
+                              )
                               : null,
                       inactiveThumbColor:
                           isDarkMode ? Colors.grey.shade400 : Colors.white,
@@ -274,7 +284,14 @@ class _AddonsSettingsContent extends StatelessWidget {
                   activeColor:
                       isMacOS ? Colors.white : Theme.of(context).primaryColor,
                   activeTrackColor:
-                      isMacOS ? const Color(0xFF34C759).withOpacity(0.5) : null,
+                      isMacOS
+                          ? const Color(0xFF34C759).withValues(
+                            red: 52,
+                            green: 199,
+                            blue: 89,
+                            alpha: 0.5,
+                          )
+                          : null,
                   inactiveThumbColor:
                       isDarkMode ? Colors.grey.shade400 : Colors.white,
                   inactiveTrackColor:

@@ -62,37 +62,6 @@ class _AppGridViewState extends State<AppGridView>
     );
   }
 
-  // Helper method to determine app category
-  String _getAppCategory(AppItem app) {
-    final name = app.name.toLowerCase();
-    final path = app.path.toLowerCase();
-    final desktop = app.desktopFile.toLowerCase();
-
-    if (path.contains('system') || desktop.contains('system')) return 'System';
-    if (path.contains('internet') ||
-        name.contains('browser') ||
-        name.contains('web')) {
-      return 'Internet';
-    }
-    if (path.contains('dev') ||
-        name.contains('code') ||
-        name.contains('editor')) {
-      return 'Development';
-    }
-    if (path.contains('graphics') ||
-        name.contains('image') ||
-        name.contains('photo')) {
-      return 'Graphics';
-    }
-    if (path.contains('office') ||
-        name.contains('doc') ||
-        name.contains('calc')) {
-      return 'Office';
-    }
-    if (path.contains('game') || desktop.contains('game')) return 'Games';
-    return 'Other';
-  }
-
   // Filter apps based on search query and category
   List<AppItem> _filterApps(List<AppItem> apps, AppService appService) {
     return apps.where((app) {
@@ -403,7 +372,7 @@ class _AppGridViewState extends State<AppGridView>
 
   Widget _buildCategoryDropTarget(String category, bool isDarkMode) {
     return DragTarget<AppItem>(
-      onWillAcceptWithDetails: (details) => details.data != null,
+      onWillAcceptWithDetails: (details) => true,
       onAcceptWithDetails: (details) {
         final appService = Provider.of<AppService>(context, listen: false);
         appService.setAppCategory(details.data, category);

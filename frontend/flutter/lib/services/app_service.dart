@@ -129,7 +129,6 @@ class AppService extends ChangeNotifier {
   }
 
   // Initialize the service and load apps
-  @override
   Future<void> init() async {
     await _loadCategories();
     _loadCachedApps();
