@@ -61,22 +61,33 @@ class _TagsViewScreenState extends State<TagsViewScreen>
       appBar: AppBar(
         backgroundColor: isDarkMode ? const Color(0xFF2D2E31) : Colors.white,
         elevation: 0,
+        toolbarHeight: 40,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, size: 18),
+          padding: const EdgeInsets.all(2),
+          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        titleSpacing: 0,
         title: const Text(
           'Tags',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         actions: [
           IconButton(
-            icon: Icon(_sortByUsage ? Icons.sort : Icons.sort_by_alpha),
+            icon: Icon(
+              _sortByUsage ? Icons.sort : Icons.sort_by_alpha,
+              size: 18,
+            ),
+            padding: const EdgeInsets.all(2),
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             tooltip: _sortByUsage ? 'Sort by usage' : 'Sort alphabetically',
             onPressed: () => setState(() => _sortByUsage = !_sortByUsage),
           ),
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.add, size: 18),
+            padding: const EdgeInsets.all(2),
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             tooltip: 'Create new tag',
             onPressed: () => _showCreateTagDialog(context),
           ),
@@ -94,7 +105,6 @@ class _TagsViewScreenState extends State<TagsViewScreen>
 
           return Column(
             children: [
-              _buildSearchBar(isDarkMode),
               Expanded(
                 child: Row(
                   children: [
@@ -106,7 +116,20 @@ class _TagsViewScreenState extends State<TagsViewScreen>
                       borderColor,
                       tagsService,
                     ),
-                    _buildTagContent(tagsService, isDarkMode, cardColor),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          _buildSearchBar(isDarkMode),
+                          Expanded(
+                            child: _buildTagContent(
+                              tagsService,
+                              isDarkMode,
+                              cardColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -119,20 +142,40 @@ class _TagsViewScreenState extends State<TagsViewScreen>
 
   Widget _buildSearchBar(bool isDarkMode) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200,
+          ),
+        ),
+      ),
       child: TextField(
         controller: _searchController,
         style: TextStyle(
           color: isDarkMode ? Colors.white : Colors.black87,
-          fontSize: 14,
+          fontSize: 12,
         ),
         decoration: InputDecoration(
           hintText: 'Search tags...',
-          prefixIcon: const Icon(Icons.search, size: 20),
+          hintStyle: TextStyle(
+            fontSize: 12,
+            color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+          ),
+          prefixIcon: const Icon(Icons.search, size: 16),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 32,
+            minHeight: 24,
+          ),
           suffixIcon:
               _searchQuery.isNotEmpty
                   ? IconButton(
-                    icon: const Icon(Icons.clear, size: 20),
+                    icon: const Icon(Icons.clear, size: 16),
+                    padding: const EdgeInsets.all(2),
+                    constraints: const BoxConstraints(
+                      minWidth: 24,
+                      minHeight: 24,
+                    ),
                     onPressed: () {
                       setState(() {
                         _searchController.clear();
@@ -145,13 +188,14 @@ class _TagsViewScreenState extends State<TagsViewScreen>
           fillColor:
               isDarkMode ? const Color(0xFF2D2E31) : Colors.grey.shade100,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(6),
             borderSide: BorderSide.none,
           ),
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 12,
+            horizontal: 8,
+            vertical: 6,
           ),
+          isDense: true,
         ),
         onChanged: (value) => setState(() => _searchQuery = value),
       ),
@@ -183,7 +227,7 @@ class _TagsViewScreenState extends State<TagsViewScreen>
     }
 
     return Container(
-      width: 280,
+      width: 160,
       decoration: BoxDecoration(
         border: Border(right: BorderSide(color: borderColor, width: 1)),
       ),
@@ -196,93 +240,70 @@ class _TagsViewScreenState extends State<TagsViewScreen>
           final count = tagUsageCounts[tag.id] ?? 0;
           final isSelected = tag.id == _selectedTagId;
 
-          return FadeTransition(
-            opacity: _fadeAnimation,
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color:
-                    isSelected
-                        ? (isDarkMode
-                            ? const Color(0xFF3D4A5C)
-                            : const Color(0xFFE8F0FE))
-                        : cardColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color:
-                      isSelected
-                          ? (isDarkMode
-                              ? Colors.blue.shade700
-                              : Colors.blue.shade300)
-                          : borderColor,
-                  width: 1,
-                ),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () => setState(() => _selectedTagId = tag.id),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: tag.color.withAlpha((0.2 * 255).round()),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.local_offer,
-                            color: tag.color,
-                            size: 18,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                tag.name,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight:
-                                      isSelected
-                                          ? FontWeight.w600
-                                          : FontWeight.normal,
-                                  color:
-                                      isDarkMode
-                                          ? Colors.white
-                                          : Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '$count ${count == 1 ? 'file' : 'files'}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color:
-                                      isDarkMode
-                                          ? Colors.grey.shade400
-                                          : Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.more_vert, size: 18),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed:
-                              () => _showTagOptions(context, tagsService, tag),
-                        ),
-                      ],
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => setState(() => _selectedTagId = tag.id),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: tag.color.withAlpha((0.2 * 255).round()),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(
+                        Icons.local_offer,
+                        color: tag.color,
+                        size: 14,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tag.name,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight:
+                                  isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                              color: isDarkMode ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          Text(
+                            '$count items',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color:
+                                  isDarkMode
+                                      ? Colors.grey[400]
+                                      : Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isSelected)
+                      IconButton(
+                        icon: const Icon(Icons.more_vert, size: 16),
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(
+                          minWidth: 24,
+                          minHeight: 24,
+                        ),
+                        onPressed:
+                            () => _showTagOptions(context, tagsService, tag),
+                        color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
+                      ),
+                  ],
                 ),
               ),
             ),

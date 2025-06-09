@@ -8,9 +8,21 @@ class AppService extends ChangeNotifier {
   List<AppItem> _apps = [];
   static const String _storageKey = 'file_explorer_apps_cache';
   static const String _categoryStorageKey = 'file_explorer_app_categories';
+  static const String _groupsStorageKey = 'file_explorer_app_groups';
+  static const String _customCategoriesKey = 'file_explorer_custom_categories';
+  static const String _sectionsStorageKey = 'file_explorer_sections';
+  static const String _sectionAppsStorageKey = 'file_explorer_section_apps';
   bool _isLoading = false;
   DateTime? _lastRefresh;
   Map<String, String> _appCategories = {};
+  Map<String, List<String>> _appGroups = {
+    'Favorites': [],
+    'Recently Added': [],
+    'Most Used': [],
+  };
+  List<String> _customCategories = [];
+  List<String> _customSections = [];
+  Map<String, List<String>> _sectionApps = {};
 
   // Map to store resolved icon paths
   final Map<String, String?> _resolvedIconPaths = {};
@@ -41,8 +53,24 @@ class AppService extends ChangeNotifier {
     // Add more mappings as needed
   };
 
+  // Default sections that cannot be removed
+  final List<String> _defaultSections = [
+    'Discover',
+    'Create',
+    'Work',
+    'Play',
+    'Develop',
+    'Categories',
+  ];
+
+  // Getters
   List<AppItem> get apps => _apps;
   bool get isLoading => _isLoading;
+  Map<String, List<String>> get appGroups => Map.unmodifiable(_appGroups);
+  List<String> get customCategories => List.unmodifiable(_customCategories);
+  List<String> get allSections => [..._defaultSections, ..._customSections];
+  List<String> get customSections => List.unmodifiable(_customSections);
+  bool isDefaultSection(String section) => _defaultSections.contains(section);
 
   // Get the category for an app
   String getAppCategory(AppItem app) {
@@ -128,9 +156,223 @@ class AppService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Initialize the service and load apps
+  // Get apps for a specific group
+  List<AppItem> getAppsInGroup(String groupName) {
+    final appPaths = _appGroups[groupName] ?? [];
+    return _apps.where((app) => appPaths.contains(app.path)).toList();
+  }
+
+  // Add an app to a group
+  Future<void> addAppToGroup(String groupName, AppItem app) async {
+    if (!_appGroups.containsKey(groupName)) {
+      _appGroups[groupName] = [];
+    }
+    if (!_appGroups[groupName]!.contains(app.path)) {
+      _appGroups[groupName]!.add(app.path);
+      await _saveGroups();
+      notifyListeners();
+    }
+  }
+
+  // Remove an app from a group
+  Future<void> removeAppFromGroup(String groupName, AppItem app) async {
+    if (_appGroups.containsKey(groupName)) {
+      _appGroups[groupName]!.remove(app.path);
+      await _saveGroups();
+      notifyListeners();
+    }
+  }
+
+  // Create a new group
+  Future<void> createGroup(String groupName) async {
+    if (!_appGroups.containsKey(groupName)) {
+      _appGroups[groupName] = [];
+      await _saveGroups();
+      notifyListeners();
+    }
+  }
+
+  // Delete a group
+  Future<void> deleteGroup(String groupName) async {
+    if (_appGroups.containsKey(groupName)) {
+      _appGroups.remove(groupName);
+      await _saveGroups();
+      notifyListeners();
+    }
+  }
+
+  // Load app groups from storage
+  Future<void> _loadGroups() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final groupsJson = prefs.getString(_groupsStorageKey);
+      if (groupsJson != null) {
+        final Map<String, dynamic> decoded = json.decode(groupsJson);
+        _appGroups = Map<String, List<String>>.from(
+          decoded.map(
+            (key, value) =>
+                MapEntry(key, (value as List<dynamic>).cast<String>()),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error loading app groups: $e');
+    }
+  }
+
+  // Save app groups to storage
+  Future<void> _saveGroups() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_groupsStorageKey, json.encode(_appGroups));
+    } catch (e) {
+      debugPrint('Error saving app groups: $e');
+    }
+  }
+
+  // Custom category management
+  Future<void> addCustomCategory(String category) async {
+    if (!_customCategories.contains(category)) {
+      _customCategories.add(category);
+      await _saveCustomCategories();
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteCustomCategory(String category) async {
+    if (_customCategories.contains(category)) {
+      _customCategories.remove(category);
+      // Remove this category from all apps
+      _appCategories.removeWhere((key, value) => value == category);
+      await _saveCustomCategories();
+      await _saveCategories();
+      notifyListeners();
+    }
+  }
+
+  Future<void> _loadCustomCategories() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final categoriesJson = prefs.getString(_customCategoriesKey);
+      if (categoriesJson != null) {
+        final List<dynamic> decoded = json.decode(categoriesJson);
+        _customCategories = decoded.cast<String>();
+      }
+    } catch (e) {
+      debugPrint('Error loading custom categories: $e');
+    }
+  }
+
+  Future<void> _saveCustomCategories() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _customCategoriesKey,
+        json.encode(_customCategories),
+      );
+    } catch (e) {
+      debugPrint('Error saving custom categories: $e');
+    }
+  }
+
+  // Section management
+  Future<void> addSection(String section) async {
+    if (!_customSections.contains(section) &&
+        !_defaultSections.contains(section)) {
+      _customSections.add(section);
+      _sectionApps[section] = [];
+      await _saveSections();
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteSection(String section) async {
+    if (_customSections.contains(section)) {
+      _customSections.remove(section);
+      _sectionApps.remove(section);
+      await _saveSections();
+      notifyListeners();
+    }
+  }
+
+  // App section assignment
+  Future<void> addAppToSection(String section, AppItem app) async {
+    if (!_sectionApps.containsKey(section)) {
+      _sectionApps[section] = [];
+    }
+    if (!_sectionApps[section]!.contains(app.path)) {
+      _sectionApps[section]!.add(app.path);
+      await _saveSectionApps();
+      notifyListeners();
+    }
+  }
+
+  Future<void> removeAppFromSection(String section, AppItem app) async {
+    if (_sectionApps.containsKey(section)) {
+      _sectionApps[section]!.remove(app.path);
+      await _saveSectionApps();
+      notifyListeners();
+    }
+  }
+
+  List<AppItem> getAppsInSection(String section) {
+    if (section == 'Discover') {
+      return _apps;
+    }
+
+    final appPaths = _sectionApps[section] ?? [];
+    return _apps.where((app) => appPaths.contains(app.path)).toList();
+  }
+
+  // Load and save sections
+  Future<void> _loadSections() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final sectionsJson = prefs.getString(_sectionsStorageKey);
+      final sectionAppsJson = prefs.getString(_sectionAppsStorageKey);
+
+      if (sectionsJson != null) {
+        final List<dynamic> decoded = json.decode(sectionsJson);
+        _customSections = decoded.cast<String>();
+      }
+
+      if (sectionAppsJson != null) {
+        final Map<String, dynamic> decoded = json.decode(sectionAppsJson);
+        _sectionApps = decoded.map(
+          (key, value) =>
+              MapEntry(key, (value as List<dynamic>).cast<String>()),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error loading sections: $e');
+    }
+  }
+
+  Future<void> _saveSections() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_sectionsStorageKey, json.encode(_customSections));
+      await _saveSectionApps();
+    } catch (e) {
+      debugPrint('Error saving sections: $e');
+    }
+  }
+
+  Future<void> _saveSectionApps() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_sectionAppsStorageKey, json.encode(_sectionApps));
+    } catch (e) {
+      debugPrint('Error saving section apps: $e');
+    }
+  }
+
+  // Initialize the service
   Future<void> init() async {
     await _loadCategories();
+    await _loadGroups();
+    await _loadCustomCategories();
+    await _loadSections();
     _loadCachedApps();
     await refreshApps();
   }
