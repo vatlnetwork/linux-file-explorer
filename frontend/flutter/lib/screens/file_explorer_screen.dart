@@ -1419,7 +1419,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   void _handleKeyEvent(KeyEvent event) {
     // Debug log for keyboard events
     _logger.info(
-      'Key event: ${event.logicalKey}, Alt pressed: ${HardwareKeyboard.instance.isAltPressed}',
+      'Key event: ${event.logicalKey}, Ctrl pressed: ${HardwareKeyboard.instance.isControlPressed}, Shift pressed: ${HardwareKeyboard.instance.isShiftPressed}',
     );
 
     // If we're searching, don't interfere with normal text input
@@ -1528,11 +1528,15 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
           HardwareKeyboard.instance.isControlPressed &&
           HardwareKeyboard.instance.isShiftPressed) {
         // Toggle tab bar visibility
+        _logger.info('Ctrl+Shift+H detected, toggling tab bar');
         final tabManager = Provider.of<TabManagerService>(
           context,
           listen: false,
         );
-        tabManager.setShowTabBar(!tabManager.showTabBar);
+        final currentVisibility = tabManager.showTabBar;
+        _logger.info('Current tab bar visibility: $currentVisibility');
+        tabManager.setShowTabBar(!currentVisibility);
+        _logger.info('New tab bar visibility: ${!currentVisibility}');
 
         // Show notification about the change
         if (mounted) {
