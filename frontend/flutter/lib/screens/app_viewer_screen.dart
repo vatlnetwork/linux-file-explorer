@@ -21,7 +21,6 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
   Widget build(BuildContext context) {
     final appService = Provider.of<AppService>(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final theme = Theme.of(context);
 
     return Scaffold(
       backgroundColor: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
@@ -224,7 +223,7 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
     final appService = Provider.of<AppService>(context, listen: false);
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         final controller = TextEditingController();
         return AlertDialog(
           title: const Text('New Section'),
@@ -235,7 +234,7 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel'),
             ),
             TextButton(
@@ -244,7 +243,7 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
                 if (name.isNotEmpty) {
                   await appService.addSection(name);
                 }
-                if (mounted) Navigator.pop(context);
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
               },
               child: const Text('Create'),
             ),
@@ -292,10 +291,10 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return DragTarget<AppItem>(
-      onWillAccept: (data) => data != null,
-      onAccept: (app) {
+      onWillAcceptWithDetails: (details) => true,
+      onAcceptWithDetails: (details) {
         final appService = Provider.of<AppService>(context, listen: false);
-        appService.addAppToSection(title, app);
+        appService.addAppToSection(title, details.data);
       },
       builder: (context, candidateData, rejectedData) {
         return Material(
@@ -392,7 +391,7 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
             const SizedBox(height: 16),
             Text(
               _searchQuery.isNotEmpty
-                  ? 'No applications found matching "${_searchQuery}"'
+                  ? 'No applications found matching "$_searchQuery"'
                   : 'No applications in this section',
               style: TextStyle(
                 fontSize: 16,
