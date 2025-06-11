@@ -103,7 +103,7 @@ void main() async {
     );
 
     final appService = AppService();
-    await appService.init().timeout(
+    await appService.initialize().timeout(
       const Duration(seconds: 5),
       onTimeout: () {
         appLogger.warning('App service initialization timed out');

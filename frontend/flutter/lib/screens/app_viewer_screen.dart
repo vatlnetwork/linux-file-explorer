@@ -17,6 +17,16 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
   String _selectedSection = 'Discover';
   bool _isEditingSections = false;
 
+  // Default sections that cannot be removed
+  final List<String> _defaultSections = [
+    'Discover',
+    'Create',
+    'Work',
+    'Play',
+    'Develop',
+    'Categories',
+  ];
+
   @override
   Widget build(BuildContext context) {
     final appService = Provider.of<AppService>(context);
@@ -224,32 +234,263 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
     showDialog(
       context: context,
       builder: (dialogContext) {
-        final controller = TextEditingController();
-        return AlertDialog(
-          title: const Text('New Section'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(hintText: 'Enter section name'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                final name = controller.text.trim();
-                if (name.isNotEmpty) {
-                  await appService.addSection(name);
-                }
-                if (dialogContext.mounted) Navigator.pop(dialogContext);
-              },
-              child: const Text('Create'),
-            ),
-          ],
+        final nameController = TextEditingController();
+        String selectedIcon = 'folder';
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('New Section'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Section Name',
+                      hintText: 'Enter section name',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Choose Icon',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 200,
+                    width: 300,
+                    child: SingleChildScrollView(
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildIconOption(
+                            selectedIcon,
+                            'folder',
+                            Icons.folder,
+                            () => setDialogState(() => selectedIcon = 'folder'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'work',
+                            Icons.work,
+                            () => setDialogState(() => selectedIcon = 'work'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'star',
+                            Icons.star,
+                            () => setDialogState(() => selectedIcon = 'star'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'favorite',
+                            Icons.favorite,
+                            () =>
+                                setDialogState(() => selectedIcon = 'favorite'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'home',
+                            Icons.home,
+                            () => setDialogState(() => selectedIcon = 'home'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'language',
+                            Icons.language,
+                            () =>
+                                setDialogState(() => selectedIcon = 'language'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'settings',
+                            Icons.settings,
+                            () =>
+                                setDialogState(() => selectedIcon = 'settings'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'code',
+                            Icons.code,
+                            () => setDialogState(() => selectedIcon = 'code'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'music_note',
+                            Icons.music_note,
+                            () => setDialogState(
+                              () => selectedIcon = 'music_note',
+                            ),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'movie',
+                            Icons.movie,
+                            () => setDialogState(() => selectedIcon = 'movie'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'photo',
+                            Icons.photo,
+                            () => setDialogState(() => selectedIcon = 'photo'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'book',
+                            Icons.book,
+                            () => setDialogState(() => selectedIcon = 'book'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'games',
+                            Icons.games,
+                            () => setDialogState(() => selectedIcon = 'games'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'brush',
+                            Icons.brush,
+                            () => setDialogState(() => selectedIcon = 'brush'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'school',
+                            Icons.school,
+                            () => setDialogState(() => selectedIcon = 'school'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'business',
+                            Icons.business,
+                            () =>
+                                setDialogState(() => selectedIcon = 'business'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'shopping_cart',
+                            Icons.shopping_cart,
+                            () => setDialogState(
+                              () => selectedIcon = 'shopping_cart',
+                            ),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'restaurant',
+                            Icons.restaurant,
+                            () => setDialogState(
+                              () => selectedIcon = 'restaurant',
+                            ),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'sports',
+                            Icons.sports,
+                            () => setDialogState(() => selectedIcon = 'sports'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'science',
+                            Icons.science,
+                            () =>
+                                setDialogState(() => selectedIcon = 'science'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'pets',
+                            Icons.pets,
+                            () => setDialogState(() => selectedIcon = 'pets'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'nature',
+                            Icons.nature,
+                            () => setDialogState(() => selectedIcon = 'nature'),
+                          ),
+                          _buildIconOption(
+                            selectedIcon,
+                            'fitness_center',
+                            Icons.fitness_center,
+                            () => setDialogState(
+                              () => selectedIcon = 'fitness_center',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    final name = nameController.text.trim();
+                    if (name.isNotEmpty) {
+                      await appService.addSection(name);
+                      await appService.setSectionIcon(name, selectedIcon);
+                      setState(() {});
+                    }
+                    if (dialogContext.mounted) Navigator.pop(dialogContext);
+                  },
+                  child: const Text('Create'),
+                ),
+              ],
+            );
+          },
         );
       },
+    );
+  }
+
+  Widget _buildIconOption(
+    String selectedIcon,
+    String iconName,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final isSelected = selectedIcon == iconName;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color:
+              isSelected
+                  ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                  : Colors.transparent,
+          border: Border.all(
+            color:
+                isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : isDarkMode
+                    ? Colors.grey[700]!
+                    : Colors.grey[300]!,
+            width: 1,
+          ),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color:
+              isSelected
+                  ? Theme.of(context).colorScheme.primary
+                  : isDarkMode
+                  ? Colors.grey[400]
+                  : Colors.grey[700],
+        ),
+      ),
     );
   }
 
@@ -262,11 +503,12 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
   }
 
   IconData _getSectionIcon(String section) {
+    // First check if it's a default section
     switch (section) {
       case 'Discover':
         return Icons.explore;
       case 'Create':
-        return Icons.create;
+        return Icons.brush;
       case 'Work':
         return Icons.work;
       case 'Play':
@@ -275,13 +517,73 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
         return Icons.code;
       case 'Categories':
         return Icons.category;
+      case 'Add New Section':
+        return Icons.add;
+    }
+
+    // Then check for icon name from AppService
+    final appService = Provider.of<AppService>(context, listen: false);
+    final iconName = appService.getSectionIcon(section);
+
+    // Map icon names to IconData
+    switch (iconName) {
+      case 'folder':
+        return Icons.folder;
+      case 'explore':
+        return Icons.explore;
+      case 'work':
+        return Icons.work;
+      case 'star':
+        return Icons.star;
+      case 'favorite':
+        return Icons.favorite;
+      case 'home':
+        return Icons.home;
+      case 'language':
+        return Icons.language;
+      case 'settings':
+        return Icons.settings;
+      case 'code':
+        return Icons.code;
+      case 'music_note':
+        return Icons.music_note;
+      case 'movie':
+        return Icons.movie;
+      case 'photo':
+        return Icons.photo;
+      case 'book':
+        return Icons.book;
+      case 'games':
+        return Icons.games;
+      case 'brush':
+        return Icons.brush;
+      case 'school':
+        return Icons.school;
+      case 'business':
+        return Icons.business;
+      case 'shopping_cart':
+        return Icons.shopping_cart;
+      case 'restaurant':
+        return Icons.restaurant;
+      case 'sports':
+        return Icons.sports;
+      case 'science':
+        return Icons.science;
+      case 'pets':
+        return Icons.pets;
+      case 'nature':
+        return Icons.nature;
+      case 'fitness_center':
+        return Icons.fitness_center;
+      case 'category':
+        return Icons.category;
       default:
         return Icons.folder;
     }
   }
 
   Widget _buildSidebarItem(
-    String title, {
+    String section, {
     IconData? icon,
     bool isSelected = false,
     bool showDeleteButton = false,
@@ -294,13 +596,13 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
       onWillAcceptWithDetails: (details) => true,
       onAcceptWithDetails: (details) {
         final appService = Provider.of<AppService>(context, listen: false);
-        appService.addAppToSection(title, details.data);
+        appService.addAppToSection(section, details.data);
       },
       builder: (context, candidateData, rejectedData) {
         return Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: onTap ?? () => setState(() => _selectedSection = title),
+            onTap: onTap ?? () => setState(() => _selectedSection = section),
             child: Container(
               height: 28,
               margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -320,24 +622,23 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
               ),
               child: Row(
                 children: [
-                  if (icon != null) ...[
-                    Icon(
-                      icon,
-                      size: 14,
-                      color:
-                          isSelected
-                              ? isDarkMode
-                                  ? Colors.white
-                                  : Colors.black
-                              : isDarkMode
-                              ? Colors.grey[400]
-                              : Colors.grey[700],
-                    ),
-                    const SizedBox(width: 6),
-                  ],
+                  Icon(
+                    icon ??
+                        Icons.folder, // Always show an icon, default to folder
+                    size: 14,
+                    color:
+                        isSelected
+                            ? isDarkMode
+                                ? Colors.white
+                                : Colors.black
+                            : isDarkMode
+                            ? Colors.grey[400]
+                            : Colors.grey[700],
+                  ),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      title,
+                      section,
                       style: TextStyle(
                         fontSize: 12,
                         color:

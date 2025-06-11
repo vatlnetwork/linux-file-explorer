@@ -9,9 +9,10 @@ class AppService extends ChangeNotifier {
   static const String _storageKey = 'file_explorer_apps_cache';
   static const String _categoryStorageKey = 'file_explorer_app_categories';
   static const String _groupsStorageKey = 'file_explorer_app_groups';
-  static const String _customCategoriesKey = 'file_explorer_custom_categories';
-  static const String _sectionsStorageKey = 'file_explorer_sections';
-  static const String _sectionAppsStorageKey = 'file_explorer_section_apps';
+  static const String _customCategoriesKey = 'custom_categories';
+  static const String _sectionsStorageKey = 'custom_sections';
+  static const String _sectionAppsStorageKey = 'section_apps';
+  static const String _sectionIconsStorageKey = 'section_icons';
   bool _isLoading = false;
   DateTime? _lastRefresh;
   Map<String, String> _appCategories = {};
@@ -62,6 +63,17 @@ class AppService extends ChangeNotifier {
     'Develop',
     'Categories',
   ];
+
+  // Map to store section icons with default icons for default sections
+  final Map<String, String> _sectionIcons = {
+    'Discover': 'explore',
+    'Create': 'brush',
+    'Work': 'work',
+    'Play': 'games',
+    'Develop': 'code',
+    'Categories': 'category',
+    'Add New Section': 'add',
+  };
 
   // Getters
   List<AppItem> get apps => _apps;
@@ -367,14 +379,96 @@ class AppService extends ChangeNotifier {
     }
   }
 
+  // Get icon name for a section
+  String getSectionIcon(String section) {
+    // First check if it's a default section
+    switch (section) {
+      case 'Discover':
+        return 'explore';
+      case 'Create':
+        return 'brush';
+      case 'Work':
+        return 'work';
+      case 'Play':
+        return 'games';
+      case 'Develop':
+        return 'code';
+      case 'Categories':
+        return 'category';
+      case 'Add New Section':
+        return 'add';
+      default:
+        return _sectionIcons[section] ?? 'folder';
+    }
+  }
+
+  // Set icon for a section
+  Future<void> setSectionIcon(String section, String iconName) async {
+    _sectionIcons[section] = iconName;
+    await _saveSectionIcons();
+    notifyListeners();
+  }
+
+  // Load and save section icons
+  Future<void> _loadSectionIcons() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final iconsJson = prefs.getString(_sectionIconsStorageKey);
+      if (iconsJson != null) {
+        final Map<String, dynamic> decoded = json.decode(iconsJson);
+        _sectionIcons.addAll(
+          decoded.map((key, value) => MapEntry(key, value as String)),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error loading section icons: $e');
+    }
+  }
+
+  Future<void> _saveSectionIcons() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _sectionIconsStorageKey,
+        json.encode(_sectionIcons),
+      );
+    } catch (e) {
+      debugPrint('Error saving section icons: $e');
+    }
+  }
+
   // Initialize the service
-  Future<void> init() async {
-    await _loadCategories();
-    await _loadGroups();
-    await _loadCustomCategories();
-    await _loadSections();
-    _loadCachedApps();
-    await refreshApps();
+  Future<void> initialize() async {
+    if (_isLoading) return;
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      debugPrint('Initializing AppService...');
+      await _loadCachedApps(); // First try to load cached apps
+      await _loadSections();
+      await _loadSectionIcons();
+      await _loadCustomCategories();
+      await _loadCategories();
+      await refreshApps(); // Then refresh the apps list
+
+      // Ensure default section icons are always set
+      _sectionIcons.addAll({
+        'Discover': 'explore',
+        'Create': 'brush',
+        'Work': 'work',
+        'Play': 'games',
+        'Develop': 'code',
+        'Categories': 'category',
+        'Add New Section': 'add',
+      });
+      await _saveSectionIcons();
+    } catch (e) {
+      debugPrint('Error initializing AppService: $e');
+    }
+
+    _isLoading = false;
+    notifyListeners();
   }
 
   // Load cached apps from shared preferences
@@ -420,10 +514,20 @@ class AppService extends ChangeNotifier {
 
   // Refresh the list of installed applications
   Future<void> refreshApps() async {
-    if (_isLoading) return;
+    debugPrint('Starting app refresh...');
+    if (_isLoading) {
+      debugPrint('Skipping refresh - already loading');
+      return;
+    }
+
     if (_lastRefresh != null) {
       final difference = DateTime.now().difference(_lastRefresh!);
-      if (difference.inMinutes < 5) return;
+      if (difference.inMinutes < 5) {
+        debugPrint(
+          'Skipping refresh - last refresh was less than 5 minutes ago',
+        );
+        return;
+      }
     }
 
     _isLoading = true;
@@ -433,16 +537,28 @@ class AppService extends ChangeNotifier {
       List<AppItem> apps = [];
 
       // Get traditional desktop entries
-      apps.addAll(await _getDesktopEntries());
+      debugPrint('Loading desktop entries...');
+      final desktopApps = await _getDesktopEntries();
+      debugPrint('Found ${desktopApps.length} desktop applications');
+      apps.addAll(desktopApps);
 
       // Get Flatpak applications
-      apps.addAll(await _getFlatpakApps());
+      debugPrint('Loading Flatpak applications...');
+      final flatpakApps = await _getFlatpakApps();
+      debugPrint('Found ${flatpakApps.length} Flatpak applications');
+      apps.addAll(flatpakApps);
 
       // Get AppImage applications
-      apps.addAll(await _getAppImageApps());
+      debugPrint('Loading AppImage applications...');
+      final appImageApps = await _getAppImageApps();
+      debugPrint('Found ${appImageApps.length} AppImage applications');
+      apps.addAll(appImageApps);
 
       // Get DNF installed applications
-      apps.addAll(await _getDnfApps());
+      debugPrint('Loading DNF applications...');
+      final dnfApps = await _getDnfApps();
+      debugPrint('Found ${dnfApps.length} DNF applications');
+      apps.addAll(dnfApps);
 
       // Remove duplicates based on app name
       final uniqueApps = <String, AppItem>{};
@@ -457,6 +573,7 @@ class AppService extends ChangeNotifier {
             (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
           );
 
+      debugPrint('Total unique applications found: ${_apps.length}');
       await _saveApps();
 
       _isLoading = false;
@@ -477,59 +594,94 @@ class AppService extends ChangeNotifier {
       '${Platform.environment['HOME']}/.local/share/applications',
     ];
 
+    debugPrint('Scanning for desktop entries in: $locations');
+
     for (final location in locations) {
       final directory = Directory(location);
-      if (!directory.existsSync()) continue;
+      if (!directory.existsSync()) {
+        debugPrint('Directory does not exist: $location');
+        continue;
+      }
 
-      await for (final file in directory.list()) {
-        if (file.path.endsWith('.desktop')) {
-          try {
-            final desktopFile = File(file.path);
-            final content = await desktopFile.readAsString();
+      debugPrint('Scanning directory: $location');
+      try {
+        final files = await directory.list().toList();
+        debugPrint('Found ${files.length} files in $location');
 
-            String? name;
-            String? exec;
-            String? icon;
-            bool noDisplay = false;
-            bool isSystemApp = false;
+        for (final file in files) {
+          if (file.path.endsWith('.desktop')) {
+            try {
+              final desktopFile = File(file.path);
+              final content = await desktopFile.readAsString();
 
-            for (final line in content.split('\n')) {
-              if (line.startsWith('Name=')) {
-                name = line.substring(5);
-              } else if (line.startsWith('Exec=')) {
-                exec = line.substring(5);
-                exec = exec
-                    .split(' ')
-                    .first
-                    .replaceAll(RegExp(r'%[a-zA-Z]'), '');
-              } else if (line.startsWith('Icon=')) {
-                icon = line.substring(5);
-              } else if (line.startsWith('NoDisplay=true')) {
-                noDisplay = true;
-              } else if (line.startsWith('Categories=')) {
-                isSystemApp =
-                    line.contains('System') || line.contains('Settings');
+              String? name;
+              String? exec;
+              String? icon;
+              bool noDisplay = false;
+              bool isSystemApp = false;
+              bool hidden = false;
+              String type = '';
+
+              for (final line in content.split('\n')) {
+                if (line.startsWith('Name=')) {
+                  name = line.substring(5).trim();
+                } else if (line.startsWith('Exec=')) {
+                  exec = line.substring(5).trim();
+                  // Keep the full command but clean up the field codes
+                  exec =
+                      exec.replaceAll(RegExp(r'%[fFuUdDnNickvm]'), '').trim();
+                } else if (line.startsWith('Icon=')) {
+                  icon = line.substring(5).trim();
+                } else if (line.startsWith('NoDisplay=')) {
+                  noDisplay = line.substring(10).trim().toLowerCase() == 'true';
+                } else if (line.startsWith('Hidden=')) {
+                  hidden = line.substring(7).trim().toLowerCase() == 'true';
+                } else if (line.startsWith('Type=')) {
+                  type = line.substring(5).trim();
+                } else if (line.startsWith('Categories=')) {
+                  isSystemApp =
+                      line.contains('System') || line.contains('Settings');
+                }
               }
-            }
 
-            if (name != null && exec != null && !noDisplay) {
-              apps.add(
-                AppItem(
-                  name: name,
-                  path: exec,
-                  icon: icon ?? 'application',
-                  desktopFile: file.path,
-                  isSystemApp: isSystemApp,
-                ),
-              );
+              // Only add applications that:
+              // 1. Have a name and exec command
+              // 2. Are not explicitly hidden
+              // 3. Are of type 'Application' or empty type (for backward compatibility)
+              // 4. Have NoDisplay=false
+              if (name != null &&
+                  exec != null &&
+                  !hidden &&
+                  (type.isEmpty || type.toLowerCase() == 'application') &&
+                  !noDisplay) {
+                debugPrint(
+                  'Adding application: $name (exec: $exec, icon: $icon)',
+                );
+                apps.add(
+                  AppItem(
+                    name: name,
+                    path: exec,
+                    icon: icon ?? 'application',
+                    desktopFile: file.path,
+                    isSystemApp: isSystemApp,
+                  ),
+                );
+              } else {
+                debugPrint(
+                  'Skipping application: $name (hidden: $hidden, noDisplay: $noDisplay, type: $type)',
+                );
+              }
+            } catch (e) {
+              debugPrint('Error parsing desktop file ${file.path}: $e');
             }
-          } catch (e) {
-            debugPrint('Error parsing desktop file ${file.path}: $e');
           }
         }
+      } catch (e) {
+        debugPrint('Error scanning directory $location: $e');
       }
     }
 
+    debugPrint('Found ${apps.length} desktop applications');
     return apps;
   }
 
@@ -681,15 +833,27 @@ class AppService extends ChangeNotifier {
     return formattedParts.join(' ');
   }
 
-  // Launch application by desktop file
+  // Launch application
   Future<bool> launchApp(AppItem app) async {
     try {
-      final result = await Process.run('gtk-launch', [
-        app.desktopFile.split('/').last,
-      ]);
-      return result.exitCode == 0;
+      if (app.isAppImage) {
+        // Launch AppImage directly
+        final result = await Process.run(app.path, []);
+        return result.exitCode == 0;
+      } else if (app.isFlatpak) {
+        // Launch Flatpak app
+        final parts = app.path.split(' ');
+        final result = await Process.run(parts[0], parts.sublist(1));
+        return result.exitCode == 0;
+      } else {
+        // For regular applications, use the exec command directly
+        final parts = app.path.split(' ');
+        final result = await Process.run(parts[0], parts.sublist(1));
+        debugPrint('Launching app: ${app.name} with command: ${app.path}');
+        return result.exitCode == 0;
+      }
     } catch (e) {
-      debugPrint('Error launching app: $e');
+      debugPrint('Error launching app ${app.name}: $e');
       return false;
     }
   }
