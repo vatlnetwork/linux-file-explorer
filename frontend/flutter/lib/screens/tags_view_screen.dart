@@ -46,13 +46,12 @@ class _TagsViewScreenState extends State<TagsViewScreen>
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor =
-        isDarkMode ? const Color(0xFF1E1E1E) : const Color(0xFFF8F9FA);
+    final backgroundColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
     final cardColor = isDarkMode ? const Color(0xFF2D2E31) : Colors.white;
     final borderColor =
         isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300;
     final sidebarColor =
-        isDarkMode ? const Color(0xFF252525) : Colors.grey[100]!;
+        isDarkMode ? const Color(0xFF252525) : const Color(0xFFF0F0F0);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -97,7 +96,7 @@ class _TagsViewScreenState extends State<TagsViewScreen>
                 // Title bar in main content
                 Container(
                   height: 40,
-                  color: isDarkMode ? const Color(0xFF2D2E31) : Colors.white,
+                  color: backgroundColor,
                   child: Row(
                     children: [
                       IconButton(
@@ -209,7 +208,10 @@ class _TagsViewScreenState extends State<TagsViewScreen>
               isDarkMode ? const Color(0xFF2D2E31) : Colors.grey.shade100,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(6),
-            borderSide: BorderSide.none,
+            borderSide: BorderSide(
+              color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
+              width: 1,
+            ),
           ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 8,
