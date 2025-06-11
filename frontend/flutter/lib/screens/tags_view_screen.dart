@@ -51,87 +51,118 @@ class _TagsViewScreenState extends State<TagsViewScreen>
     final cardColor = isDarkMode ? const Color(0xFF2D2E31) : Colors.white;
     final borderColor =
         isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300;
+    final sidebarColor =
+        isDarkMode ? const Color(0xFF252525) : Colors.grey[100]!;
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: isDarkMode ? const Color(0xFF2D2E31) : Colors.white,
-        elevation: 0,
-        toolbarHeight: 40,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, size: 18),
-          padding: const EdgeInsets.all(2),
-          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        titleSpacing: 0,
-        title: const Text(
-          'Tags',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              _sortByUsage ? Icons.sort : Icons.sort_by_alpha,
-              size: 18,
-            ),
-            padding: const EdgeInsets.all(2),
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-            tooltip: _sortByUsage ? 'Sort by usage' : 'Sort alphabetically',
-            onPressed: () => setState(() => _sortByUsage = !_sortByUsage),
-          ),
-          IconButton(
-            icon: const Icon(Icons.add, size: 18),
-            padding: const EdgeInsets.all(2),
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-            tooltip: 'Create new tag',
-            onPressed: () => _showCreateTagDialog(context),
-          ),
-        ],
-      ),
-      body: Consumer<TagsService>(
-        builder: (context, tagsService, _) {
-          var tags = tagsService.availableTags;
-          final tagUsageCounts = _getTagUsageCounts(tagsService, tags);
+      body: Row(
+        children: [
+          // Sidebar spanning full height
+          Consumer<TagsService>(
+            builder: (context, tagsService, _) {
+              var tags = tagsService.availableTags;
+              final tagUsageCounts = _getTagUsageCounts(tagsService, tags);
 
-          tags = _sortTags(tags, tagUsageCounts);
-          if (_searchQuery.isNotEmpty) {
-            tags = _filterTags(tags);
-          }
+              tags = _sortTags(tags, tagUsageCounts);
+              if (_searchQuery.isNotEmpty) {
+                tags = _filterTags(tags);
+              }
 
-          return Column(
-            children: [
-              Expanded(
-                child: Row(
+              return Container(
+                width: 220,
+                decoration: BoxDecoration(color: sidebarColor),
+                child: Column(
                   children: [
-                    _buildTagsList(
-                      tags,
-                      tagUsageCounts,
-                      isDarkMode,
-                      cardColor,
-                      borderColor,
-                      tagsService,
-                    ),
+                    _buildSearchBar(isDarkMode),
                     Expanded(
-                      child: Column(
-                        children: [
-                          _buildSearchBar(isDarkMode),
-                          Expanded(
-                            child: _buildTagContent(
-                              tagsService,
-                              isDarkMode,
-                              cardColor,
-                            ),
-                          ),
-                        ],
+                      child: _buildTagsList(
+                        tags,
+                        tagUsageCounts,
+                        isDarkMode,
+                        cardColor,
+                        borderColor,
+                        tagsService,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          );
-        },
+              );
+            },
+          ),
+          // Main content area with its own header
+          Expanded(
+            child: Column(
+              children: [
+                // Title bar in main content
+                Container(
+                  height: 40,
+                  color: isDarkMode ? const Color(0xFF2D2E31) : Colors.white,
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, size: 18),
+                        padding: const EdgeInsets.all(2),
+                        constraints: const BoxConstraints(
+                          minWidth: 28,
+                          minHeight: 28,
+                        ),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      const Text(
+                        'Tags',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: Icon(
+                          _sortByUsage ? Icons.sort : Icons.sort_by_alpha,
+                          size: 18,
+                        ),
+                        padding: const EdgeInsets.all(2),
+                        constraints: const BoxConstraints(
+                          minWidth: 28,
+                          minHeight: 28,
+                        ),
+                        tooltip:
+                            _sortByUsage
+                                ? 'Sort by usage'
+                                : 'Sort alphabetically',
+                        onPressed:
+                            () => setState(() => _sortByUsage = !_sortByUsage),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add, size: 18),
+                        padding: const EdgeInsets.all(2),
+                        constraints: const BoxConstraints(
+                          minWidth: 28,
+                          minHeight: 28,
+                        ),
+                        tooltip: 'Create new tag',
+                        onPressed: () => _showCreateTagDialog(context),
+                      ),
+                    ],
+                  ),
+                ),
+                // Main content
+                Expanded(
+                  child: Consumer<TagsService>(
+                    builder: (context, tagsService, _) {
+                      return _buildTagContent(
+                        tagsService,
+                        isDarkMode,
+                        cardColor,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -139,13 +170,6 @@ class _TagsViewScreenState extends State<TagsViewScreen>
   Widget _buildSearchBar(bool isDarkMode) {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200,
-          ),
-        ),
-      ),
       child: TextField(
         controller: _searchController,
         style: TextStyle(
@@ -223,10 +247,7 @@ class _TagsViewScreenState extends State<TagsViewScreen>
     }
 
     return Container(
-      width: 160,
-      decoration: BoxDecoration(
-        border: Border(right: BorderSide(color: borderColor, width: 1)),
-      ),
+      width: 220,
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.symmetric(vertical: 8),
