@@ -39,7 +39,6 @@ import '../screens/settings_screen.dart';
 import '../widgets/settings/addons_settings.dart';
 import '../widgets/markup_editor.dart';
 import 'disk_manager_screen.dart';
-import '../services/theme_service.dart';
 import '../widgets/window_controls.dart';
 
 /// A file explorer screen that displays files and folders in a customizable interface.
@@ -2993,7 +2992,6 @@ exit
     final currentTab = tabManager.currentTab;
     final previewPanelService = Provider.of<PreviewPanelService>(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final themeService = Provider.of<ThemeService>(context);
 
     // Handle animations
     if (previewPanelService.showPreviewPanel &&
@@ -3299,7 +3297,6 @@ exit
   Widget _buildAppBar(BuildContext context) {
     final previewPanelService = Provider.of<PreviewPanelService>(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final themeService = Provider.of<ThemeService>(context);
 
     return GestureDetector(
       onPanStart: (_) => windowManager.startDragging(),
@@ -3310,8 +3307,6 @@ exit
         ),
         child: Row(
           children: [
-            if (themeService.themePreset == ThemePreset.macos)
-              const SizedBox(width: 8), // Space for macOS traffic lights
             IconButton(
               icon: Icon(
                 Icons.arrow_back,
