@@ -160,45 +160,6 @@ class _AddonsSettingsContent extends StatelessWidget {
                               : Colors.grey.shade300,
                     ),
                   ),
-                  const Divider(),
-                  ListTile(
-                    leading: Icon(
-                      Icons.drag_indicator,
-                      color:
-                          settings.isEnabled('drag_drop_dialog')
-                              ? Theme.of(context).primaryColor
-                              : Theme.of(context).disabledColor,
-                    ),
-                    title: const Text('Drag and Drop Dialog'),
-                    subtitle: const Text(
-                      'Show dialog when dragging and dropping files',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    trailing: Switch(
-                      value: settings.isEnabled('drag_drop_dialog'),
-                      onChanged:
-                          (value) => settings.toggleOption('drag_drop_dialog'),
-                      activeColor:
-                          isMacOS
-                              ? Colors.white
-                              : Theme.of(context).primaryColor,
-                      activeTrackColor:
-                          isMacOS
-                              ? const Color(0xFF34C759).withValues(
-                                red: 52,
-                                green: 199,
-                                blue: 89,
-                                alpha: 0.5,
-                              )
-                              : null,
-                      inactiveThumbColor:
-                          isDarkMode ? Colors.grey.shade400 : Colors.white,
-                      inactiveTrackColor:
-                          isDarkMode
-                              ? Colors.grey.shade800
-                              : Colors.grey.shade300,
-                    ),
-                  ),
                 ],
               ),
             ),

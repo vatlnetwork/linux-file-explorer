@@ -836,6 +836,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
               ),
             ),
           ),
+          const SizedBox(width: 12),
           Flexible(
             child: Text(
               value,

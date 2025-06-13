@@ -6,7 +6,6 @@ import '../services/drag_drop_service.dart';
 import '../services/file_service.dart';
 import 'package:provider/provider.dart';
 import '../services/bookmark_service.dart';
-import '../widgets/settings/addons_settings.dart';
 
 class FolderDropTarget extends StatefulWidget {
   final FileItem folder;
@@ -64,96 +63,8 @@ class _FolderDropTargetState extends State<FolderDropTarget> {
 
         if (draggedItems == null || draggedItems.isEmpty) return;
 
-        // Get the context menu settings
-        final contextMenuSettings = Provider.of<ContextMenuSettings>(
-          context,
-          listen: false,
-        );
-
-        // Determine the operation based on settings and current drag operation
-        DragOperation operation;
-
-        if (contextMenuSettings.isEnabled('drag_drop_dialog')) {
-          // Show dialog to choose operation
-          operation =
-              await showDialog<DragOperation>(
-                context: context,
-                builder:
-                    (context) => AlertDialog(
-                      title: Text('File Operation'),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'What would you like to do with ${draggedItems.length} items?',
-                          ),
-                          SizedBox(height: 8),
-                          Text('Target folder: ${widget.folder.name}'),
-                          if (draggedItems.length > 1) ...[
-                            SizedBox(height: 8),
-                            Text(
-                              'First few items:',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            SizedBox(height: 4),
-                            for (
-                              var i = 0;
-                              i < draggedItems.length && i < 3;
-                              i++
-                            )
-                              Text(
-                                '• ${draggedItems[i].name}',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                            if (draggedItems.length > 3)
-                              Text(
-                                '... and ${draggedItems.length - 3} more',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                          ],
-                        ],
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed:
-                              () => Navigator.pop(context, DragOperation.copy),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.copy, size: 16),
-                              SizedBox(width: 8),
-                              Text('Copy Here'),
-                            ],
-                          ),
-                        ),
-                        TextButton(
-                          onPressed:
-                              () => Navigator.pop(context, DragOperation.move),
-                          style: TextButton.styleFrom(
-                            foregroundColor: Colors.orange,
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.cut, size: 16),
-                              SizedBox(width: 8),
-                              Text('Move Here'),
-                            ],
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: Text('Cancel'),
-                        ),
-                      ],
-                    ),
-              ) ??
-              dragDropService.currentOperation;
-        } else {
-          // Use the current operation from the drag drop service
-          operation = dragDropService.currentOperation;
-        }
+        // Use the current operation from the drag drop service
+        final operation = dragDropService.currentOperation;
 
         // If no operation was selected (dialog was cancelled), return
         if (!mounted) return;
