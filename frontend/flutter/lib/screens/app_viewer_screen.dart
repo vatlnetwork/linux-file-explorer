@@ -17,16 +17,6 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
   String _selectedSection = 'Discover';
   bool _isEditingSections = false;
 
-  // Default sections that cannot be removed
-  final List<String> _defaultSections = [
-    'Discover',
-    'Create',
-    'Work',
-    'Play',
-    'Develop',
-    'Categories',
-  ];
-
   @override
   Widget build(BuildContext context) {
     final appService = Provider.of<AppService>(context);
@@ -467,7 +457,7 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
         decoration: BoxDecoration(
           color:
               isSelected
-                  ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                  ? Theme.of(context).colorScheme.primary.withAlpha(26)
                   : Colors.transparent,
           border: Border.all(
             color:

@@ -450,6 +450,7 @@ class AppService extends ChangeNotifier {
       await _loadSectionIcons();
       await _loadCustomCategories();
       await _loadCategories();
+      await _loadGroups();
       await refreshApps(); // Then refresh the apps list
 
       // Ensure default section icons are always set

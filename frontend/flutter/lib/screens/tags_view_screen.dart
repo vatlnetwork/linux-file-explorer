@@ -248,7 +248,7 @@ class _TagsViewScreenState extends State<TagsViewScreen>
       );
     }
 
-    return Container(
+    return SizedBox(
       width: 220,
       child: ListView.builder(
         controller: _scrollController,
