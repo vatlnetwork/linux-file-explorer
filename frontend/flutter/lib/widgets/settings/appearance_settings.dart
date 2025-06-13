@@ -306,6 +306,45 @@ class AppearanceSettings extends StatelessWidget {
               color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
             ),
           ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Font Style',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: isDarkMode ? Colors.white : Colors.grey[800],
+                ),
+              ),
+              const SizedBox(height: 8),
+              SegmentedButton<FontStyle>(
+                segments: const [
+                  ButtonSegment<FontStyle>(
+                    value: FontStyle.normal,
+                    label: Text('Normal'),
+                  ),
+                  ButtonSegment<FontStyle>(
+                    value: FontStyle.italic,
+                    label: Text('Italic'),
+                  ),
+                ],
+                selected: {themeService.fontStyle},
+                onSelectionChanged: (Set<FontStyle> selected) {
+                  themeService.setFontStyle(selected.first);
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey[800] : Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+            ),
+          ),
           child: Row(
             children: [
               Text(

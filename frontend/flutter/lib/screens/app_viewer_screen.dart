@@ -21,43 +21,30 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
   Widget build(BuildContext context) {
     final appService = Provider.of<AppService>(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+    final sidebarColor =
+        isDarkMode ? const Color(0xFF252525) : const Color(0xFFF0F0F0);
 
     return Scaffold(
-      backgroundColor: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-      body: Column(
+      backgroundColor: backgroundColor,
+      body: Row(
         children: [
-          // Top bar with search
+          // Sidebar spanning full height
           Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            width: 220,
             decoration: BoxDecoration(
-              color: isDarkMode ? const Color(0xFF2D2D2D) : Colors.white,
+              color: sidebarColor,
               border: Border(
-                bottom: BorderSide(
+                right: BorderSide(
                   color: isDarkMode ? Colors.grey[850]! : Colors.grey[300]!,
                 ),
               ),
             ),
-            child: Row(
+            child: Column(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  iconSize: 20,
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
-                  ),
-                  onPressed: () => Navigator.of(context).pop(),
-                  tooltip: 'Back to File Explorer',
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Applications',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
+                // Search bar in sidebar
+                Padding(
+                  padding: const EdgeInsets.all(12),
                   child: Container(
                     height: 32,
                     decoration: BoxDecoration(
@@ -66,6 +53,11 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
                               ? const Color(0xFF3D3D3D)
                               : Colors.grey[100],
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color:
+                            isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+                        width: 1,
+                      ),
                     ),
                     child: TextField(
                       controller: _searchController,
@@ -83,129 +75,139 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
                               isDarkMode ? Colors.grey[400] : Colors.grey[600],
                           fontSize: 14,
                         ),
-                        prefixIcon: Icon(
-                          Icons.search,
-                          size: 18,
-                          color:
-                              isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                        prefixIcon: Padding(
+                          padding: const EdgeInsets.only(left: 12, right: 4),
+                          child: Icon(
+                            Icons.search,
+                            size: 18,
+                            color:
+                                isDarkMode
+                                    ? Colors.grey[400]
+                                    : Colors.grey[600],
+                          ),
+                        ),
+                        prefixIconConstraints: const BoxConstraints(
+                          minWidth: 36,
+                          minHeight: 36,
                         ),
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 0,
-                        ),
+                        contentPadding: const EdgeInsets.only(right: 16),
                         isCollapsed: true,
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-          // Main content area
-          Expanded(
-            child: Row(
-              children: [
-                // Sidebar
-                Container(
-                  width: 200,
-                  decoration: BoxDecoration(
-                    color:
-                        isDarkMode ? const Color(0xFF2D2D2D) : Colors.grey[100],
-                    border: Border(
-                      right: BorderSide(
-                        color:
-                            isDarkMode ? Colors.grey[850]! : Colors.grey[300]!,
-                      ),
-                    ),
-                  ),
-                  child: Column(
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     children: [
-                      Expanded(
-                        child: ListView(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                      // Sections header
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        child: Row(
                           children: [
-                            // Sections header
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
-                              ),
-                              child: Row(
-                                children: [
-                                  Text(
-                                    'SECTIONS',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color:
-                                          isDarkMode
-                                              ? Colors.grey[400]
-                                              : Colors.grey[700],
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  if (!_isEditingSections)
-                                    IconButton(
-                                      icon: const Icon(Icons.edit, size: 14),
-                                      padding: const EdgeInsets.all(4),
-                                      constraints: const BoxConstraints(
-                                        minWidth: 28,
-                                        minHeight: 28,
-                                      ),
-                                      onPressed:
-                                          () => setState(
-                                            () => _isEditingSections = true,
-                                          ),
-                                      color:
-                                          isDarkMode
-                                              ? Colors.grey[400]
-                                              : Colors.grey[700],
-                                    ),
-                                ],
+                            Text(
+                              'SECTIONS',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color:
+                                    isDarkMode
+                                        ? Colors.grey[400]
+                                        : Colors.grey[700],
                               ),
                             ),
-                            // All sections
-                            ...appService.allSections.map(
-                              (section) => _buildSidebarItem(
-                                section,
-                                icon: _getSectionIcon(section),
-                                isSelected: _selectedSection == section,
-                                showDeleteButton:
-                                    _isEditingSections &&
-                                    !appService.isDefaultSection(section),
-                                onDelete: () => _deleteSection(section),
-                              ),
-                            ),
-                            if (_isEditingSections)
-                              _buildSidebarItem(
-                                'Add New Section',
-                                icon: Icons.add,
-                                onTap: _addNewSection,
+                            const Spacer(),
+                            if (!_isEditingSections)
+                              IconButton(
+                                icon: const Icon(Icons.edit, size: 14),
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(
+                                  minWidth: 28,
+                                  minHeight: 28,
+                                ),
+                                onPressed:
+                                    () => setState(
+                                      () => _isEditingSections = true,
+                                    ),
+                                color:
+                                    isDarkMode
+                                        ? Colors.grey[400]
+                                        : Colors.grey[700],
                               ),
                           ],
                         ),
                       ),
-                      if (_isEditingSections)
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: TextButton(
-                            onPressed:
-                                () =>
-                                    setState(() => _isEditingSections = false),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
-                              ),
-                              minimumSize: const Size(0, 24),
-                            ),
-                            child: const Text(
-                              'Done',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                          ),
+                      // All sections
+                      ...appService.allSections.map(
+                        (section) => _buildSidebarItem(
+                          section,
+                          icon: _getSectionIcon(section),
+                          isSelected: _selectedSection == section,
+                          showDeleteButton:
+                              _isEditingSections &&
+                              !appService.isDefaultSection(section),
+                          onDelete: () => _deleteSection(section),
                         ),
+                      ),
+                      if (_isEditingSections)
+                        _buildSidebarItem(
+                          'Add New Section',
+                          icon: Icons.add,
+                          onTap: _addNewSection,
+                        ),
+                    ],
+                  ),
+                ),
+                if (_isEditingSections)
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: TextButton(
+                      onPressed:
+                          () => setState(() => _isEditingSections = false),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        minimumSize: const Size(0, 24),
+                      ),
+                      child: const Text('Done', style: TextStyle(fontSize: 12)),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          // Main content area with its own header
+          Expanded(
+            child: Column(
+              children: [
+                // Title bar in main content
+                Container(
+                  height: 40,
+                  color: backgroundColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, size: 18),
+                        padding: const EdgeInsets.all(2),
+                        constraints: const BoxConstraints(
+                          minWidth: 28,
+                          minHeight: 28,
+                        ),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      const Text(
+                        'Applications',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -697,16 +699,16 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final double screenWidth = constraints.maxWidth;
-        final int crossAxisCount = (screenWidth / 200).floor().clamp(2, 6);
-        final double iconSize = (screenWidth / crossAxisCount) * 0.3;
+        final int crossAxisCount = (screenWidth / 160).floor().clamp(3, 8);
+        final double iconSize = (screenWidth / crossAxisCount) * 0.25;
 
         return GridView.builder(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(16),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            childAspectRatio: 0.75,
-            crossAxisSpacing: 24,
-            mainAxisSpacing: 24,
+            childAspectRatio: 0.85,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
           ),
           itemCount: filteredApps.length,
           itemBuilder: (context, index) {
@@ -738,21 +740,21 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
       feedback: Material(
         elevation: 4,
         color: isDarkMode ? const Color(0xFF2D2D2D) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         child: Container(
-          width: 120,
-          height: 120,
-          padding: const EdgeInsets.all(16),
+          width: 100,
+          height: 100,
+          padding: const EdgeInsets.all(12),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               SystemIcon(
                 app: app,
-                size: 48,
+                size: 40,
                 fallbackColor:
                     isDarkMode ? Colors.blue[300]! : Colors.blue[700]!,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 app.name,
                 textAlign: TextAlign.center,
@@ -767,7 +769,7 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
         elevation: 0,
         color: isDarkMode ? const Color(0xFF2D2D2D) : Colors.white,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           side: BorderSide(
             color: isDarkMode ? Colors.grey[850]! : Colors.grey[300]!,
           ),
@@ -780,9 +782,9 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
           onSecondaryTapUp: (details) {
             _showAppContextMenu(context, app, details.globalPosition);
           },
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -792,7 +794,7 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
                   decoration: BoxDecoration(
                     color:
                         isDarkMode ? const Color(0xFF3D3D3D) : Colors.grey[100],
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: SystemIcon(
                     app: app,
@@ -801,11 +803,11 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
                         isDarkMode ? Colors.blue[300]! : Colors.blue[700]!,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 Text(
                   app.name,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: isDarkMode ? Colors.white : Colors.black,
                   ),
@@ -819,14 +821,14 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
                   children: [
                     Icon(
                       app.isSystemApp ? Icons.settings : Icons.apps,
-                      size: 16,
+                      size: 14,
                       color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 4),
                     Text(
                       app.isSystemApp ? 'System' : 'Application',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
                       ),
                     ),

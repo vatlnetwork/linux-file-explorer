@@ -12,6 +12,7 @@ class ThemeService extends ChangeNotifier {
   static const String _themePresetKey = 'theme_preset';
   static const String _fontFamilyKey = 'font_family';
   static const String _fontSizeKey = 'font_size';
+  static const String _fontStyleKey = 'font_style';
   static const String _iconWeightKey = 'icon_weight';
   static const String _interfaceDensityKey = 'interface_density';
   static const String _useAnimationsKey = 'use_animations';
@@ -22,6 +23,7 @@ class ThemeService extends ChangeNotifier {
   ThemePreset _themePreset = ThemePreset.custom;
   String _fontFamily = 'Roboto';
   double _fontSize = 14.0;
+  FontStyle _fontStyle = FontStyle.normal;
   double _iconWeight = 400;
   double _interfaceDensity = 0.0;
   bool _useAnimations = true;
@@ -39,6 +41,7 @@ class ThemeService extends ChangeNotifier {
   ThemePreset get themePreset => _themePreset;
   String get fontFamily => _fontFamily;
   double get fontSize => _fontSize;
+  FontStyle get fontStyle => _fontStyle;
   double get iconWeight => _iconWeight;
   double get interfaceDensity => _interfaceDensity;
   bool get useAnimations => _useAnimations;
@@ -77,6 +80,9 @@ class ThemeService extends ChangeNotifier {
     // Load font settings
     _fontFamily = _prefs.getString(_fontFamilyKey) ?? 'Roboto';
     _fontSize = _prefs.getDouble(_fontSizeKey) ?? 14.0;
+    final fontStyleString = _prefs.getString(_fontStyleKey) ?? 'normal';
+    _fontStyle =
+        fontStyleString == 'italic' ? FontStyle.italic : FontStyle.normal;
 
     // Load icon settings
     _iconWeight = _prefs.getDouble(_iconWeightKey) ?? 400;
@@ -136,6 +142,16 @@ class ThemeService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setFontStyle(FontStyle style) async {
+    if (_fontStyle == style) return;
+    _fontStyle = style;
+    await _prefs.setString(
+      _fontStyleKey,
+      style == FontStyle.italic ? 'italic' : 'normal',
+    );
+    notifyListeners();
+  }
+
   Future<void> setIconWeight(double weight) async {
     if (_iconWeight == weight) return;
     _iconWeight = weight;
@@ -178,9 +194,15 @@ class ThemeService extends ChangeNotifier {
   ThemeData getLightTheme() {
     switch (_themePreset) {
       case ThemePreset.google:
-        return GoogleTheme.lightTheme;
+        return GoogleTheme.getTheme(
+          brightness: Brightness.light,
+          fontStyle: _fontStyle,
+        );
       case ThemePreset.macos:
-        return MacOSTheme.lightTheme;
+        return MacOSTheme.getTheme(
+          brightness: Brightness.light,
+          fontStyle: _fontStyle,
+        );
       case ThemePreset.custom:
         return _getCustomTheme(Brightness.light);
     }
@@ -189,9 +211,15 @@ class ThemeService extends ChangeNotifier {
   ThemeData getDarkTheme() {
     switch (_themePreset) {
       case ThemePreset.google:
-        return GoogleTheme.darkTheme;
+        return GoogleTheme.getTheme(
+          brightness: Brightness.dark,
+          fontStyle: _fontStyle,
+        );
       case ThemePreset.macos:
-        return MacOSTheme.darkTheme;
+        return MacOSTheme.getTheme(
+          brightness: Brightness.dark,
+          fontStyle: _fontStyle,
+        );
       case ThemePreset.custom:
         return _getCustomTheme(Brightness.dark);
     }
@@ -206,12 +234,15 @@ class ThemeService extends ChangeNotifier {
       colorSchemeSeed: _accentColor,
       fontFamily: _fontFamily,
       textTheme: TextTheme(
-        bodyLarge: TextStyle(fontSize: _fontSize),
-        bodyMedium: TextStyle(fontSize: _fontSize * 0.9),
-        bodySmall: TextStyle(fontSize: _fontSize * 0.8),
-        titleLarge: TextStyle(fontSize: _fontSize * 1.5),
-        titleMedium: TextStyle(fontSize: _fontSize * 1.2),
-        titleSmall: TextStyle(fontSize: _fontSize),
+        bodyLarge: TextStyle(fontSize: _fontSize, fontStyle: _fontStyle),
+        bodyMedium: TextStyle(fontSize: _fontSize * 0.9, fontStyle: _fontStyle),
+        bodySmall: TextStyle(fontSize: _fontSize * 0.8, fontStyle: _fontStyle),
+        titleLarge: TextStyle(fontSize: _fontSize * 1.5, fontStyle: _fontStyle),
+        titleMedium: TextStyle(
+          fontSize: _fontSize * 1.2,
+          fontStyle: _fontStyle,
+        ),
+        titleSmall: TextStyle(fontSize: _fontSize, fontStyle: _fontStyle),
       ),
       iconTheme: IconThemeData(
         size: 24,
