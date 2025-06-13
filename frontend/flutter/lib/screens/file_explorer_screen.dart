@@ -1626,6 +1626,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
 
   // Build breadcrumb navigation widget
   Widget _buildBreadcrumbNavigator() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     // Split the path into segments
     final List<String> pathSegments = [];
 
@@ -1675,9 +1676,16 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
                     style: TextStyle(
                       color:
                           i == pathSegments.length - 1
-                              ? Theme.of(context)
-                                  .primaryColor // Current directory
-                              : null,
+                              ? (isDarkMode
+                                  ? Colors
+                                      .blue
+                                      .shade200 // Lighter blue for dark mode
+                                  : Theme.of(context).primaryColor)
+                              : (isDarkMode
+                                  ? Colors
+                                      .grey
+                                      .shade400 // Lighter grey for other items in dark mode
+                                  : null),
                       fontWeight:
                           i == pathSegments.length - 1
                               ? FontWeight.bold
