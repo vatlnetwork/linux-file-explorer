@@ -2,12 +2,14 @@
 
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/file_item.dart';
 import '../models/preview_options.dart';
 import '../services/preview_panel_service.dart';
 import 'preview_options_dialog.dart';
 import 'tag_selector.dart';
+import 'dart:ui';
 
 class PreviewPanel extends StatefulWidget {
   final Function(String) onNavigate;
@@ -102,32 +104,62 @@ class _PreviewPanelState extends State<PreviewPanel> {
             // Calculate width based on available space, with min and max constraints
             final width = constraints.maxWidth.clamp(200.0, 400.0);
 
-            return Container(
-              width: width,
-              decoration: BoxDecoration(
-                color:
-                    isDarkMode
-                        ? const Color(0xFF252525)
-                        : const Color(0xFFBBDEFB),
-                border: Border(
-                  left: BorderSide(
-                    color: isDarkMode ? Colors.black : Colors.grey.shade300,
-                    width: 1,
-                  ),
-                ),
+            return ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(0),
+                topRight: Radius.circular(16),
+                bottomRight: Radius.circular(16),
+                bottomLeft: Radius.circular(0),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
                 children: [
-                  _buildHeader(context, selectedItem),
-                  if (selectedItem != null)
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: _buildPreviewContent(context, selectedItem),
+                  // Fluent glassy background
+                  BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                    child: Container(
+                      width: width,
+                      decoration: BoxDecoration(
+                        color:
+                            isDarkMode
+                                ? Colors.black.withAlpha(40)
+                                : Colors.white.withAlpha(166),
+                        border: Border(
+                          left: BorderSide(
+                            color:
+                                isDarkMode
+                                    ? Colors.black.withAlpha(77)
+                                    : Colors.grey.shade300.withAlpha(128),
+                            width: 1.5,
+                          ),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                isDarkMode
+                                    ? Colors.black.withAlpha(46)
+                                    : Colors.blueGrey.withAlpha(20),
+                            blurRadius: 16,
+                            offset: const Offset(-4, 0),
+                          ),
+                        ],
                       ),
-                    )
-                  else
-                    Expanded(child: _buildNoSelectionView(context)),
+                    ),
+                  ),
+                  // Panel content
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(context, selectedItem),
+                      if (selectedItem != null)
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: _buildPreviewContent(context, selectedItem),
+                          ),
+                        )
+                      else
+                        Expanded(child: _buildNoSelectionView(context)),
+                    ],
+                  ),
                 ],
               ),
             );
@@ -142,12 +174,25 @@ class _PreviewPanelState extends State<PreviewPanel> {
     final textTheme = Theme.of(context).textTheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: isDarkMode ? Colors.grey[850] : Colors.grey[100],
+        gradient: LinearGradient(
+          colors:
+              isDarkMode
+                  ? [
+                    Color(0xFF23272E).withAlpha(217),
+                    Color(0xFF23272E).withAlpha(166),
+                  ]
+                  : [Colors.white.withAlpha(217), Colors.white.withAlpha(166)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         border: Border(
           bottom: BorderSide(
-            color: isDarkMode ? Colors.black : Colors.grey.shade300,
+            color:
+                isDarkMode
+                    ? Colors.white.withAlpha(10)
+                    : Colors.grey.shade200.withAlpha(128),
             width: 1.0,
           ),
         ),
@@ -155,18 +200,29 @@ class _PreviewPanelState extends State<PreviewPanel> {
       child: Row(
         mainAxisSize: MainAxisSize.max,
         children: [
-          Icon(
-            Icons.preview,
-            size: 18,
-            color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
+          Container(
+            decoration: BoxDecoration(
+              color:
+                  isDarkMode
+                      ? Colors.blue.shade900.withAlpha(46)
+                      : Colors.blue.shade100.withAlpha(179),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            padding: const EdgeInsets.all(6),
+            child: Icon(
+              Icons.preview,
+              size: 20,
+              color: isDarkMode ? Colors.blue.shade200 : Colors.blue.shade700,
+            ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Preview',
+              selectedItem?.name ?? 'Preview',
               style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: isDarkMode ? Colors.grey.shade200 : Colors.grey.shade800,
+                color: isDarkMode ? Colors.grey.shade100 : Colors.grey.shade800,
+                letterSpacing: 0.1,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -174,8 +230,8 @@ class _PreviewPanelState extends State<PreviewPanel> {
           ),
           if (selectedItem != null) ...[
             IconButton(
-              icon: const Icon(Icons.settings, size: 18),
-              tooltip: 'Preview Options',
+              icon: const Icon(Icons.tune, size: 18),
+              tooltip: 'Customize Preview',
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(
                 minWidth: 32,
@@ -268,22 +324,24 @@ class _PreviewPanelState extends State<PreviewPanel> {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-
-    // Directory preview
-    if (item.type == FileItemType.directory) {
-      return _buildDirectoryPreview(context, item);
-    }
-
-    // File preview based on type
+    final previewService = Provider.of<PreviewPanelService>(context);
+    final isFile = item.type == FileItemType.file;
+    final isDir = item.type == FileItemType.directory;
     final ext = item.fileExtension.toLowerCase();
 
-    // Image preview
-    if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].contains(ext)) {
-      return _buildImagePreview(context, item);
-    }
-
-    // Text file preview
-    if ([
+    Widget content;
+    if (isDir) {
+      content = _buildDirectoryPreview(context, item);
+    } else if ([
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.gif',
+      '.bmp',
+      '.webp',
+    ].contains(ext)) {
+      content = _buildImagePreview(context, item);
+    } else if ([
       '.txt',
       '.md',
       '.json',
@@ -294,16 +352,10 @@ class _PreviewPanelState extends State<PreviewPanel> {
       '.css',
       '.js',
     ].contains(ext)) {
-      return _buildTextPreview(context, item);
-    }
-
-    // Video preview
-    if (['.mp4', '.avi', '.mov', '.mkv', '.webm'].contains(ext)) {
-      return _buildVideoPreview(context, item);
-    }
-
-    // Document preview
-    if ([
+      content = _buildTextPreview(context, item);
+    } else if (['.mp4', '.avi', '.mov', '.mkv', '.webm'].contains(ext)) {
+      content = _buildVideoPreview(context, item);
+    } else if ([
       '.pdf',
       '.doc',
       '.docx',
@@ -312,16 +364,76 @@ class _PreviewPanelState extends State<PreviewPanel> {
       '.ppt',
       '.pptx',
     ].contains(ext)) {
-      return _buildDocumentPreview(context, item);
+      content = _buildDocumentPreview(context, item);
+    } else if (['.mp3', '.wav', '.flac'].contains(ext)) {
+      content = _buildAudioPreview(context, item);
+    } else {
+      content = _buildDefaultFileInfo(context, item);
     }
 
-    // Audio preview
-    if (['.mp3', '.wav', '.flac'].contains(ext)) {
-      return _buildAudioPreview(context, item);
-    }
+    // Quick actions row for files
+    Widget quickActions =
+        isFile
+            ? Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Tooltip(
+                    message: 'Open',
+                    child: IconButton(
+                      icon: const Icon(Icons.open_in_new, size: 20),
+                      onPressed: () => _openFile(item),
+                    ),
+                  ),
+                  Tooltip(
+                    message: 'Copy Path',
+                    child: IconButton(
+                      icon: const Icon(Icons.copy, size: 20),
+                      onPressed: () => _copyPath(item),
+                    ),
+                  ),
+                  Tooltip(
+                    message: 'Reveal in Folder',
+                    child: IconButton(
+                      icon: const Icon(Icons.folder_open, size: 20),
+                      onPressed: () => _revealInFolder(item),
+                    ),
+                  ),
+                ],
+              ),
+            )
+            : const SizedBox.shrink();
 
-    // Default file info
-    return _buildDefaultFileInfo(context, item);
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      child: Column(
+        key: ValueKey(item.path + (_isLoading ? '_loading' : '')),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [content, quickActions],
+      ),
+    );
+  }
+
+  void _openFile(FileItem item) async {
+    try {
+      await Process.run('xdg-open', [item.path]);
+    } catch (e) {
+      debugPrint('Error opening file: $e');
+    }
+  }
+
+  void _copyPath(FileItem item) {
+    Clipboard.setData(ClipboardData(text: item.path));
+  }
+
+  void _revealInFolder(FileItem item) async {
+    final directory = Directory(item.path).parent.path;
+    try {
+      await Process.run('xdg-open', [directory]);
+    } catch (e) {
+      debugPrint('Error revealing folder: $e');
+    }
   }
 
   Widget _buildDirectoryPreview(BuildContext context, FileItem item) {
@@ -856,8 +968,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
 
   Widget _buildVideoPreview(BuildContext context, FileItem item) {
     final previewService = Provider.of<PreviewPanelService>(context);
-    final options = previewService.optionsManager.mediaOptions;
-
+    final mediaOptions = previewService.optionsManager.mediaOptions;
     return LayoutBuilder(
       builder: (context, constraints) {
         // Calculate thumbnail size based on available width
@@ -909,52 +1020,52 @@ class _PreviewPanelState extends State<PreviewPanel> {
                     const SizedBox(height: 8),
 
                     // Common info in compact layout
-                    if (options.showSize)
+                    if (mediaOptions.showSize)
                       _buildCompactInfoRow('Size', item.formattedSize),
 
-                    if (options.showCreated)
+                    if (mediaOptions.showCreated)
                       _buildCompactInfoRow(
                         'Created',
                         item.formattedCreationTime,
                       ),
 
-                    if (options.showModified)
+                    if (mediaOptions.showModified)
                       _buildCompactInfoRow(
                         'Modified',
                         item.formattedModifiedTime,
                       ),
 
-                    if (options.showWhereFrom && item.whereFrom != null)
+                    if (mediaOptions.showWhereFrom && item.whereFrom != null)
                       _buildCompactInfoRow('Where from', item.whereFrom!),
 
                     const SizedBox(height: 8),
 
                     // Media specific info
-                    if (options.showDuration)
+                    if (mediaOptions.showDuration)
                       _buildCompactInfoRow(
                         'Duration',
                         '00:01:24',
                       ), // Replace with actual duration
 
-                    if (options.showCodecs)
+                    if (mediaOptions.showCodecs)
                       _buildCompactInfoRow(
                         'Codec',
                         'H.264/AAC',
                       ), // Replace with actual codec
 
-                    if (options.showBitrate)
+                    if (mediaOptions.showBitrate)
                       _buildCompactInfoRow(
                         'Bitrate',
                         '8.2 Mbps',
                       ), // Replace with actual bitrate
 
-                    if (options.showDimensions)
+                    if (mediaOptions.showDimensions)
                       _buildCompactInfoRow(
                         'Dimensions',
                         '1920 × 1080',
                       ), // Replace with actual dimensions
                     // Tags section
-                    if (options.showTags) ...[
+                    if (mediaOptions.showTags) ...[
                       const SizedBox(height: 8),
                       TagSelector(filePath: item.path),
                     ],

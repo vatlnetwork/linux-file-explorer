@@ -49,12 +49,12 @@ class GridItemWidget extends StatelessWidget {
               color:
                   isSelected
                       ? (isDarkMode
-                          ? Colors.blueGrey.shade800.withOpacity(0.3)
-                          : Colors.blue.shade50.withOpacity(0.3))
+                          ? Colors.blueGrey.shade800.withAlpha(77)
+                          : Colors.blue.shade50.withAlpha(77))
                       : (isHovering
                           ? (isDarkMode
-                              ? Color(0xFF2C2C2C).withOpacity(0.3)
-                              : Colors.grey.shade100.withOpacity(0.3))
+                              ? Color(0xFF2C2C2C).withAlpha(77)
+                              : Colors.grey.shade100.withAlpha(77))
                           : Colors.transparent),
               borderRadius: BorderRadius.circular(6.0 * uiScale),
             ),
@@ -190,16 +190,17 @@ class GridItemWidget extends StatelessWidget {
                                       final fileTags = tagsService
                                           .getTagsForFile(item.path);
 
-                                      // Don't render tags if there aren't any
-                                      if (fileTags.isEmpty)
+                                      if (fileTags.isEmpty) {
                                         return const SizedBox.shrink();
+                                      }
 
                                       // Calculate if we have enough space for tags based on container constraints
                                       // Only show tags if we have enough space (at least 110 pixels in height)
                                       final hasSpaceForTags =
                                           constraints.maxHeight >= 110.0;
-                                      if (!hasSpaceForTags)
+                                      if (!hasSpaceForTags) {
                                         return const SizedBox.shrink();
+                                      }
 
                                       // Calculate an appropriate font size for tags based on available space
                                       final tagFontSize = (subtitleSize *
