@@ -445,13 +445,25 @@ class AppService extends ChangeNotifier {
 
     try {
       debugPrint('Initializing AppService...');
-      await _loadCachedApps(); // First try to load cached apps
-      await _loadSections();
-      await _loadSectionIcons();
-      await _loadCustomCategories();
-      await _loadCategories();
-      await _loadGroups();
-      await refreshApps(); // Then refresh the apps list
+
+      // First load cached data for immediate display
+      await Future.wait([
+        _loadCachedApps(),
+        _loadSections(),
+        _loadSectionIcons(),
+        _loadCustomCategories(),
+        _loadCategories(),
+        _loadGroups(),
+      ]);
+
+      // Notify listeners after loading cached data
+      _isLoading = false;
+      notifyListeners();
+
+      // Then refresh apps in the background if needed
+      if (_shouldRefreshApps()) {
+        refreshApps();
+      }
 
       // Ensure default section icons are always set
       _sectionIcons.addAll({
@@ -466,10 +478,15 @@ class AppService extends ChangeNotifier {
       await _saveSectionIcons();
     } catch (e) {
       debugPrint('Error initializing AppService: $e');
+      _isLoading = false;
+      notifyListeners();
     }
+  }
 
-    _isLoading = false;
-    notifyListeners();
+  bool _shouldRefreshApps() {
+    if (_lastRefresh == null) return true;
+    final difference = DateTime.now().difference(_lastRefresh!);
+    return difference.inMinutes >= 5;
   }
 
   // Load cached apps from shared preferences
