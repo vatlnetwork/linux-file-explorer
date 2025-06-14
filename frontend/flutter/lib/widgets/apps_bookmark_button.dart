@@ -54,47 +54,35 @@ class AppsBookmarkButton extends StatelessWidget {
     final appService = Provider.of<AppService>(context, listen: false);
     appService.initialize();
 
-    // Navigate to the app viewer screen with an enhanced pop-in animation
+    // Navigate to the app viewer screen with a smoother animation
     Navigator.of(context).push(
       PageRouteBuilder(
-        pageBuilder:
-            (context, animation, secondaryAnimation) => const AppViewerScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return const AppViewerScreen();
+        },
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          // Use a spring curve for a more natural, bouncy feel
-          const scaleCurve = Interval(0.0, 0.8, curve: Curves.easeOutCubic);
-          const opacityCurve = Interval(0.0, 0.6, curve: Curves.easeOut);
-          const slideCurve = Interval(0.0, 0.7, curve: Curves.easeOutCubic);
-
-          // Scale animation - starts smaller and bounces slightly past the target
-          var scaleTween = Tween(
-            begin: 0.6,
-            end: 1.0,
-          ).chain(CurveTween(curve: scaleCurve));
-          var scaleAnimation = animation.drive(scaleTween);
-
-          // Opacity animation - fades in quickly
-          var opacityTween = Tween(
-            begin: 0.0,
-            end: 1.0,
-          ).chain(CurveTween(curve: opacityCurve));
-          var opacityAnimation = animation.drive(opacityTween);
-
-          // Slide up animation - slight upward movement
-          var slideTween = Tween(
-            begin: const Offset(0, 0.2),
-            end: Offset.zero,
-          ).chain(CurveTween(curve: slideCurve));
-          var slideAnimation = animation.drive(slideTween);
-
-          return SlideTransition(
-            position: slideAnimation,
-            child: ScaleTransition(
-              scale: scaleAnimation,
-              child: FadeTransition(opacity: opacityAnimation, child: child),
+          // Use a combination of fade and scale for a smoother effect
+          final fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+            CurvedAnimation(
+              parent: animation,
+              curve: const Interval(0.0, 0.5, curve: Curves.easeOut),
             ),
           );
+
+          final scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
+            CurvedAnimation(
+              parent: animation,
+              curve: const Interval(0.0, 0.5, curve: Curves.easeOut),
+            ),
+          );
+
+          return FadeTransition(
+            opacity: fadeAnimation,
+            child: ScaleTransition(scale: scaleAnimation, child: child),
+          );
         },
-        transitionDuration: const Duration(milliseconds: 600),
+        transitionDuration: const Duration(milliseconds: 200),
+        reverseTransitionDuration: const Duration(milliseconds: 150),
       ),
     );
   }
