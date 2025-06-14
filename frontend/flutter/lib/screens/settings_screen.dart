@@ -293,17 +293,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: InkWell(
         onTap: onTap,
         child: Container(
-          height: 32,
+          height: 36,
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             color:
                 isSelected
                     ? isDarkMode
                         ? Colors.grey[800]
-                        : Colors.grey[200]
+                        : Colors.white
                     : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
+            border:
+                isSelected && !isDarkMode
+                    ? Border.all(color: Colors.blue.shade400, width: 1.5)
+                    : null,
           ),
           child: Row(
             children: [

@@ -604,13 +604,17 @@ class _AppViewerScreenState extends State<AppViewerScreen> {
                     isSelected
                         ? isDarkMode
                             ? Colors.grey[800]
-                            : Colors.grey[200]
+                            : Colors.white
                         : candidateData.isNotEmpty
                         ? isDarkMode
                             ? Colors.grey[700]
-                            : Colors.grey[300]
+                            : Colors.blue.shade50
                         : Colors.transparent,
                 borderRadius: BorderRadius.circular(6),
+                border:
+                    isSelected && !isDarkMode
+                        ? Border.all(color: Colors.blue.shade400, width: 1.5)
+                        : null,
               ),
               child: Row(
                 children: [
