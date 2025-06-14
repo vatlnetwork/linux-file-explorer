@@ -80,7 +80,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   final List<String> _navigationHistory = [];
   final List<String> _forwardHistory = []; // Add forward history
   bool _showBookmarkSidebar = true;
-  bool _isMaximized = false;
 
   // Replace single item selection with a set for multiple selection
   Set<String> _selectedItemsPaths =
@@ -124,7 +123,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     );
 
     windowManager.addListener(this);
-    _initWindowState();
     _initHomeDirectory();
 
     // Initialize focus nodes
@@ -175,11 +173,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     });
   }
 
-  Future<void> _initWindowState() async {
-    _isMaximized = await windowManager.isMaximized();
-    setState(() {});
-  }
-
   @override
   void dispose() {
     _searchController.dispose();
@@ -206,12 +199,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
 
   @override
   void onWindowMaximize() {
-    setState(() => _isMaximized = true);
+    // No-op
   }
 
   @override
   void onWindowUnmaximize() {
-    setState(() => _isMaximized = false);
+    // No-op
   }
 
   Future<void> _initHomeDirectory() async {

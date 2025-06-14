@@ -324,7 +324,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    final previewService = Provider.of<PreviewPanelService>(context);
     final isFile = item.type == FileItemType.file;
     final isDir = item.type == FileItemType.directory;
     final ext = item.fileExtension.toLowerCase();

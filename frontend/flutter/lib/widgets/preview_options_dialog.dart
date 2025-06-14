@@ -20,6 +20,7 @@ class PreviewOptionsDialog extends StatefulWidget {
 
 class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
   late PreviewOptions _currentOptions;
+  bool _isHovering = false;
 
   @override
   void initState() {
@@ -331,21 +332,20 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
 
     return StatefulBuilder(
       builder: (context, setState) {
-        bool isHovering = false;
         return MouseRegion(
-          onEnter: (_) => setState(() => isHovering = true),
-          onExit: (_) => setState(() => isHovering = false),
+          onEnter: (_) => setState(() => _isHovering = true),
+          onExit: (_) => setState(() => _isHovering = false),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 120),
             decoration: BoxDecoration(
               color:
-                  isHovering
+                  _isHovering
                       ? (isDarkMode
                           ? Colors.white.withAlpha(10)
                           : Colors.blue.shade50.withAlpha(46))
                       : Colors.transparent,
               border:
-                  isHovering
+                  _isHovering
                       ? Border.all(
                         color:
                             isDarkMode
