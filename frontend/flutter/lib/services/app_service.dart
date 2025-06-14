@@ -859,6 +859,17 @@ class AppService extends ChangeNotifier {
     }
   }
 
+  // Open a file with the default application
+  Future<bool> openFile(String filePath) async {
+    try {
+      final result = await Process.run('xdg-open', [filePath]);
+      return result.exitCode == 0;
+    } catch (e) {
+      debugPrint('Error opening file: $e');
+      return false;
+    }
+  }
+
   // Open a file with a specific application
   Future<bool> openFileWithApp(String filePath, String desktopFilePath) async {
     try {

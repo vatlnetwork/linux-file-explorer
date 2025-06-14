@@ -563,12 +563,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     }
   }
 
-  bool _isCompressedFile(FileItem item) {
-    if (item.type != FileItemType.file) return false;
-    final ext = item.fileExtension.toLowerCase();
-    return ['.zip', '.rar', '.tar', '.gz', '.7z', '.bz2'].contains(ext);
-  }
-
   Future<void> _showContextMenu(FileItem item, Offset position) async {
     // Select the item when right-clicked
     setState(() {
@@ -2295,15 +2289,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     });
   }
 
-  // Check if a file or directory exists at the given path
-  Future<bool> _fileExists(String path) async {
-    try {
-      return await File(path).exists() || await Directory(path).exists();
-    } catch (e) {
-      return false;
-    }
-  }
-
   // Show confirmation dialog for unmounting drives
   Future<void> _showUnmountConfirmation(FileItem item) async {
     final confirmed = await showDialog<bool>(
@@ -3438,10 +3423,6 @@ exit
                   context,
                   listen: false,
                 );
-                final appService = Provider.of<AppService>(
-                  context,
-                  listen: false,
-                );
 
                 return [
                   PopupMenuItem<String>(
@@ -4442,6 +4423,30 @@ exit
         );
       }
     });
+  }
+
+  void _openFile(FileItem item) async {
+    if (item.type == FileItemType.file) {
+      try {
+        final appService = Provider.of<AppService>(context, listen: false);
+        final success = await appService.openFile(item.path);
+        if (!success && mounted) {
+          NotificationService.showNotification(
+            context,
+            message: 'No default application found for this file type',
+            type: NotificationType.warning,
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          NotificationService.showNotification(
+            context,
+            message: 'Failed to open file: $e',
+            type: NotificationType.error,
+          );
+        }
+      }
+    }
   }
 }
 
