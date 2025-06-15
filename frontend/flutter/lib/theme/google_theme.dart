@@ -98,7 +98,7 @@ class GoogleTheme {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
-      iconTheme: const IconThemeData(weight: 200, color: Colors.black87),
+      iconTheme: IconThemeData(weight: 400, color: Colors.black87, grade: 0),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,

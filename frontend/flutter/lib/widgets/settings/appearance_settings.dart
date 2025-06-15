@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../../services/theme_service.dart';
 
 class AppearanceSettings extends StatelessWidget {
@@ -36,14 +35,8 @@ class AppearanceSettings extends StatelessWidget {
             const SizedBox(height: 24),
             _buildSection(
               context,
-              title: 'Font Settings',
-              child: _buildFontSettings(context, themeService),
-            ),
-            const SizedBox(height: 24),
-            _buildSection(
-              context,
-              title: 'Icon Settings',
-              child: _buildIconSettings(context, themeService),
+              title: 'Font Size',
+              child: _buildFontSizeSettings(context, themeService),
             ),
             const SizedBox(height: 24),
             _buildSection(
@@ -51,20 +44,6 @@ class AppearanceSettings extends StatelessWidget {
               title: 'Interface Density',
               child: _buildInterfaceSettings(context, themeService),
             ),
-            const SizedBox(height: 24),
-            _buildSection(
-              context,
-              title: 'Animation Settings',
-              child: _buildAnimationSettings(context, themeService),
-            ),
-            if (themeService.themePreset == ThemePreset.custom) ...[
-              const SizedBox(height: 24),
-              _buildSection(
-                context,
-                title: 'Custom Colors',
-                child: _buildCustomColorSettings(context, themeService),
-              ),
-            ],
           ],
         ),
       ),
@@ -81,22 +60,11 @@ class AppearanceSettings extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDarkMode ? Colors.grey[850] : Colors.grey[50],
+        color: isDarkMode ? Colors.grey[800] : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
-          width: 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color:
-                isDarkMode
-                    ? Colors.black.withAlpha(51)
-                    : Colors.grey.withAlpha(26),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,144 +216,12 @@ class AppearanceSettings extends StatelessWidget {
     );
   }
 
-  Widget _buildFontSettings(BuildContext context, ThemeService themeService) {
-    final fonts = ['Roboto', 'Inter', 'SF Pro Text', 'Helvetica Neue', 'Arial'];
+  Widget _buildFontSizeSettings(
+    BuildContext context,
+    ThemeService themeService,
+  ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final textTheme = Theme.of(context).textTheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: isDarkMode ? Colors.grey[800] : Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
-            ),
-          ),
-          child: DropdownButtonFormField<String>(
-            value: themeService.fontFamily,
-            decoration: InputDecoration(
-              labelText: 'Font Family',
-              labelStyle: textTheme.bodyMedium?.copyWith(
-                color: isDarkMode ? Colors.white70 : Colors.grey[600],
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide.none,
-              ),
-              filled: true,
-              fillColor: Colors.transparent,
-            ),
-            items:
-                fonts.map((font) {
-                  return DropdownMenuItem(
-                    value: font,
-                    child: Text(
-                      font,
-                      style: textTheme.bodyMedium?.copyWith(
-                        fontFamily: font,
-                        color: isDarkMode ? Colors.white : Colors.grey[800],
-                      ),
-                    ),
-                  );
-                }).toList(),
-            onChanged: (value) {
-              if (value != null) themeService.setFontFamily(value);
-            },
-          ),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDarkMode ? Colors.grey[800] : Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Font Style',
-                style: textTheme.bodyMedium?.copyWith(
-                  color: isDarkMode ? Colors.white : Colors.grey[800],
-                ),
-              ),
-              const SizedBox(height: 8),
-              SegmentedButton<FontStyle>(
-                segments: const [
-                  ButtonSegment<FontStyle>(
-                    value: FontStyle.normal,
-                    label: Text('Normal'),
-                  ),
-                  ButtonSegment<FontStyle>(
-                    value: FontStyle.italic,
-                    label: Text('Italic'),
-                  ),
-                ],
-                selected: {themeService.fontStyle},
-                onSelectionChanged: (Set<FontStyle> selected) {
-                  themeService.setFontStyle(selected.first);
-                },
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDarkMode ? Colors.grey[800] : Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
-            ),
-          ),
-          child: Row(
-            children: [
-              Text(
-                'Font Size',
-                style: textTheme.bodyMedium?.copyWith(
-                  color: isDarkMode ? Colors.white : Colors.grey[800],
-                ),
-              ),
-              Expanded(
-                child: Slider(
-                  value: themeService.fontSize,
-                  min: 12,
-                  max: 20,
-                  divisions: 8,
-                  label: '${themeService.fontSize.round()}px',
-                  onChanged: (value) => themeService.setFontSize(value),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isDarkMode ? Colors.grey[700] : Colors.grey[200],
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  '${themeService.fontSize.round()}px',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: isDarkMode ? Colors.white : Colors.grey[800],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildIconSettings(BuildContext context, ThemeService themeService) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -398,20 +234,14 @@ class AppearanceSettings extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(
-            'Icon Weight',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: isDarkMode ? Colors.white : Colors.grey[800],
-            ),
-          ),
           Expanded(
             child: Slider(
-              value: themeService.iconWeight,
-              min: 100,
-              max: 700,
-              divisions: 6,
-              label: themeService.iconWeight.round().toString(),
-              onChanged: (value) => themeService.setIconWeight(value),
+              value: themeService.fontSize,
+              min: 12,
+              max: 20,
+              divisions: 8,
+              label: '${themeService.fontSize.round()}px',
+              onChanged: (value) => themeService.setFontSize(value),
             ),
           ),
           Container(
@@ -421,8 +251,8 @@ class AppearanceSettings extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              themeService.iconWeight.round().toString(),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              '${themeService.fontSize.round()}px',
+              style: textTheme.bodySmall?.copyWith(
                 color: isDarkMode ? Colors.white : Colors.grey[800],
                 fontWeight: FontWeight.w500,
               ),
@@ -439,8 +269,7 @@ class AppearanceSettings extends StatelessWidget {
   ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final isMacOS = themeService.themePreset == ThemePreset.macos;
-    final switchColor =
-        isMacOS ? const Color(0xFF34C759) : null; // iOS green color
+    final switchColor = isMacOS ? const Color(0xFF34C759) : null;
 
     return Container(
       decoration: BoxDecoration(
@@ -505,160 +334,6 @@ class AppearanceSettings extends StatelessWidget {
           ],
         ],
       ),
-    );
-  }
-
-  Widget _buildAnimationSettings(
-    BuildContext context,
-    ThemeService themeService,
-  ) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final isMacOS = themeService.themePreset == ThemePreset.macos;
-    final switchColor =
-        isMacOS ? const Color(0xFF34C759) : null; // iOS green color
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDarkMode ? Colors.grey[800] : Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
-        ),
-      ),
-      child: DefaultTextStyle(
-        style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-          color: isDarkMode ? Colors.white : Colors.grey[800],
-        ),
-        child: SwitchListTile(
-          title: Text(
-            'Enable Animations',
-            style: Theme.of(context).textTheme.titleMedium!.copyWith(
-              color: isDarkMode ? Colors.white : Colors.grey[800],
-            ),
-          ),
-          subtitle: Text(
-            'Smooth transitions between screens and states',
-            style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-              color: isDarkMode ? Colors.white70 : Colors.grey[600],
-            ),
-          ),
-          value: themeService.useAnimations,
-          onChanged: (value) => themeService.setUseAnimations(value),
-          activeColor: switchColor,
-          activeTrackColor: switchColor?.withValues(
-            alpha: 0.5,
-            red: switchColor.r,
-            green: switchColor.g,
-            blue: switchColor.b,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCustomColorSettings(
-    BuildContext context,
-    ThemeService themeService,
-  ) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final entry in themeService.customColors.entries)
-          Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              color: isDarkMode ? Colors.grey[800] : Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
-              ),
-            ),
-            child: ListTile(
-              title: Text(
-                entry.key.toUpperCase(),
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: isDarkMode ? Colors.white : Colors.grey[800],
-                ),
-              ),
-              trailing: Material(
-                elevation: 2,
-                shape: CircleBorder(
-                  side: BorderSide(
-                    color: isDarkMode ? Colors.grey[600]! : Colors.grey[300]!,
-                  ),
-                ),
-                child: InkWell(
-                  onTap:
-                      () => _showColorPicker(context, themeService, entry.key),
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: entry.value,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  void _showColorPicker(
-    BuildContext context,
-    ThemeService themeService,
-    String colorKey,
-  ) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final textTheme = Theme.of(context).textTheme;
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(
-              'Pick ${colorKey.toUpperCase()} Color',
-              style: textTheme.titleLarge?.copyWith(
-                color: isDarkMode ? Colors.white : Colors.grey[800],
-              ),
-            ),
-            backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
-              ),
-            ),
-            content: SingleChildScrollView(
-              child: ColorPicker(
-                pickerColor: themeService.customColors[colorKey]!,
-                onColorChanged:
-                    (color) => themeService.setCustomColor(colorKey, color),
-                pickerAreaHeightPercent: 0.8,
-                enableAlpha: false,
-                labelTypes: const [],
-                displayThumbColor: true,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(
-                  'Done',
-                  style: textTheme.labelLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ),
-            ],
-          ),
     );
   }
 }

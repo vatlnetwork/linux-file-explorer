@@ -164,6 +164,12 @@ class MacOSTheme {
         }),
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
+      iconTheme: IconThemeData(
+        size: 20,
+        weight: 400,
+        color: isDark ? Colors.white : Colors.black87,
+        grade: 0,
+      ),
     );
   }
 
