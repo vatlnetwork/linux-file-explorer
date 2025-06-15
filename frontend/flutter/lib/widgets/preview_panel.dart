@@ -490,7 +490,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                 color:
                     Theme.of(context).brightness == Brightness.dark
                         ? const Color(0xFF3C4043)
-                        : Colors.white,
+                        : const Color(0xFFF0F7FF),
                 borderRadius: BorderRadius.circular(8.0),
               ),
               child: Column(
@@ -516,7 +516,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                 color:
                     Theme.of(context).brightness == Brightness.dark
                         ? const Color(0xFF3C4043)
-                        : Colors.white,
+                        : const Color(0xFFF0F7FF),
                 borderRadius: BorderRadius.circular(8.0),
               ),
               child: Column(
@@ -575,7 +575,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                       color:
                           Theme.of(context).brightness == Brightness.dark
                               ? const Color(0xFF3C4043)
-                              : Colors.white,
+                              : const Color(0xFFF0F7FF),
                       borderRadius: BorderRadius.circular(8.0),
                     ),
                     child: ListTile(
@@ -641,7 +641,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                     color:
                         Theme.of(context).brightness == Brightness.dark
                             ? const Color(0xFF3C4043)
-                            : Colors.white,
+                            : const Color(0xFFF0F7FF),
                     borderRadius: BorderRadius.circular(8.0),
                   ),
                   child: ListTile(
