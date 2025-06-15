@@ -392,7 +392,7 @@ class _TagsViewScreenState extends State<TagsViewScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${files.length} ${files.length == 1 ? 'file' : 'files'} tagged',
+                        '${files.length} ${files.length == 1 ? 'item' : 'items'} tagged',
                         style: TextStyle(
                           fontSize: 14,
                           color:
@@ -410,7 +410,7 @@ class _TagsViewScreenState extends State<TagsViewScreen>
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              'Tagged Files',
+              'Tagged Files and Folders',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -425,8 +425,9 @@ class _TagsViewScreenState extends State<TagsViewScreen>
                     ? Center(
                       child: EmptyState(
                         icon: Icons.insert_drive_file_outlined,
-                        title: 'No Files Tagged',
-                        message: 'No files have been tagged with "${tag.name}"',
+                        title: 'No Items Tagged',
+                        message:
+                            'No files or folders have been tagged with "${tag.name}"',
                       ),
                     )
                     : ListView.builder(
@@ -434,35 +435,23 @@ class _TagsViewScreenState extends State<TagsViewScreen>
                       itemCount: files.length,
                       itemBuilder: (context, index) {
                         final path = files[index];
-                        final file = File(path);
+                        final isDirectory = FileSystemEntity.isDirectorySync(
+                          path,
+                        );
+                        final entity =
+                            isDirectory ? Directory(path) : File(path);
 
-                        if (!file.existsSync()) {
+                        if (!entity.existsSync()) {
                           return const SizedBox.shrink();
                         }
 
-                        return Container(
+                        return Card(
                           margin: const EdgeInsets.only(bottom: 8),
-                          decoration: BoxDecoration(
-                            color: cardColor,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color:
-                                  isDarkMode
-                                      ? Colors.grey.shade800
-                                      : Colors.grey.shade200,
-                            ),
-                          ),
                           child: ListTile(
-                            leading: _getFileIcon(file),
-                            title: Text(
-                              p.basename(file.path),
-                              style: TextStyle(
-                                color:
-                                    isDarkMode ? Colors.white : Colors.black87,
-                              ),
-                            ),
+                            leading: _getFileIcon(entity),
+                            title: Text(p.basename(path)),
                             subtitle: Text(
-                              p.dirname(file.path),
+                              p.dirname(path),
                               style: TextStyle(
                                 fontSize: 12,
                                 color:
@@ -478,12 +467,14 @@ class _TagsViewScreenState extends State<TagsViewScreen>
                                   icon: const Icon(Icons.folder_open_outlined),
                                   tooltip: 'Open containing folder',
                                   onPressed: () {
-                                    // Navigate to the folder containing this file
                                     Navigator.pushNamed(
                                       context,
                                       '/',
                                       arguments: {
-                                        'initialPath': p.dirname(file.path),
+                                        'initialPath':
+                                            isDirectory
+                                                ? path
+                                                : p.dirname(path),
                                       },
                                     );
                                   },
@@ -494,7 +485,7 @@ class _TagsViewScreenState extends State<TagsViewScreen>
                                   onPressed: () {
                                     _showFileTagsDialog(
                                       context,
-                                      file,
+                                      entity,
                                       tagsService,
                                     );
                                   },
@@ -502,8 +493,17 @@ class _TagsViewScreenState extends State<TagsViewScreen>
                               ],
                             ),
                             onTap: () {
-                              // Open the file using default application
-                              Process.start('xdg-open', [file.path]);
+                              if (!isDirectory) {
+                                // Open the file using default application
+                                Process.start('xdg-open', [path]);
+                              } else {
+                                // Navigate to the folder
+                                Navigator.pushNamed(
+                                  context,
+                                  '/',
+                                  arguments: {'initialPath': path},
+                                );
+                              }
                             },
                           ),
                         );
@@ -515,54 +515,54 @@ class _TagsViewScreenState extends State<TagsViewScreen>
     );
   }
 
-  Widget _getFileIcon(File file) {
-    final ext = p.extension(file.path).toLowerCase();
+  Widget _getFileIcon(FileSystemEntity entity) {
     IconData iconData;
     Color iconColor;
 
-    if (FileSystemEntity.isDirectorySync(file.path)) {
+    if (entity is Directory) {
       iconData = Icons.folder;
       iconColor = Colors.amber;
-    } else if ([
-      '.jpg',
-      '.jpeg',
-      '.png',
-      '.gif',
-      '.bmp',
-      '.webp',
-    ].contains(ext)) {
-      iconData = Icons.image;
-      iconColor = Colors.blue;
-    } else if (['.mp4', '.avi', '.mov', '.mkv', '.webm'].contains(ext)) {
-      iconData = Icons.movie;
-      iconColor = Colors.red;
-    } else if (['.mp3', '.wav', '.ogg', '.flac'].contains(ext)) {
-      iconData = Icons.music_note;
-      iconColor = Colors.purple;
-    } else if (['.pdf'].contains(ext)) {
-      iconData = Icons.picture_as_pdf;
-      iconColor = Colors.red;
-    } else if (['.doc', '.docx'].contains(ext)) {
-      iconData = Icons.description;
-      iconColor = Colors.blue;
-    } else if (['.xls', '.xlsx', '.csv'].contains(ext)) {
-      iconData = Icons.table_chart;
-      iconColor = Colors.green;
-    } else if (['.ppt', '.pptx'].contains(ext)) {
-      iconData = Icons.slideshow;
-      iconColor = Colors.orange;
-    } else if (['.zip', '.rar', '.tar', '.gz'].contains(ext)) {
-      iconData = Icons.archive;
-      iconColor = Colors.brown;
     } else {
-      iconData = Icons.insert_drive_file;
-      iconColor = Colors.blueGrey;
+      final ext = p.extension(entity.path).toLowerCase();
+      if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].contains(ext)) {
+        iconData = Icons.image;
+        iconColor = Colors.blue;
+      } else if (['.mp4', '.avi', '.mov', '.mkv', '.webm'].contains(ext)) {
+        iconData = Icons.movie;
+        iconColor = Colors.red;
+      } else if (['.mp3', '.wav', '.ogg', '.flac'].contains(ext)) {
+        iconData = Icons.music_note;
+        iconColor = Colors.purple;
+      } else if (['.pdf'].contains(ext)) {
+        iconData = Icons.picture_as_pdf;
+        iconColor = Colors.red;
+      } else if (['.doc', '.docx'].contains(ext)) {
+        iconData = Icons.description;
+        iconColor = Colors.blue;
+      } else if (['.xls', '.xlsx', '.csv'].contains(ext)) {
+        iconData = Icons.table_chart;
+        iconColor = Colors.green;
+      } else if (['.ppt', '.pptx'].contains(ext)) {
+        iconData = Icons.slideshow;
+        iconColor = Colors.orange;
+      } else if (['.zip', '.rar', '.tar', '.gz'].contains(ext)) {
+        iconData = Icons.archive;
+        iconColor = Colors.brown;
+      } else {
+        iconData = Icons.insert_drive_file;
+        iconColor = Colors.blueGrey;
+      }
     }
 
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: iconColor.withAlpha((0.2 * 255).round()),
+        color: iconColor.withValues(
+          alpha: 51.0,
+          red: iconColor.r * 255.0,
+          green: iconColor.g * 255.0,
+          blue: iconColor.b * 255.0,
+        ),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(iconData, color: iconColor, size: 24),
@@ -819,7 +819,7 @@ class _TagsViewScreenState extends State<TagsViewScreen>
 
   void _showFileTagsDialog(
     BuildContext context,
-    File file,
+    FileSystemEntity entity,
     TagsService tagsService,
   ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -830,7 +830,7 @@ class _TagsViewScreenState extends State<TagsViewScreen>
       builder:
           (context) => StatefulBuilder(
             builder: (context, setState) {
-              final fileTags = tagsService.getTagsForFile(file.path);
+              final fileTags = tagsService.getTagsForFile(entity.path);
               final availableTags = tagsService.availableTags;
 
               return AlertDialog(
@@ -849,7 +849,7 @@ class _TagsViewScreenState extends State<TagsViewScreen>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      file.path,
+                      entity.path,
                       style: TextStyle(
                         fontSize: 12,
                         color:
@@ -927,7 +927,7 @@ class _TagsViewScreenState extends State<TagsViewScreen>
                                             onTap: () async {
                                               await tagsService
                                                   .removeTagFromFile(
-                                                    file.path,
+                                                    entity.path,
                                                     tag.id,
                                                   );
                                               setState(() {});
@@ -970,7 +970,7 @@ class _TagsViewScreenState extends State<TagsViewScreen>
                                   (tag) => InkWell(
                                     onTap: () async {
                                       await tagsService.addTagToFile(
-                                        file.path,
+                                        entity.path,
                                         tag,
                                       );
                                       setState(() {});
