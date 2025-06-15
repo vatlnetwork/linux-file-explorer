@@ -213,11 +213,13 @@ class ThemeService extends ChangeNotifier {
       // Override context menu theme to use default colors
       menuTheme: MenuThemeData(
         style: MenuStyle(
-          backgroundColor: MaterialStatePropertyAll(defaultBackground),
-          surfaceTintColor: const MaterialStatePropertyAll(Colors.transparent),
-          shadowColor: MaterialStatePropertyAll(Colors.black.withOpacity(0.2)),
-          elevation: const MaterialStatePropertyAll(8),
-          shape: MaterialStatePropertyAll(
+          backgroundColor: WidgetStatePropertyAll(defaultBackground),
+          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+          shadowColor: WidgetStatePropertyAll(
+            Colors.black.withValues(red: 0, green: 0, blue: 0, alpha: 51),
+          ),
+          elevation: const WidgetStatePropertyAll(8),
+          shape: WidgetStatePropertyAll(
             RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
               side: BorderSide(color: defaultBorder!),
@@ -227,11 +229,16 @@ class ThemeService extends ChangeNotifier {
       ),
       menuButtonTheme: MenuButtonThemeData(
         style: ButtonStyle(
-          backgroundColor: MaterialStatePropertyAll(defaultBackground),
-          foregroundColor: MaterialStatePropertyAll(defaultForeground),
-          surfaceTintColor: const MaterialStatePropertyAll(Colors.transparent),
-          overlayColor: MaterialStatePropertyAll(
-            defaultForeground.withOpacity(0.1),
+          backgroundColor: WidgetStatePropertyAll(defaultBackground),
+          foregroundColor: WidgetStatePropertyAll(defaultForeground),
+          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+          overlayColor: WidgetStatePropertyAll(
+            defaultForeground.withValues(
+              alpha: 26.0,
+              red: defaultForeground.r * 255.0,
+              green: defaultForeground.g * 255.0,
+              blue: defaultForeground.b * 255.0,
+            ),
           ),
         ),
       ),
