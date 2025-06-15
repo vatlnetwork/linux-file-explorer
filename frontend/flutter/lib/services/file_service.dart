@@ -2,12 +2,17 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:logging/logging.dart';
 import '../models/file_item.dart';
+import '../models/tag.dart';
+import '../services/tags_service.dart';
 
 /// Service for handling file system operations
 class FileService {
   final _logger = Logger('FileService');
   String _currentDirectory = '/';
   bool _isSearchCancelled = false;
+  final TagsService _tagsService;
+
+  FileService(this._tagsService);
 
   String get currentDirectory => _currentDirectory;
 
@@ -21,23 +26,109 @@ class FileService {
 
   // File type extensions mapping
   final Map<String, List<String>> _fileTypeExtensions = {
-    'Text Files': ['.txt', '.md', '.rtf'],
+    'Text Files': ['.txt', '.md', '.rtf', '.log'],
     'Source Code': [
       '.dart',
       '.java',
       '.cpp',
+      '.c',
+      '.h',
+      '.hpp',
       '.py',
       '.js',
+      '.ts',
       '.html',
       '.css',
+      '.scss',
+      '.sass',
+      '.less',
       '.json',
       '.yaml',
+      '.yml',
       '.xml',
+      '.sh',
+      '.bash',
+      '.zsh',
+      '.fish',
+      '.php',
+      '.rb',
+      '.rs',
+      '.go',
+      '.swift',
+      '.kt',
+      '.gradle',
+      '.cmake',
+      '.make',
+      '.sql',
     ],
-    'Documents': ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'],
-    'Images': ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg'],
-    'Audio': ['.mp3', '.wav', '.ogg', '.m4a', '.flac'],
-    'Video': ['.mp4', '.avi', '.mkv', '.mov', '.wmv'],
+    'Documents': [
+      '.pdf',
+      '.doc',
+      '.docx',
+      '.xls',
+      '.xlsx',
+      '.ppt',
+      '.pptx',
+      '.odt',
+      '.ods',
+      '.odp',
+      '.pages',
+      '.numbers',
+      '.key',
+    ],
+    'Images': [
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.gif',
+      '.bmp',
+      '.svg',
+      '.webp',
+      '.tiff',
+      '.ico',
+      '.raw',
+      '.psd',
+      '.ai',
+      '.heic',
+    ],
+    'Audio': [
+      '.mp3',
+      '.wav',
+      '.ogg',
+      '.m4a',
+      '.flac',
+      '.aac',
+      '.wma',
+      '.aiff',
+      '.alac',
+      '.mid',
+      '.midi',
+    ],
+    'Video': [
+      '.mp4',
+      '.avi',
+      '.mkv',
+      '.mov',
+      '.wmv',
+      '.flv',
+      '.webm',
+      '.m4v',
+      '.mpg',
+      '.mpeg',
+      '.3gp',
+      '.ogv',
+    ],
+    'Archives': [
+      '.zip',
+      '.rar',
+      '.7z',
+      '.tar',
+      '.gz',
+      '.bz2',
+      '.xz',
+      '.iso',
+      '.dmg',
+    ],
   };
 
   bool _matchesFileType(String path, String? fileType) {
@@ -46,12 +137,28 @@ class FileService {
     return _fileTypeExtensions[fileType]?.contains(extension) ?? false;
   }
 
+  bool _matchesTags(String path, List<Tag>? tags) {
+    if (tags == null || tags.isEmpty) return true;
+    final fileTags = _tagsService.getTagsForFile(path);
+    return tags.every((tag) => fileTags.any((fileTag) => fileTag.id == tag.id));
+  }
+
   Future<bool> _searchInFileContent(File file, String query) async {
     try {
       // Skip binary files and large files
       final stat = await file.stat();
       if (stat.size > 10 * 1024 * 1024)
         return false; // Skip files larger than 10MB
+
+      // Skip files that are likely to be binary based on extension
+      final extension = p.extension(file.path).toLowerCase();
+      final binaryExtensions = [
+        ...?_fileTypeExtensions['Images'],
+        ...?_fileTypeExtensions['Audio'],
+        ...?_fileTypeExtensions['Video'],
+        ...?_fileTypeExtensions['Archives'],
+      ];
+      if (binaryExtensions.contains(extension)) return false;
 
       final content = await file.readAsString();
       return content.toLowerCase().contains(query.toLowerCase());
@@ -143,6 +250,7 @@ class FileService {
     void Function(int progress, int total)? onProgress,
     bool searchInFiles = false,
     String? fileType,
+    List<Tag>? tags,
   }) async {
     _isSearchCancelled = false;
     final items = <FileItem>[];
@@ -187,12 +295,14 @@ class FileService {
           final item = await FileItem.fromEntity(entity);
           bool matches = false;
 
-          if (item.type == FileItemType.file &&
-              _matchesFileType(item.path, fileType)) {
-            matches = item.name.toLowerCase().contains(query.toLowerCase());
+          if (item.type == FileItemType.file) {
+            if (_matchesFileType(item.path, fileType) &&
+                _matchesTags(item.path, tags)) {
+              matches = item.name.toLowerCase().contains(query.toLowerCase());
 
-            if (searchInFiles && !matches && entity is File) {
-              matches = await _searchInFileContent(entity, query);
+              if (searchInFiles && !matches && entity is File) {
+                matches = await _searchInFileContent(entity, query);
+              }
             }
           } else if (item.type == FileItemType.directory) {
             matches = item.name.toLowerCase().contains(query.toLowerCase());
@@ -226,14 +336,16 @@ class FileService {
                 final item = await FileItem.fromEntity(subEntity);
                 bool matches = false;
 
-                if (item.type == FileItemType.file &&
-                    _matchesFileType(item.path, fileType)) {
-                  matches = item.name.toLowerCase().contains(
-                    query.toLowerCase(),
-                  );
+                if (item.type == FileItemType.file) {
+                  if (_matchesFileType(item.path, fileType) &&
+                      _matchesTags(item.path, tags)) {
+                    matches = item.name.toLowerCase().contains(
+                      query.toLowerCase(),
+                    );
 
-                  if (searchInFiles && !matches && subEntity is File) {
-                    matches = await _searchInFileContent(subEntity, query);
+                    if (searchInFiles && !matches && subEntity is File) {
+                      matches = await _searchInFileContent(subEntity, query);
+                    }
                   }
                 } else if (item.type == FileItemType.directory) {
                   matches = item.name.toLowerCase().contains(

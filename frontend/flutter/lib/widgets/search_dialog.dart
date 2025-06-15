@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/file_service.dart';
 import '../models/file_item.dart';
 import '../services/tags_service.dart';
+import '../models/tag.dart';
 import 'dart:async';
 import 'package:provider/provider.dart';
 
@@ -23,6 +24,7 @@ class SearchDialog extends StatefulWidget {
 
 class _SearchDialogState extends State<SearchDialog> {
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _tagSearchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   bool _isSearching = false;
   String _searchStatus = '';
@@ -33,6 +35,8 @@ class _SearchDialogState extends State<SearchDialog> {
   List<FileItem> _searchResults = [];
   bool _searchInFiles = true;
   String? _selectedFileType;
+  List<Tag> _selectedTags = [];
+  String _tagSearchQuery = '';
 
   final List<String> _fileTypes = [
     'All Files',
@@ -42,6 +46,7 @@ class _SearchDialogState extends State<SearchDialog> {
     'Images',
     'Audio',
     'Video',
+    'Archives',
   ];
 
   @override
@@ -53,6 +58,7 @@ class _SearchDialogState extends State<SearchDialog> {
   @override
   void dispose() {
     _searchController.dispose();
+    _tagSearchController.dispose();
     _searchFocusNode.dispose();
     _searchTimeout?.cancel();
     _debounceTimer?.cancel();
@@ -68,7 +74,7 @@ class _SearchDialogState extends State<SearchDialog> {
   }
 
   Future<void> _performSearch() async {
-    if (_searchController.text.isEmpty) {
+    if (_searchController.text.isEmpty && _selectedTags.isEmpty) {
       setState(() {
         _searchResults = [];
         _isSearching = false;
@@ -102,6 +108,7 @@ class _SearchDialogState extends State<SearchDialog> {
             searchInFiles: _searchInFiles,
             fileType:
                 _selectedFileType == 'All Files' ? null : _selectedFileType,
+            tags: _selectedTags.isEmpty ? null : _selectedTags,
           );
 
       if (mounted) {
@@ -121,11 +128,166 @@ class _SearchDialogState extends State<SearchDialog> {
     }
   }
 
+  List<Tag> _getFilteredTags(List<Tag> allTags) {
+    if (_tagSearchQuery.isEmpty) return allTags;
+    final query = _tagSearchQuery.toLowerCase();
+    return allTags
+        .where((tag) => tag.name.toLowerCase().contains(query))
+        .toList();
+  }
+
+  Widget _buildTagChip(Tag tag, bool isSelected) {
+    return FilterChip(
+      selected: isSelected,
+      label: Text(tag.name),
+      labelStyle: TextStyle(
+        fontSize: 12,
+        color: isSelected ? Colors.white : tag.color,
+      ),
+      backgroundColor: tag.color.withOpacity(0.1),
+      selectedColor: tag.color,
+      checkmarkColor: Colors.white,
+      onSelected: (bool selected) {
+        setState(() {
+          if (selected) {
+            _selectedTags.add(tag);
+          } else {
+            _selectedTags.removeWhere((t) => t.id == tag.id);
+          }
+          _performSearch();
+        });
+      },
+    );
+  }
+
+  Widget _buildTagsSection(
+    TagsService tagsService,
+    bool isDarkMode,
+    ColorScheme colorScheme,
+  ) {
+    final filteredTags = _getFilteredTags(tagsService.availableTags);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Filter by tags:',
+          style: TextStyle(
+            fontSize: 12,
+            color:
+                isDarkMode
+                    ? colorScheme.onSurfaceVariant
+                    : colorScheme.onBackground,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: isDarkMode ? colorScheme.surface : colorScheme.background,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color:
+                  isDarkMode ? colorScheme.outline : colorScheme.outlineVariant,
+              width: 1,
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              Icon(
+                Icons.search,
+                size: 16,
+                color:
+                    isDarkMode
+                        ? colorScheme.onSurfaceVariant
+                        : colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _tagSearchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search tags...',
+                    hintStyle: TextStyle(
+                      fontSize: 12,
+                      color:
+                          isDarkMode
+                              ? colorScheme.onSurfaceVariant
+                              : colorScheme.onSurfaceVariant,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color:
+                        isDarkMode
+                            ? colorScheme.onSurface
+                            : colorScheme.onBackground,
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _tagSearchQuery = value;
+                    });
+                  },
+                ),
+              ),
+              if (_tagSearchQuery.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.clear, size: 16),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 24,
+                    minHeight: 24,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _tagSearchQuery = '';
+                      _tagSearchController.clear();
+                    });
+                  },
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (filteredTags.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Text(
+              'No tags found',
+              style: TextStyle(
+                fontSize: 12,
+                color:
+                    isDarkMode
+                        ? colorScheme.onSurfaceVariant
+                        : colorScheme.onBackground.withOpacity(0.7),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children:
+                filteredTags.map((tag) {
+                  return _buildTagChip(
+                    tag,
+                    _selectedTags.any((t) => t.id == tag.id),
+                  );
+                }).toList(),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDarkMode = theme.brightness == Brightness.dark;
+    final tagsService = Provider.of<TagsService>(context);
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -151,6 +313,7 @@ class _SearchDialogState extends State<SearchDialog> {
                 ),
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
                     decoration: BoxDecoration(
@@ -233,15 +396,15 @@ class _SearchDialogState extends State<SearchDialog> {
                       ),
                       const SizedBox(width: 16),
                       Expanded(
-                        child: DropdownButtonHideUnderline(
-                          child: Theme(
-                            data: Theme.of(context).copyWith(
-                              popupMenuTheme: PopupMenuThemeData(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            popupMenuTheme: PopupMenuThemeData(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
+                          ),
+                          child: DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
                               value: _selectedFileType ?? 'All Files',
                               isExpanded: true,
@@ -286,10 +449,11 @@ class _SearchDialogState extends State<SearchDialog> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 12),
+                  _buildTagsSection(tagsService, isDarkMode, colorScheme),
                 ],
               ),
             ),
-
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: Text(
@@ -328,8 +492,9 @@ class _SearchDialogState extends State<SearchDialog> {
                       : _searchResults.isEmpty
                       ? Center(
                         child: Text(
-                          _searchController.text.isEmpty
-                              ? 'Type to search in files'
+                          _searchController.text.isEmpty &&
+                                  _selectedTags.isEmpty
+                              ? 'Type to search in files or select tags'
                               : 'No results found',
                           style: TextStyle(
                             color:
@@ -344,6 +509,10 @@ class _SearchDialogState extends State<SearchDialog> {
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         itemBuilder: (context, index) {
                           final item = _searchResults[index];
+                          final itemTags = tagsService.getTagsForFile(
+                            item.path,
+                          );
+
                           return ListTile(
                             leading: Icon(
                               item.type == FileItemType.directory
@@ -360,17 +529,56 @@ class _SearchDialogState extends State<SearchDialog> {
                                         : colorScheme.onBackground,
                               ),
                             ),
-                            subtitle: Text(
-                              item.path,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color:
-                                    isDarkMode
-                                        ? colorScheme.onSurfaceVariant
-                                        : colorScheme.onBackground.withOpacity(
-                                          0.7,
-                                        ),
-                              ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.path,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color:
+                                        isDarkMode
+                                            ? colorScheme.onSurfaceVariant
+                                            : colorScheme.onBackground
+                                                .withOpacity(0.7),
+                                  ),
+                                ),
+                                if (itemTags.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Wrap(
+                                    spacing: 4,
+                                    runSpacing: 4,
+                                    children:
+                                        itemTags.map((tag) {
+                                          return Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: tag.color.withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                              border: Border.all(
+                                                color: tag.color.withOpacity(
+                                                  0.3,
+                                                ),
+                                                width: 1,
+                                              ),
+                                            ),
+                                            child: Text(
+                                              tag.name,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: tag.color,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                  ),
+                                ],
+                              ],
                             ),
                             onTap: () {
                               Navigator.of(context).pop(item);
