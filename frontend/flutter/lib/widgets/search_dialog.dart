@@ -234,31 +234,53 @@ class _SearchDialogState extends State<SearchDialog> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedFileType ?? 'All Files',
-                            isExpanded: true,
-                            items:
-                                _fileTypes.map((type) {
-                                  return DropdownMenuItem<String>(
-                                    value: type,
-                                    child: Text(
-                                      type,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color:
-                                            isDarkMode
-                                                ? colorScheme.onSurface
-                                                : colorScheme.onBackground,
+                          child: Theme(
+                            data: Theme.of(context).copyWith(
+                              popupMenuTheme: PopupMenuThemeData(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                            child: DropdownButton<String>(
+                              value: _selectedFileType ?? 'All Files',
+                              isExpanded: true,
+                              dropdownColor:
+                                  isDarkMode
+                                      ? colorScheme.surfaceVariant
+                                      : colorScheme.surface,
+                              menuMaxHeight: 300,
+                              borderRadius: BorderRadius.circular(12),
+                              items:
+                                  _fileTypes.map((type) {
+                                    return DropdownMenuItem<String>(
+                                      value: type,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          type,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color:
+                                                isDarkMode
+                                                    ? colorScheme.onSurface
+                                                    : colorScheme.onBackground,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                }).toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedFileType = value;
-                                _performSearch();
-                              });
-                            },
+                                    );
+                                  }).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedFileType = value;
+                                  _performSearch();
+                                });
+                              },
+                            ),
                           ),
                         ),
                       ),
