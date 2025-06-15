@@ -147,8 +147,9 @@ class FileService {
     try {
       // Skip binary files and large files
       final stat = await file.stat();
-      if (stat.size > 10 * 1024 * 1024)
+      if (stat.size > 10 * 1024 * 1024) {
         return false; // Skip files larger than 10MB
+      }
 
       // Skip files that are likely to be binary based on extension
       final extension = p.extension(file.path).toLowerCase();

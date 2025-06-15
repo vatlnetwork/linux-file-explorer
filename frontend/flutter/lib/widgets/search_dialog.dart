@@ -35,6 +35,7 @@ class _SearchDialogState extends State<SearchDialog> {
   List<FileItem> _searchResults = [];
   bool _searchInFiles = true;
   String? _selectedFileType;
+  // ignore: prefer_final_fields
   List<Tag> _selectedTags = [];
   String _tagSearchQuery = '';
 
@@ -144,7 +145,7 @@ class _SearchDialogState extends State<SearchDialog> {
         fontSize: 12,
         color: isSelected ? Colors.white : tag.color,
       ),
-      backgroundColor: tag.color.withOpacity(0.1),
+      backgroundColor: tag.color.withAlpha(26),
       selectedColor: tag.color,
       checkmarkColor: Colors.white,
       onSelected: (bool selected) {
@@ -177,13 +178,16 @@ class _SearchDialogState extends State<SearchDialog> {
             color:
                 isDarkMode
                     ? colorScheme.onSurfaceVariant
-                    : colorScheme.onBackground,
+                    : colorScheme.onSurface.withAlpha(179),
           ),
         ),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
-            color: isDarkMode ? colorScheme.surface : colorScheme.background,
+            color:
+                isDarkMode
+                    ? colorScheme.surfaceContainer.withAlpha(77)
+                    : colorScheme.surfaceContainer.withAlpha(26),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color:
@@ -200,7 +204,7 @@ class _SearchDialogState extends State<SearchDialog> {
                 color:
                     isDarkMode
                         ? colorScheme.onSurfaceVariant
-                        : colorScheme.onSurfaceVariant,
+                        : colorScheme.onSurface.withAlpha(179),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -213,7 +217,7 @@ class _SearchDialogState extends State<SearchDialog> {
                       color:
                           isDarkMode
                               ? colorScheme.onSurfaceVariant
-                              : colorScheme.onSurfaceVariant,
+                              : colorScheme.onSurface.withAlpha(179),
                     ),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(vertical: 8),
@@ -223,7 +227,7 @@ class _SearchDialogState extends State<SearchDialog> {
                     color:
                         isDarkMode
                             ? colorScheme.onSurface
-                            : colorScheme.onBackground,
+                            : colorScheme.onSurface.withAlpha(179),
                   ),
                   onChanged: (value) {
                     setState(() {
@@ -261,7 +265,7 @@ class _SearchDialogState extends State<SearchDialog> {
                 color:
                     isDarkMode
                         ? colorScheme.onSurfaceVariant
-                        : colorScheme.onBackground.withOpacity(0.7),
+                        : colorScheme.onSurface.withAlpha(179),
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -291,8 +295,7 @@ class _SearchDialogState extends State<SearchDialog> {
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      backgroundColor:
-          isDarkMode ? colorScheme.surface : colorScheme.background,
+      backgroundColor: colorScheme.surface,
       child: Container(
         width: 600,
         constraints: BoxConstraints(
@@ -306,8 +309,8 @@ class _SearchDialogState extends State<SearchDialog> {
               decoration: BoxDecoration(
                 color:
                     isDarkMode
-                        ? colorScheme.surfaceVariant.withOpacity(0.3)
-                        : colorScheme.surfaceVariant.withOpacity(0.1),
+                        ? colorScheme.surfaceContainer.withAlpha(77)
+                        : colorScheme.surfaceContainer.withAlpha(26),
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(12),
                 ),
@@ -319,8 +322,8 @@ class _SearchDialogState extends State<SearchDialog> {
                     decoration: BoxDecoration(
                       color:
                           isDarkMode
-                              ? colorScheme.surface
-                              : colorScheme.background,
+                              ? colorScheme.surfaceContainer.withAlpha(77)
+                              : colorScheme.surfaceContainer.withAlpha(26),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color:
@@ -346,8 +349,8 @@ class _SearchDialogState extends State<SearchDialog> {
                             style: TextStyle(
                               color:
                                   isDarkMode
-                                      ? colorScheme.onSurface
-                                      : colorScheme.onBackground,
+                                      ? colorScheme.onSurfaceVariant
+                                      : colorScheme.onSurface.withAlpha(179),
                             ),
                             decoration: InputDecoration(
                               hintText: 'Search in files...',
@@ -391,7 +394,7 @@ class _SearchDialogState extends State<SearchDialog> {
                           color:
                               isDarkMode
                                   ? colorScheme.onSurfaceVariant
-                                  : colorScheme.onBackground,
+                                  : colorScheme.onSurface.withAlpha(179),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -410,8 +413,8 @@ class _SearchDialogState extends State<SearchDialog> {
                               isExpanded: true,
                               dropdownColor:
                                   isDarkMode
-                                      ? colorScheme.surfaceVariant
-                                      : colorScheme.surface,
+                                      ? colorScheme.surfaceContainer
+                                      : colorScheme.surfaceContainer,
                               menuMaxHeight: 300,
                               borderRadius: BorderRadius.circular(12),
                               items:
@@ -430,8 +433,10 @@ class _SearchDialogState extends State<SearchDialog> {
                                             fontSize: 14,
                                             color:
                                                 isDarkMode
-                                                    ? colorScheme.onSurface
-                                                    : colorScheme.onBackground,
+                                                    ? colorScheme
+                                                        .onSurfaceVariant
+                                                    : colorScheme
+                                                        .onSurfaceVariant,
                                           ),
                                         ),
                                       ),
@@ -462,7 +467,7 @@ class _SearchDialogState extends State<SearchDialog> {
                   color:
                       isDarkMode
                           ? colorScheme.onSurfaceVariant
-                          : colorScheme.onBackground.withOpacity(0.7),
+                          : colorScheme.onSurface.withAlpha(179),
                 ),
               ),
             ),
@@ -473,7 +478,7 @@ class _SearchDialogState extends State<SearchDialog> {
                 child: LinearProgressIndicator(
                   value:
                       _searchTotal > 0 ? _searchProgress / _searchTotal : null,
-                  backgroundColor: colorScheme.surfaceVariant,
+                  backgroundColor: colorScheme.surfaceContainer,
                   valueColor: AlwaysStoppedAnimation<Color>(
                     colorScheme.primary,
                   ),
@@ -500,7 +505,7 @@ class _SearchDialogState extends State<SearchDialog> {
                             color:
                                 isDarkMode
                                     ? colorScheme.onSurfaceVariant
-                                    : colorScheme.onBackground.withOpacity(0.7),
+                                    : colorScheme.onSurface.withAlpha(179),
                           ),
                         ),
                       )
@@ -525,8 +530,8 @@ class _SearchDialogState extends State<SearchDialog> {
                               style: TextStyle(
                                 color:
                                     isDarkMode
-                                        ? colorScheme.onSurface
-                                        : colorScheme.onBackground,
+                                        ? colorScheme.onSurfaceVariant
+                                        : colorScheme.onSurface.withAlpha(179),
                               ),
                             ),
                             subtitle: Column(
@@ -539,8 +544,9 @@ class _SearchDialogState extends State<SearchDialog> {
                                     color:
                                         isDarkMode
                                             ? colorScheme.onSurfaceVariant
-                                            : colorScheme.onBackground
-                                                .withOpacity(0.7),
+                                            : colorScheme.onSurface.withAlpha(
+                                              179,
+                                            ),
                                   ),
                                 ),
                                 if (itemTags.isNotEmpty) ...[
@@ -556,13 +562,11 @@ class _SearchDialogState extends State<SearchDialog> {
                                               vertical: 2,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: tag.color.withOpacity(0.1),
+                                              color: tag.color.withAlpha(26),
                                               borderRadius:
                                                   BorderRadius.circular(4),
                                               border: Border.all(
-                                                color: tag.color.withOpacity(
-                                                  0.3,
-                                                ),
+                                                color: tag.color.withAlpha(77),
                                                 width: 1,
                                               ),
                                             ),

@@ -26,7 +26,13 @@ class FolderDropTarget extends StatefulWidget {
 }
 
 class _FolderDropTargetState extends State<FolderDropTarget> {
-  final _fileService = FileService();
+  late final FileService _fileService;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _fileService = context.read<FileService>();
+  }
 
   @override
   Widget build(BuildContext context) {

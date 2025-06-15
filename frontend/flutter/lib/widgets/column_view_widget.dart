@@ -38,78 +38,80 @@ class ColumnViewWidget extends StatefulWidget {
   State<ColumnViewWidget> createState() => _ColumnViewWidgetState();
 }
 
-class _ColumnViewWidgetState extends State<ColumnViewWidget> with AutomaticKeepAliveClientMixin {
-  final FileService _fileService = FileService();
-  
+class _ColumnViewWidgetState extends State<ColumnViewWidget>
+    with AutomaticKeepAliveClientMixin {
+  late final FileService _fileService;
+
   // Track the columns to display
   late List<_ColumnData> _columns;
-  
+
   // Selected item in each column
   final Map<int, FileItem?> _selectedItems = {};
-  
+
   // Scroll controllers for each column
   final Map<int, ScrollController> _scrollControllers = {};
-  
+
   // Flag to track if the widget is disposed
   bool _isDisposed = false;
-  
+
   @override
   bool get wantKeepAlive => false; // Don't keep the widget alive when not visible
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _fileService = context.read<FileService>();
+  }
 
   @override
   void initState() {
     super.initState();
     _initializeColumns();
   }
-  
+
   @override
   void didUpdateWidget(ColumnViewWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.currentPath != widget.currentPath || 
+    if (oldWidget.currentPath != widget.currentPath ||
         oldWidget.items != widget.items) {
       _initializeColumns();
     }
   }
-  
+
   @override
   void dispose() {
     _isDisposed = true;
-    
+
     // Dispose all scroll controllers
     for (final controller in _scrollControllers.values) {
       controller.dispose();
     }
     _scrollControllers.clear();
-    
+
     super.dispose();
   }
-  
+
   void _initializeColumns() {
     if (_isDisposed) return;
-    
+
     // Start with the current directory
-    _columns = [
-      _ColumnData(
-        path: widget.currentPath,
-        items: widget.items,
-      ),
-    ];
-    
+    _columns = [_ColumnData(path: widget.currentPath, items: widget.items)];
+
     // Reset selected items
     _selectedItems.clear();
-    
+
     // Create scroll controllers for each column
     _scrollControllers.clear();
     _scrollControllers[0] = ScrollController();
   }
-  
+
   Future<void> _handleItemSelect(int columnIndex, FileItem item) async {
     if (_isDisposed) return;
-    
+
     // Update selection for this column
     setState(() {
       _selectedItems[columnIndex] = item;
-      
+
       // Remove any columns that come after this one
       if (_columns.length > columnIndex + 1) {
         _columns = _columns.sublist(0, columnIndex + 1);
@@ -118,22 +120,19 @@ class _ColumnViewWidgetState extends State<ColumnViewWidget> with AutomaticKeepA
         }
       }
     });
-    
+
     // If this is a directory, load its contents for the next column
     if (item.type == FileItemType.directory) {
       try {
         final items = await _fileService.listDirectory(item.path);
-        
+
         // Check if widget is still mounted before updating state
         if (_isDisposed) return;
-        
+
         // Add a new column with this directory's contents
         setState(() {
-          _columns.add(_ColumnData(
-            path: item.path,
-            items: items,
-          ));
-          
+          _columns.add(_ColumnData(path: item.path, items: items));
+
           // Create a scroll controller for the new column
           _scrollControllers[_columns.length - 1] = ScrollController();
         });
@@ -146,26 +145,23 @@ class _ColumnViewWidgetState extends State<ColumnViewWidget> with AutomaticKeepA
         }
       }
     }
-    
+
     // Let the parent know about the selection
     widget.onItemTap(item, false);
   }
-  
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
-    
+
     return Row(
       children: [
         // Columns view
-        Expanded(
-          flex: 7,
-          child: _buildColumnsView(),
-        ),
+        Expanded(flex: 7, child: _buildColumnsView()),
       ],
     );
   }
-  
+
   Widget _buildColumnsView() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -180,14 +176,14 @@ class _ColumnViewWidgetState extends State<ColumnViewWidget> with AutomaticKeepA
             );
           },
         );
-      }
+      },
     );
   }
-  
+
   Widget _buildColumn(int columnIndex) {
     final columnData = _columns[columnIndex];
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -197,10 +193,7 @@ class _ColumnViewWidgetState extends State<ColumnViewWidget> with AutomaticKeepA
           color: isDarkMode ? Colors.grey.shade800 : const Color(0xFFDDEEFF),
           child: Text(
             p.basename(columnData.path),
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
           ),
@@ -209,35 +202,41 @@ class _ColumnViewWidgetState extends State<ColumnViewWidget> with AutomaticKeepA
         Expanded(
           child: GestureDetector(
             onTap: widget.onEmptyAreaTap,
-            onSecondaryTapUp: (details) => widget.onEmptyAreaRightClick(details.globalPosition),
-            child: columnData.items.isEmpty
-                ? Center(
-                    child: Text(
-                      'No items',
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontStyle: FontStyle.italic,
+            onSecondaryTapUp:
+                (details) =>
+                    widget.onEmptyAreaRightClick(details.globalPosition),
+            child:
+                columnData.items.isEmpty
+                    ? Center(
+                      child: Text(
+                        'No items',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
+                    )
+                    : ListView.builder(
+                      controller: _scrollControllers[columnIndex],
+                      itemCount: columnData.items.length,
+                      itemBuilder: (context, itemIndex) {
+                        final item = columnData.items[itemIndex];
+                        final isSelected =
+                            _selectedItems[columnIndex]?.path == item.path ||
+                            widget.selectedItemsPaths.contains(item.path);
+
+                        return _ColumnItemWidget(
+                          item: item,
+                          isSelected: isSelected,
+                          onTap: () => _handleItemSelect(columnIndex, item),
+                          onDoubleTap: () => widget.onItemDoubleTap(item),
+                          onLongPress: () => widget.onItemLongPress(item),
+                          onRightClick:
+                              (position) =>
+                                  widget.onItemRightClick(item, position),
+                        );
+                      },
                     ),
-                  )
-                : ListView.builder(
-                    controller: _scrollControllers[columnIndex],
-                    itemCount: columnData.items.length,
-                    itemBuilder: (context, itemIndex) {
-                      final item = columnData.items[itemIndex];
-                      final isSelected = _selectedItems[columnIndex]?.path == item.path || 
-                                         widget.selectedItemsPaths.contains(item.path);
-                      
-                      return _ColumnItemWidget(
-                        item: item,
-                        isSelected: isSelected,
-                        onTap: () => _handleItemSelect(columnIndex, item),
-                        onDoubleTap: () => widget.onItemDoubleTap(item),
-                        onLongPress: () => widget.onItemLongPress(item),
-                        onRightClick: (position) => widget.onItemRightClick(item, position),
-                      );
-                    },
-                  ),
           ),
         ),
       ],
@@ -248,11 +247,8 @@ class _ColumnViewWidgetState extends State<ColumnViewWidget> with AutomaticKeepA
 class _ColumnData {
   final String path;
   final List<FileItem> items;
-  
-  _ColumnData({
-    required this.path,
-    required this.items,
-  });
+
+  _ColumnData({required this.path, required this.items});
 }
 
 class _ColumnItemWidget extends StatelessWidget {
@@ -262,7 +258,7 @@ class _ColumnItemWidget extends StatelessWidget {
   final VoidCallback onDoubleTap;
   final VoidCallback onLongPress;
   final Function(Offset) onRightClick;
-  
+
   const _ColumnItemWidget({
     required this.item,
     required this.isSelected,
@@ -271,11 +267,11 @@ class _ColumnItemWidget extends StatelessWidget {
     required this.onLongPress,
     required this.onRightClick,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     return InkWell(
       onTap: onTap,
       onDoubleTap: onDoubleTap,
@@ -284,9 +280,12 @@ class _ColumnItemWidget extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? (isDarkMode ? Colors.blueGrey.shade800 : Colors.blue.shade50)
-              : Colors.transparent,
+          color:
+              isSelected
+                  ? (isDarkMode
+                      ? Colors.blueGrey.shade800
+                      : Colors.blue.shade50)
+                  : Colors.transparent,
           border: Border(
             bottom: BorderSide(
               color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
@@ -297,18 +296,16 @@ class _ColumnItemWidget extends StatelessWidget {
         child: Row(
           children: [
             // File icon
-            if (item.type == FileItemType.directory && item.specialFolderIcon != null)
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: item.specialFolderIcon,
-              )
+            if (item.type == FileItemType.directory &&
+                item.specialFolderIcon != null)
+              SizedBox(width: 20, height: 20, child: item.specialFolderIcon)
             else
               Icon(
                 _getIconForFile(item),
-                color: item.type == FileItemType.directory
-                    ? Colors.amber
-                    : _getColorForFile(item),
+                color:
+                    item.type == FileItemType.directory
+                        ? Colors.amber
+                        : _getColorForFile(item),
                 size: 20,
               ),
             const SizedBox(width: 8),
@@ -321,22 +318,25 @@ class _ColumnItemWidget extends StatelessWidget {
                     child: Text(
                       p.basename(item.path),
                       style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  
+
                   // Tags
                   Builder(
                     builder: (context) {
-                      if (item.type == FileItemType.directory) return const SizedBox.shrink();
-                      
+                      if (item.type == FileItemType.directory) {
+                        return const SizedBox.shrink();
+                      }
+
                       final tagsService = Provider.of<TagsService>(context);
                       final fileTags = tagsService.getTagsForFile(item.path);
-                      
+
                       if (fileTags.isEmpty) return const SizedBox.shrink();
-                      
+
                       return Flexible(
                         child: SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
@@ -344,10 +344,12 @@ class _ColumnItemWidget extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const SizedBox(width: 8),
-                              ...fileTags.map((tag) => Padding(
-                                padding: const EdgeInsets.only(right: 4.0),
-                                child: _buildTagChip(tag),
-                              )),
+                              ...fileTags.map(
+                                (tag) => Padding(
+                                  padding: const EdgeInsets.only(right: 4.0),
+                                  child: _buildTagChip(tag),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -359,17 +361,13 @@ class _ColumnItemWidget extends StatelessWidget {
             ),
             // Arrow for directories
             if (item.type == FileItemType.directory)
-              const Icon(
-                Icons.chevron_right,
-                size: 16,
-                color: Colors.grey,
-              ),
+              const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
           ],
         ),
       ),
     );
   }
-  
+
   IconData _getIconForFile(FileItem item) {
     if (item.type == FileItemType.directory) {
       return Icons.folder;
@@ -413,7 +411,7 @@ class _ColumnItemWidget extends StatelessWidget {
         return Icons.insert_drive_file;
     }
   }
-  
+
   Color _getColorForFile(FileItem item) {
     switch (item.fileExtension.toLowerCase()) {
       case '.jpg':
@@ -453,7 +451,7 @@ class _ColumnItemWidget extends StatelessWidget {
         return Colors.blueGrey;
     }
   }
-  
+
   // Utility method to build tag chips
   Widget _buildTagChip(Tag tag) {
     return Container(
@@ -461,10 +459,7 @@ class _ColumnItemWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: tag.color.withAlpha(50),
         borderRadius: BorderRadius.circular(3),
-        border: Border.all(
-          color: tag.color.withAlpha(100),
-          width: 0.5,
-        ),
+        border: Border.all(color: tag.color.withAlpha(100), width: 0.5),
       ),
       child: Text(
         tag.name,
@@ -476,4 +471,4 @@ class _ColumnItemWidget extends StatelessWidget {
       ),
     );
   }
-} 
+}

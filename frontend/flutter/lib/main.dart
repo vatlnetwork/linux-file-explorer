@@ -136,7 +136,9 @@ void main() async {
           ChangeNotifierProvider.value(value: tagsService),
           ChangeNotifierProvider(create: (_) => DragDropService()),
           ChangeNotifierProvider(create: (_) => TabManagerService()),
-          Provider(create: (_) => FileService()),
+          Provider(
+            create: (context) => FileService(context.read<TagsService>()),
+          ),
           ChangeNotifierProvider(create: (_) => ContextMenuSettings()),
           ChangeNotifierProvider(create: (_) => SettingsViewModeService()),
           ChangeNotifierProvider(create: (_) => DiskUsageWidgetService()),

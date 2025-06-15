@@ -59,7 +59,7 @@ class FileExplorerScreen extends StatefulWidget {
 
 class _FileExplorerScreenState extends State<FileExplorerScreen>
     with TickerProviderStateMixin, WindowListener {
-  final FileService _fileService = FileService();
+  late final FileService _fileService;
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _optionsButtonKey = GlobalKey();
   late FocusNode _focusNode; // Changed from final to late
@@ -106,10 +106,17 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       false; // Add state variable for hidden files visibility
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _fileService = context.read<FileService>();
+  }
+
+  @override
   void initState() {
     super.initState();
-    _selectedItemsPaths = {};
-    _clipboardItems = [];
+    _focusNode = FocusNode();
+    _searchFocusNode = FocusNode();
+    _searchController = TextEditingController();
 
     // Initialize animation controllers
     _bookmarkSidebarAnimation = AnimationController(
@@ -124,11 +131,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
 
     windowManager.addListener(this);
     _initHomeDirectory();
-
-    // Initialize focus nodes
-    _focusNode = FocusNode();
-    _searchFocusNode = FocusNode();
-    _searchController = TextEditingController();
 
     // Add focus listeners
     _focusNode.addListener(() {
