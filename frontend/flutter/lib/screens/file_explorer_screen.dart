@@ -444,7 +444,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
 
     if (confirmed == true) {
       try {
-        await _fileService.deleteFileOrDirectory(item.path);
+        await _fileService.delete(item.path);
         _loadDirectory(_currentPath);
       } catch (e) {
         if (mounted) {
@@ -967,7 +967,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       try {
         // Delete each item
         for (final item in items) {
-          await _fileService.deleteFileOrDirectory(item.path);
+          await _fileService.delete(item.path);
         }
 
         // Dismiss progress dialog
@@ -2163,7 +2163,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         // Delete each item
         for (final item in itemsToDelete) {
           try {
-            await _fileService.deleteFileOrDirectory(item.path);
+            await _fileService.delete(item.path);
             successCount++;
           } catch (e) {
             errors.add("${item.name}: $e");
@@ -3356,7 +3356,7 @@ exit
             ),
             IconButton(
               icon: Icon(
-                Icons.search,
+                Icons.manage_search,
                 color: isDarkMode ? Colors.white70 : Colors.black54,
               ),
               onPressed:
@@ -3375,7 +3375,7 @@ exit
                           ),
                         ),
                   ),
-              tooltip: 'Search',
+              tooltip: 'Search in Files',
               iconSize: 20,
               splashRadius: 16,
             ),

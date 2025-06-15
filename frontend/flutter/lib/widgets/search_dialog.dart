@@ -31,8 +31,18 @@ class _SearchDialogState extends State<SearchDialog> {
   Timer? _searchTimeout;
   Timer? _debounceTimer;
   List<FileItem> _searchResults = [];
-  bool _searchByTag = false;
-  String? _selectedTagId;
+  bool _searchInFiles = true;
+  String? _selectedFileType;
+
+  final List<String> _fileTypes = [
+    'All Files',
+    'Text Files',
+    'Source Code',
+    'Documents',
+    'Images',
+    'Audio',
+    'Video',
+  ];
 
   @override
   void initState() {
@@ -58,7 +68,7 @@ class _SearchDialogState extends State<SearchDialog> {
   }
 
   Future<void> _performSearch() async {
-    if (_searchController.text.isEmpty && !_searchByTag) {
+    if (_searchController.text.isEmpty) {
       setState(() {
         _searchResults = [];
         _isSearching = false;
@@ -73,47 +83,26 @@ class _SearchDialogState extends State<SearchDialog> {
       _searchTotal = 0;
     });
 
-    // Cancel any existing search
     widget.fileService.cancelSearch();
 
     try {
-      List<FileItem> results;
-      
-      if (_searchByTag && _selectedTagId != null) {
-        // Search by tag
-        final tagsService = Provider.of<TagsService>(context, listen: false);
-        final filesWithTag = tagsService.getFilesWithTag(_selectedTagId!);
-        results = await widget.fileService.searchInDirectoryAndSubdirectories(
-          widget.currentDirectory,
-          '', // Empty search query since we're searching by tag
-          onProgress: (progress, total) {
-            if (mounted) {
-              setState(() {
-                _searchProgress = progress;
-                _searchTotal = total;
-                _searchStatus = 'Searching... ($progress/$total)';
-              });
-            }
-          },
-        );
-        // Filter results to only include files with the selected tag
-        results = results.where((item) => filesWithTag.contains(item.path)).toList();
-      } else {
-        // Regular search
-        results = await widget.fileService.searchInDirectoryAndSubdirectories(
-          widget.currentDirectory,
-          _searchController.text,
-          onProgress: (progress, total) {
-            if (mounted) {
-              setState(() {
-                _searchProgress = progress;
-                _searchTotal = total;
-                _searchStatus = 'Searching... ($progress/$total)';
-              });
-            }
-          },
-        );
-      }
+      List<FileItem> results = await widget.fileService
+          .searchInDirectoryAndSubdirectories(
+            widget.currentDirectory,
+            _searchController.text,
+            onProgress: (progress, total) {
+              if (mounted) {
+                setState(() {
+                  _searchProgress = progress;
+                  _searchTotal = total;
+                  _searchStatus = 'Searching... ($progress/$total)';
+                });
+              }
+            },
+            searchInFiles: _searchInFiles,
+            fileType:
+                _selectedFileType == 'All Files' ? null : _selectedFileType,
+          );
 
       if (mounted) {
         setState(() {
@@ -136,11 +125,12 @@ class _SearchDialogState extends State<SearchDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDarkMode = theme.brightness == Brightness.dark;
 
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      backgroundColor:
+          isDarkMode ? colorScheme.surface : colorScheme.background,
       child: Container(
         width: 600,
         constraints: BoxConstraints(
@@ -149,190 +139,227 @@ class _SearchDialogState extends State<SearchDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Search bar with icon
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: colorScheme.outlineVariant,
-                  ),
+                color:
+                    isDarkMode
+                        ? colorScheme.surfaceVariant.withOpacity(0.3)
+                        : colorScheme.surfaceVariant.withOpacity(0.1),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(12),
                 ),
               ),
               child: Column(
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.search,
-                        color: colorScheme.onSurfaceVariant,
+                  Container(
+                    decoration: BoxDecoration(
+                      color:
+                          isDarkMode
+                              ? colorScheme.surface
+                              : colorScheme.background,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color:
+                            isDarkMode
+                                ? colorScheme.outline
+                                : colorScheme.outlineVariant,
+                        width: 1,
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          focusNode: _searchFocusNode,
-                          decoration: const InputDecoration(
-                            hintText: 'Search files...',
-                            border: InputBorder.none,
+                    ),
+                    child: Row(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Icon(
+                            Icons.manage_search,
+                            color: colorScheme.primary,
                           ),
-                          onChanged: _onSearchChanged,
                         ),
-                      ),
-                      if (_isSearching)
-                        IconButton(
-                          icon: const Icon(Icons.cancel),
-                          onPressed: () {
-                            widget.fileService.cancelSearch();
-                            setState(() {
-                              _isSearching = false;
-                              _searchStatus = 'Search cancelled';
-                            });
-                          },
+                        Expanded(
+                          child: TextField(
+                            controller: _searchController,
+                            focusNode: _searchFocusNode,
+                            style: TextStyle(
+                              color:
+                                  isDarkMode
+                                      ? colorScheme.onSurface
+                                      : colorScheme.onBackground,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Search in files...',
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 12,
+                              ),
+                            ),
+                            onChanged: _onSearchChanged,
+                          ),
                         ),
-                    ],
+                        if (_isSearching)
+                          IconButton(
+                            icon: const Icon(Icons.cancel),
+                            onPressed: () {
+                              widget.fileService.cancelSearch();
+                              setState(() {
+                                _isSearching = false;
+                                _searchStatus = 'Search cancelled';
+                              });
+                            },
+                          ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
-                      Checkbox(
-                        value: _searchByTag,
+                      Switch(
+                        value: _searchInFiles,
                         onChanged: (value) {
                           setState(() {
-                            _searchByTag = value ?? false;
-                            _selectedTagId = null;
+                            _searchInFiles = value;
                             _performSearch();
                           });
                         },
                       ),
-                      const Text('Search by tag'),
+                      Text(
+                        'Search in file contents',
+                        style: TextStyle(
+                          color:
+                              isDarkMode
+                                  ? colorScheme.onSurfaceVariant
+                                  : colorScheme.onBackground,
+                        ),
+                      ),
                       const SizedBox(width: 16),
-                      if (_searchByTag)
-                        Expanded(
-                          child: Consumer<TagsService>(
-                            builder: (context, tagsService, _) {
-                              return DropdownButton<String>(
-                                value: _selectedTagId,
-                                hint: const Text('Select a tag'),
-                                isExpanded: true,
-                                items: tagsService.availableTags.map((tag) {
+                      Expanded(
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedFileType ?? 'All Files',
+                            isExpanded: true,
+                            items:
+                                _fileTypes.map((type) {
                                   return DropdownMenuItem<String>(
-                                    value: tag.id,
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.local_offer,
-                                          color: tag.color,
-                                          size: 16,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(tag.name),
-                                      ],
+                                    value: type,
+                                    child: Text(
+                                      type,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color:
+                                            isDarkMode
+                                                ? colorScheme.onSurface
+                                                : colorScheme.onBackground,
+                                      ),
                                     ),
                                   );
                                 }).toList(),
-                                onChanged: (value) {
-                                  setState(() {
-                                    _selectedTagId = value;
-                                    _performSearch();
-                                  });
-                                },
-                              );
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedFileType = value;
+                                _performSearch();
+                              });
                             },
                           ),
                         ),
+                      ),
                     ],
                   ),
                 ],
               ),
             ),
-            
+
             Padding(
-              padding: const EdgeInsets.only(top: 8.0),
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: Text(
                 _searchStatus,
-                style: Theme.of(context).textTheme.bodySmall,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color:
+                      isDarkMode
+                          ? colorScheme.onSurfaceVariant
+                          : colorScheme.onBackground.withOpacity(0.7),
+                ),
               ),
             ),
             if (_searchTotal > 0)
-              LinearProgressIndicator(
-                value: _searchTotal > 0 ? _searchProgress / _searchTotal : null,
+              Container(
+                height: 2,
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                child: LinearProgressIndicator(
+                  value:
+                      _searchTotal > 0 ? _searchProgress / _searchTotal : null,
+                  backgroundColor: colorScheme.surfaceVariant,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    colorScheme.primary,
+                  ),
+                ),
               ),
-            // Search results
             Expanded(
-              child: _isSearching
-                  ? const Center(child: CircularProgressIndicator())
-                  : _searchResults.isEmpty
+              child:
+                  _isSearching
                       ? Center(
-                          child: Text(
-                            _searchController.text.isEmpty && !_searchByTag
-                                ? 'Start typing to search'
-                                : 'No results found',
-                            style: TextStyle(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            colorScheme.primary,
                           ),
-                        )
-                      : ListView.builder(
-                          itemCount: _searchResults.length,
-                          itemBuilder: (context, index) {
-                            final item = _searchResults[index];
-                            return Consumer<TagsService>(
-                              builder: (context, tagsService, _) {
-                                final fileTags = tagsService.getTagsForFile(item.path);
-                                return ListTile(
-                                  leading: Icon(
-                                    item.type == FileItemType.directory
-                                        ? Icons.folder
-                                        : Icons.insert_drive_file,
-                                    color: colorScheme.primary,
-                                  ),
-                                  title: Text(item.name),
-                                  subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(item.path),
-                                      if (fileTags.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 4.0),
-                                          child: Wrap(
-                                            spacing: 4,
-                                            runSpacing: 4,
-                                            children: fileTags.map((tag) => Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: tag.color.withAlpha(50),
-                                                borderRadius: BorderRadius.circular(4),
-                                                border: Border.all(
-                                                  color: tag.color.withAlpha(100),
-                                                  width: 0.5,
-                                                ),
-                                              ),
-                                              child: Text(
-                                                tag.name,
-                                                style: TextStyle(
-                                                  fontSize: 10,
-                                                  color: tag.color,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            )).toList(),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  onTap: () {
-                                    Navigator.pop(context, item);
-                                  },
-                                );
-                              },
-                            );
-                          },
                         ),
+                      )
+                      : _searchResults.isEmpty
+                      ? Center(
+                        child: Text(
+                          _searchController.text.isEmpty
+                              ? 'Type to search in files'
+                              : 'No results found',
+                          style: TextStyle(
+                            color:
+                                isDarkMode
+                                    ? colorScheme.onSurfaceVariant
+                                    : colorScheme.onBackground.withOpacity(0.7),
+                          ),
+                        ),
+                      )
+                      : ListView.builder(
+                        itemCount: _searchResults.length,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        itemBuilder: (context, index) {
+                          final item = _searchResults[index];
+                          return ListTile(
+                            leading: Icon(
+                              item.type == FileItemType.directory
+                                  ? Icons.folder
+                                  : Icons.insert_drive_file,
+                              color: colorScheme.primary,
+                            ),
+                            title: Text(
+                              item.name,
+                              style: TextStyle(
+                                color:
+                                    isDarkMode
+                                        ? colorScheme.onSurface
+                                        : colorScheme.onBackground,
+                              ),
+                            ),
+                            subtitle: Text(
+                              item.path,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color:
+                                    isDarkMode
+                                        ? colorScheme.onSurfaceVariant
+                                        : colorScheme.onBackground.withOpacity(
+                                          0.7,
+                                        ),
+                              ),
+                            ),
+                            onTap: () {
+                              Navigator.of(context).pop(item);
+                            },
+                          );
+                        },
+                      ),
             ),
           ],
         ),
       ),
     );
   }
-} 
+}
