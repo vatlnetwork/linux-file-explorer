@@ -17,7 +17,12 @@ class TagsService extends ChangeNotifier {
   List<Tag> get availableTags => _availableTags;
 
   TagsService() {
-    _loadTags();
+    // Don't load tags in constructor anymore
+  }
+
+  Future<void> init() async {
+    await _loadTags();
+    notifyListeners();
   }
 
   /// Load tags from shared preferences

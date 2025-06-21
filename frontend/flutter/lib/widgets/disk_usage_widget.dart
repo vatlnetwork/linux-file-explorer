@@ -20,15 +20,18 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
   bool _showLargestFilesPopup = false;
   final GlobalKey _widgetKey = GlobalKey();
   OverlayEntry? _overlayEntry;
+  bool _isMounted = false;
 
   @override
   void initState() {
     super.initState();
+    _isMounted = true;
     _loadDiskInfo();
   }
 
   @override
   void dispose() {
+    _isMounted = false;
     _removeOverlay();
     super.dispose();
   }
@@ -42,6 +45,8 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
   }
 
   Future<void> _loadDiskInfo() async {
+    if (!_isMounted) return;
+
     setState(() {
       _isLoading = true;
       _hasError = false;
@@ -50,11 +55,15 @@ class _DiskUsageWidgetState extends State<DiskUsageWidget> {
     try {
       final diskSpace = await _diskService.getDiskSpaceInfo(widget.path);
 
+      if (!_isMounted) return;
+
       setState(() {
         _diskSpace = diskSpace;
         _isLoading = false;
       });
     } catch (e) {
+      if (!_isMounted) return;
+
       setState(() {
         _hasError = true;
         _isLoading = false;

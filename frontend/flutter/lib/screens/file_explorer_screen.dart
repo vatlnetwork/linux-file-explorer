@@ -62,15 +62,14 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   late final FileService _fileService;
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _optionsButtonKey = GlobalKey();
-  late FocusNode _focusNode; // Changed from final to late
+  late FocusNode _focusNode;
   late TextEditingController _searchController;
   late FocusNode _searchFocusNode;
   final _logger = Logger('FileExplorerScreen');
   final bool _isSearchActive = false;
-  // Setup animation controller for bookmarks sidebar
   late AnimationController _bookmarkSidebarAnimation;
-  // Animation controller for preview panel
   late AnimationController _previewPanelAnimation;
+  bool _isInitialized = false;
 
   String _currentPath = '';
   List<FileItem> _items = [];
@@ -106,12 +105,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       false; // Add state variable for hidden files visibility
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _fileService = context.read<FileService>();
-  }
-
-  @override
   void initState() {
     super.initState();
     _focusNode = FocusNode();
@@ -130,7 +123,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     );
 
     windowManager.addListener(this);
-    _initHomeDirectory();
 
     // Add focus listeners
     _focusNode.addListener(() {
@@ -151,13 +143,27 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     _searchFocusNode.addListener(() {
       _logger.info('Search focus changed: ${_searchFocusNode.hasFocus}');
     });
+  }
 
-    // Add a post-frame callback to subscribe to preview panel changes
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!mounted || _isInitialized) return;
+
+    _isInitialized = true;
+    _fileService = context.read<FileService>();
+
+    // Add a post-frame callback to initialize after build
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
       final previewPanelService = Provider.of<PreviewPanelService>(
         context,
         listen: false,
       );
+      if (!previewPanelService.showPreviewPanel) {
+        previewPanelService.togglePreviewPanel();
+      }
       previewPanelService.addListener(_handlePreviewPanelChange);
 
       // Initialize first tab
@@ -172,6 +178,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       // Request focus after initialization
       _focusNode.requestFocus();
       _logger.info('Requested focus after initialization');
+
+      _initHomeDirectory();
     });
   }
 
@@ -210,16 +218,61 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
   }
 
   Future<void> _initHomeDirectory() async {
+    if (!mounted) return;
+
     try {
-      final String homeDir = await _fileService.getHomeDirectory();
+      final String downloadsDir = await _fileService.getDownloadsDirectory();
+      if (!mounted) return;
+
       setState(() {
-        _currentPath = homeDir;
+        _currentPath = downloadsDir;
+        _isLoading = true;
+        _hasError = false;
+        _errorMessage = '';
       });
+
       final tabManager = Provider.of<TabManagerService>(context, listen: false);
       tabManager.updateCurrentTabLoading(true);
-      _loadDirectory(homeDir, addToHistory: false);
+
+      // Try to load the downloads directory
+      try {
+        final directory = Directory(downloadsDir);
+        if (!await directory.exists()) {
+          throw Exception('Downloads directory does not exist');
+        }
+
+        await _loadDirectory(downloadsDir, addToHistory: false);
+      } catch (e) {
+        // If downloads directory fails, try to load home directory
+        if (!mounted) return;
+
+        _logger.warning(
+          'Failed to load downloads directory, falling back to home: $e',
+        );
+        final homeDir = await _fileService.getHomeDirectory();
+        await _loadDirectory(homeDir, addToHistory: false);
+      }
     } catch (e) {
-      _handleError('Failed to get home directory: $e');
+      if (!mounted) return;
+
+      _logger.severe('Failed to initialize directory: $e');
+      setState(() {
+        _hasError = true;
+        _errorMessage = 'Failed to initialize file explorer: $e';
+        _isLoading = false;
+        _currentPath = '/';
+      });
+
+      // Show error notification
+      NotificationService.showNotification(
+        context,
+        message: 'Failed to initialize file explorer: $e',
+        type: NotificationType.error,
+      );
+
+      // Try to load home directory as last resort
+      final homeDir = await _fileService.getHomeDirectory();
+      await _loadDirectory(homeDir, addToHistory: false);
     }
   }
 
@@ -245,14 +298,24 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     });
 
     try {
+      // Check if directory exists and is accessible
+      final directory = Directory(path);
+      if (!await directory.exists()) {
+        throw Exception('Directory does not exist');
+      }
+
       final items = await _fileService.listDirectory(
         path,
         showHidden: _showHiddenFiles,
       );
 
+      if (!mounted) return;
+
       setState(() {
         _items = items;
         _isLoading = false;
+        _hasError = false;
+        _errorMessage = '';
 
         // Reset selection when changing directories
         _selectedItemsPaths = {};
@@ -261,28 +324,57 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       // Update current tab path
       final tabManager = Provider.of<TabManagerService>(context, listen: false);
       tabManager.updateCurrentTabPath(path);
+
+      // Enable preview panel and bookmarks
+      final previewPanelService = Provider.of<PreviewPanelService>(
+        context,
+        listen: false,
+      );
+      if (!previewPanelService.showPreviewPanel) {
+        previewPanelService.togglePreviewPanel();
+      }
     } catch (e) {
-      // Show error notification
-      if (mounted) {
-        NotificationService.showNotification(
-          context,
-          message: 'Failed to load directory: $e',
-          type: NotificationType.error,
-        );
+      if (!mounted) return;
+
+      // Show error notification with specific message
+      String errorMessage = 'Failed to load directory';
+      if (e.toString().contains('Permission denied')) {
+        errorMessage = 'Permission denied: Cannot access directory';
+      } else if (e.toString().contains('does not exist')) {
+        errorMessage = 'Directory does not exist';
+      } else {
+        errorMessage = 'Error: ${e.toString()}';
       }
 
-      // Navigate back to previous directory if available
+      NotificationService.showNotification(
+        context,
+        message: errorMessage,
+        type: NotificationType.error,
+      );
+
+      // Try to navigate back to previous directory if available
       if (_navigationHistory.isNotEmpty) {
         final previousPath = _navigationHistory.removeLast();
         _loadDirectory(previousPath, addToHistory: false);
       } else {
-        // If no history, just show error state
-        _handleError('Failed to load directory: $e');
-        final tabManager = Provider.of<TabManagerService>(
-          context,
-          listen: false,
-        );
-        tabManager.updateCurrentTabError(true, 'Failed to load directory: $e');
+        // If no history, try to navigate to home directory
+        final home = await _fileService.getHomeDirectory();
+        if (path != home) {
+          _loadDirectory(home, addToHistory: false);
+        } else {
+          // If we're already in home and that fails, show error state
+          setState(() {
+            _hasError = true;
+            _errorMessage = errorMessage;
+            _isLoading = false;
+          });
+
+          final tabManager = Provider.of<TabManagerService>(
+            context,
+            listen: false,
+          );
+          tabManager.updateCurrentTabError(true, errorMessage);
+        }
       }
     }
   }

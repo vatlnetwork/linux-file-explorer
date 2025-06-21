@@ -4,9 +4,10 @@ import 'package:logging/logging.dart';
 import '../models/file_item.dart';
 import '../models/tag.dart';
 import '../services/tags_service.dart';
+import 'package:flutter/foundation.dart';
 
 /// Service for handling file system operations
-class FileService {
+class FileService extends ChangeNotifier {
   final _logger = Logger('FileService');
   String _currentDirectory = '/';
   bool _isSearchCancelled = false;
@@ -16,8 +17,53 @@ class FileService {
 
   String get currentDirectory => _currentDirectory;
 
+  /// Get the home directory path
+  Future<String> getHomeDirectory() async {
+    return Platform.environment['HOME'] ?? '/';
+  }
+
+  /// Get the downloads directory path
+  Future<String> getDownloadsDirectory() async {
+    final home = await getHomeDirectory();
+    return p.join(home, 'Downloads');
+  }
+
+  Future<void> init() async {
+    try {
+      // Initialize with downloads directory
+      final downloadsDir = await getDownloadsDirectory();
+      _currentDirectory = downloadsDir;
+
+      // Verify downloads directory exists and is accessible
+      final directory = Directory(downloadsDir);
+      if (!await directory.exists()) {
+        _logger.warning(
+          'Downloads directory does not exist, falling back to home',
+        );
+        _currentDirectory = await getHomeDirectory();
+      }
+
+      // Try to access the directory
+      try {
+        await directory.stat();
+      } catch (e) {
+        _logger.warning(
+          'Cannot access downloads directory, falling back to home: $e',
+        );
+        _currentDirectory = await getHomeDirectory();
+      }
+
+      notifyListeners();
+    } catch (e) {
+      _logger.severe('Error initializing FileService: $e');
+      _currentDirectory = '/';
+      notifyListeners();
+    }
+  }
+
   void setCurrentDirectory(String path) {
     _currentDirectory = path;
+    notifyListeners();
   }
 
   void cancelSearch() {
@@ -169,11 +215,6 @@ class FileService {
     }
   }
 
-  /// Get the home directory path
-  Future<String> getHomeDirectory() async {
-    return Platform.environment['HOME'] ?? '/';
-  }
-
   /// List files and directories in a given path
   Future<List<FileItem>> listDirectory(
     String path, {
@@ -181,21 +222,40 @@ class FileService {
   }) async {
     try {
       final directory = Directory(path);
-      final entities = await directory.list().toList();
+
+      // Check if directory exists and is accessible
+      if (!await directory.exists()) {
+        throw Exception('Directory does not exist: $path');
+      }
+
+      // Try to get directory permissions
+      try {
+        await directory.stat();
+      } catch (e) {
+        throw Exception('Cannot access directory: Permission denied');
+      }
+
       final items = <FileItem>[];
 
-      for (final entity in entities) {
-        // Skip hidden files if showHidden is false
-        final fileName = p.basename(entity.path);
-        if (!showHidden && fileName.startsWith('.')) continue;
+      try {
+        final entities = await directory.list().toList();
 
-        try {
-          final item = await FileItem.fromEntity(entity);
-          items.add(item);
-        } catch (e) {
-          // Skip unreadable files
-          _logger.warning('Error processing file ${entity.path}: $e');
+        for (final entity in entities) {
+          // Skip hidden files if showHidden is false
+          final fileName = p.basename(entity.path);
+          if (!showHidden && fileName.startsWith('.')) continue;
+
+          try {
+            final item = await FileItem.fromEntity(entity);
+            items.add(item);
+          } catch (e) {
+            // Log error but continue processing other files
+            _logger.warning('Error processing file ${entity.path}: $e');
+          }
         }
+      } catch (e) {
+        _logger.severe('Error listing directory contents: $e');
+        rethrow;
       }
 
       // Sort: directories first, then files
@@ -213,7 +273,8 @@ class FileService {
 
       return items;
     } catch (e) {
-      throw Exception('Error listing directory: $e');
+      _logger.severe('Error accessing directory $path: $e');
+      rethrow;
     }
   }
 

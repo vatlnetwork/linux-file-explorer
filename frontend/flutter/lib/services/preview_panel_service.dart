@@ -54,9 +54,16 @@ class PreviewPanelService extends ChangeNotifier {
     _loadPreviewPanelState();
   }
 
+  Future<void> init() async {
+    await _loadPreviewPanelState();
+    _showPreviewPanel = true; // Start with preview panel visible
+    notifyListeners();
+  }
+
   Future<void> _loadPreviewPanelState() async {
     final prefs = await SharedPreferences.getInstance();
-    _showPreviewPanel = prefs.getBool(_showPreviewPanelKey) ?? false;
+    _showPreviewPanel =
+        prefs.getBool(_showPreviewPanelKey) ?? true; // Default to true
     await _optionsManager.loadOptions();
     notifyListeners();
   }
