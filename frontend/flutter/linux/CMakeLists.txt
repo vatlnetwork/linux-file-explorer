@@ -1,13 +1,13 @@
 # Project-level configuration.
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.10)
 project(runner LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "linux_file_explorer")
+set(BINARY_NAME "file_explorer")
 # The unique GTK application identifier for this application. See:
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
-set(APPLICATION_ID "com.example.linux_file_explorer")
+set(APPLICATION_ID "com.example.file_explorer")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
@@ -53,9 +53,29 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 # System-level dependencies.
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
+pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0)
+pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
 
-# Application build; see runner/CMakeLists.txt.
-add_subdirectory("runner")
+# Add dependency for file_picker
+pkg_check_modules(GTKMM REQUIRED IMPORTED_TARGET gtkmm-3.0)
+
+# Add X11 and GLX dependencies
+find_package(X11 REQUIRED)
+pkg_check_modules(GLX REQUIRED IMPORTED_TARGET gl)
+
+add_definitions(-DAPPLICATION_ID="${APPLICATION_ID}")
+
+# Application build
+add_executable(${BINARY_NAME}
+  "main.cc"
+  "my_application.cc"
+  "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
+)
+apply_standard_settings(${BINARY_NAME})
+target_link_libraries(${BINARY_NAME} PRIVATE flutter)
+target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK PkgConfig::GLIB PkgConfig::GIO PkgConfig::GTKMM)
+target_link_libraries(${BINARY_NAME} PRIVATE ${X11_LIBRARIES})
+target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GLX)
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
@@ -100,11 +120,11 @@ install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}
 install(FILES "${FLUTTER_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
 
-foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
-  install(FILES "${bundled_library}"
+if(PLUGIN_BUNDLED_LIBRARIES)
+  install(FILES "${PLUGIN_BUNDLED_LIBRARIES}"
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
-endforeach(bundled_library)
+endif()
 
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/linux/")

@@ -31,6 +31,21 @@ class _FileAssociationsScreenState extends State<FileAssociationsScreen>
       end: 1.0,
     ).animate(_animationController);
     _animationController.forward();
+
+    // Initialize app service
+    final appService = Provider.of<AppService>(context, listen: false);
+    if (appService.apps.isEmpty) {
+      setState(() {
+        _isLoading = true;
+      });
+      appService.refreshApps().then((_) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      });
+    }
   }
 
   @override
@@ -49,20 +64,6 @@ class _FileAssociationsScreenState extends State<FileAssociationsScreen>
     final List<String> extensions =
         fileAssociationService.getAllFileExtensions();
     extensions.sort((a, b) => a.compareTo(b)); // Sort alphabetically
-
-    // Ensure the app service has loaded all apps
-    if (appService.apps.isEmpty && !_isLoading) {
-      setState(() {
-        _isLoading = true;
-      });
-      appService.refreshApps().then((_) {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
-      });
-    }
 
     return Scaffold(
       body: Container(

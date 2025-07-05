@@ -161,9 +161,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         context,
         listen: false,
       );
-      if (!previewPanelService.showPreviewPanel) {
-        previewPanelService.togglePreviewPanel();
-      }
       previewPanelService.addListener(_handlePreviewPanelChange);
 
       // Initialize first tab

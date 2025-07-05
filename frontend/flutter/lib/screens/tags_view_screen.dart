@@ -146,14 +146,202 @@ class _TagsViewScreenState extends State<TagsViewScreen>
                     ],
                   ),
                 ),
-                // Main content
+                // Content area
                 Expanded(
                   child: Consumer<TagsService>(
                     builder: (context, tagsService, _) {
-                      return _buildTagContent(
-                        tagsService,
-                        isDarkMode,
-                        cardColor,
+                      if (_selectedTagId == null) {
+                        return Center(
+                          child: EmptyState(
+                            icon: Icons.folder_outlined,
+                            title: 'No Tag Selected',
+                            message: 'Select a tag to view tagged files',
+                          ),
+                        );
+                      }
+
+                      final tag = tagsService.availableTags.firstWhere(
+                        (t) => t.id == _selectedTagId,
+                      );
+                      final files = tagsService.getFilesWithTag(
+                        _selectedTagId!,
+                      );
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: cardColor,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color:
+                                    isDarkMode
+                                        ? Colors.grey.shade800
+                                        : Colors.grey.shade200,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: tag.color.withAlpha(
+                                      (0.2 * 255).round(),
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    Icons.local_offer,
+                                    color: tag.color,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        tag.name,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${files.length} ${files.length == 1 ? 'item' : 'items'} tagged',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color:
+                                              isDarkMode
+                                                  ? Colors.grey.shade400
+                                                  : Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text(
+                              'Tagged Files and Folders',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color:
+                                    isDarkMode ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Expanded(
+                            child:
+                                files.isEmpty
+                                    ? Center(
+                                      child: EmptyState(
+                                        icon: Icons.insert_drive_file_outlined,
+                                        title: 'No Items Tagged',
+                                        message:
+                                            'No files or folders have been tagged with "${tag.name}"',
+                                      ),
+                                    )
+                                    : ListView.builder(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
+                                      itemCount: files.length,
+                                      itemBuilder: (context, index) {
+                                        final path = files[index];
+                                        final isDirectory =
+                                            FileSystemEntity.isDirectorySync(
+                                              path,
+                                            );
+                                        final entity =
+                                            isDirectory
+                                                ? Directory(path)
+                                                : File(path);
+
+                                        if (!entity.existsSync()) {
+                                          return const SizedBox.shrink();
+                                        }
+
+                                        return ListTile(
+                                          leading: _getFileIcon(entity),
+                                          title: Text(p.basename(path)),
+                                          subtitle: Text(
+                                            path,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color:
+                                                  isDarkMode
+                                                      ? Colors.grey[400]
+                                                      : Colors.grey[600],
+                                            ),
+                                          ),
+                                          trailing: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                icon: const Icon(
+                                                  Icons.folder_open_outlined,
+                                                ),
+                                                tooltip:
+                                                    'Open containing folder',
+                                                onPressed: () {
+                                                  Navigator.pushNamed(
+                                                    context,
+                                                    '/',
+                                                    arguments: {
+                                                      'initialPath':
+                                                          isDirectory
+                                                              ? path
+                                                              : p.dirname(path),
+                                                    },
+                                                  );
+                                                },
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(
+                                                  Icons.local_offer_outlined,
+                                                ),
+                                                tooltip: 'Manage tags',
+                                                onPressed: () {
+                                                  _showFileTagsDialog(
+                                                    context,
+                                                    entity,
+                                                    tagsService,
+                                                  );
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                          onTap: () {
+                                            if (!isDirectory) {
+                                              // Open the file using default application
+                                              Process.start('xdg-open', [path]);
+                                            } else {
+                                              // Navigate to the folder
+                                              Navigator.pushNamed(
+                                                context,
+                                                '/',
+                                                arguments: {
+                                                  'initialPath': path,
+                                                },
+                                              );
+                                            }
+                                          },
+                                        );
+                                      },
+                                    ),
+                          ),
+                        ],
                       );
                     },
                   ),
@@ -328,189 +516,6 @@ class _TagsViewScreenState extends State<TagsViewScreen>
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildTagContent(
-    TagsService tagsService,
-    bool isDarkMode,
-    Color cardColor,
-  ) {
-    if (_selectedTagId == null) {
-      return Expanded(
-        child: Center(
-          child: EmptyState(
-            icon: Icons.folder_outlined,
-            title: 'No Tag Selected',
-            message: 'Select a tag to view tagged files',
-          ),
-        ),
-      );
-    }
-
-    final tag = tagsService.availableTags.firstWhere(
-      (t) => t.id == _selectedTagId,
-    );
-    final files = tagsService.getFilesWithTag(_selectedTagId!);
-
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200,
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: tag.color.withAlpha((0.2 * 255).round()),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(Icons.local_offer, color: tag.color),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        tag.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${files.length} ${files.length == 1 ? 'item' : 'items'} tagged',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color:
-                              isDarkMode
-                                  ? Colors.grey.shade400
-                                  : Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'Tagged Files and Folders',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: isDarkMode ? Colors.white : Colors.black87,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child:
-                files.isEmpty
-                    ? Center(
-                      child: EmptyState(
-                        icon: Icons.insert_drive_file_outlined,
-                        title: 'No Items Tagged',
-                        message:
-                            'No files or folders have been tagged with "${tag.name}"',
-                      ),
-                    )
-                    : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: files.length,
-                      itemBuilder: (context, index) {
-                        final path = files[index];
-                        final isDirectory = FileSystemEntity.isDirectorySync(
-                          path,
-                        );
-                        final entity =
-                            isDirectory ? Directory(path) : File(path);
-
-                        if (!entity.existsSync()) {
-                          return const SizedBox.shrink();
-                        }
-
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            leading: _getFileIcon(entity),
-                            title: Text(p.basename(path)),
-                            subtitle: Text(
-                              p.dirname(path),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color:
-                                    isDarkMode
-                                        ? Colors.grey.shade400
-                                        : Colors.grey.shade600,
-                              ),
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.folder_open_outlined),
-                                  tooltip: 'Open containing folder',
-                                  onPressed: () {
-                                    Navigator.pushNamed(
-                                      context,
-                                      '/',
-                                      arguments: {
-                                        'initialPath':
-                                            isDirectory
-                                                ? path
-                                                : p.dirname(path),
-                                      },
-                                    );
-                                  },
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.local_offer_outlined),
-                                  tooltip: 'Manage tags',
-                                  onPressed: () {
-                                    _showFileTagsDialog(
-                                      context,
-                                      entity,
-                                      tagsService,
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                            onTap: () {
-                              if (!isDirectory) {
-                                // Open the file using default application
-                                Process.start('xdg-open', [path]);
-                              } else {
-                                // Navigate to the folder
-                                Navigator.pushNamed(
-                                  context,
-                                  '/',
-                                  arguments: {'initialPath': path},
-                                );
-                              }
-                            },
-                          ),
-                        );
-                      },
-                    ),
-          ),
-        ],
       ),
     );
   }

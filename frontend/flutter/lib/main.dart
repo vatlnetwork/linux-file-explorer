@@ -12,8 +12,13 @@ import 'services/view_mode_service.dart';
 import 'services/status_bar_service.dart';
 import 'services/icon_size_service.dart';
 import 'services/drag_drop_service.dart';
+import 'services/settings_view_mode_service.dart';
+import 'services/file_association_service.dart';
 import 'widgets/settings/addons_settings.dart';
 import 'screens/file_explorer_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/disk_manager_screen.dart';
+import 'screens/tags_view_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,6 +51,8 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => IconSizeService()),
         ChangeNotifierProvider(create: (_) => ContextMenuSettings()),
         ChangeNotifierProvider(create: (_) => DragDropService()),
+        ChangeNotifierProvider(create: (_) => SettingsViewModeService()),
+        ChangeNotifierProvider(create: (_) => FileAssociationService()),
 
         // Dependent services
         ChangeNotifierProvider(create: (_) => BookmarkService()),
@@ -65,6 +72,11 @@ class MyApp extends StatelessWidget {
             darkTheme: themeService.getDarkTheme(),
             themeMode: themeService.themeMode,
             home: const FileExplorerScreen(),
+            routes: {
+              '/settings': (context) => const SettingsScreen(),
+              '/disk-manager': (context) => const DiskManagerScreen(),
+              '/tags': (context) => const TagsViewScreen(),
+            },
           );
         },
       ),

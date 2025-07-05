@@ -56,69 +56,84 @@ class _TagSelectorState extends State<TagSelector> {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
                 const SizedBox(height: 6),
-                Wrap(
-                  spacing: isMacOS ? 6 : 8,
-                  runSpacing: isMacOS ? 6 : 8,
-                  children:
-                      fileTags
-                          .map(
-                            (tag) => _buildTagChip(context, tag, tagsService),
-                          )
-                          .toList(),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: Wrap(
+                    spacing: isMacOS ? 6 : 8,
+                    runSpacing: isMacOS ? 6 : 8,
+                    children:
+                        fileTags
+                            .map(
+                              (tag) => _buildTagChip(context, tag, tagsService),
+                            )
+                            .toList(),
+                  ),
                 ),
                 const SizedBox(height: 12),
               ],
 
               // Add new tag
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _tagController,
-                      style: const TextStyle(fontSize: 13),
-                      decoration: InputDecoration(
-                        hintText: "Add new tag",
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: isMacOS ? 8 : 12,
-                          vertical: 8,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _tagController,
+                        style: const TextStyle(fontSize: 13),
+                        decoration: InputDecoration(
+                          hintText: "Add new tag",
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: isMacOS ? 8 : 12,
+                            vertical: 8,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(
+                              isMacOS ? 4 : 6,
+                            ),
+                          ),
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(isMacOS ? 4 : 6),
+                        onSubmitted:
+                            (value) => _addNewTag(context, tagsService),
+                        onChanged: (value) {
+                          setState(() {}); // Trigger rebuild to update UI
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () => _selectColor(context),
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: _selectedColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.grey.shade300),
                         ),
                       ),
-                      onSubmitted: (value) => _addNewTag(context, tagsService),
-                      onChanged: (value) {
-                        setState(() {}); // Trigger rebuild to update UI
-                      },
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  InkWell(
-                    onTap: () => _selectColor(context),
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: _selectedColor,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.grey.shade300),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      height: 32,
+                      child: ElevatedButton(
+                        onPressed: () => _addNewTag(context, tagsService),
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isMacOS ? 8 : 12,
+                            vertical: 0,
+                          ),
+                        ),
+                        child: const Text(
+                          'Add',
+                          style: TextStyle(fontSize: 13),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () => _addNewTag(context, tagsService),
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isMacOS ? 8 : 12,
-                        vertical: 0,
-                      ),
-                      minimumSize: const Size(0, 32),
-                    ),
-                    child: const Text('Add', style: TextStyle(fontSize: 13)),
-                  ),
-                ],
+                  ],
+                ),
               ),
 
               const SizedBox(height: 12),
@@ -129,17 +144,23 @@ class _TagSelectorState extends State<TagSelector> {
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
               const SizedBox(height: 6),
-              Wrap(
-                spacing: isMacOS ? 6 : 8,
-                runSpacing: isMacOS ? 6 : 8,
-                children:
-                    availableTags
-                        .where((tag) => !fileTags.contains(tag))
-                        .map(
-                          (tag) =>
-                              _buildAvailableTagChip(context, tag, tagsService),
-                        )
-                        .toList(),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: Wrap(
+                  spacing: isMacOS ? 6 : 8,
+                  runSpacing: isMacOS ? 6 : 8,
+                  children:
+                      availableTags
+                          .where((tag) => !fileTags.contains(tag))
+                          .map(
+                            (tag) => _buildAvailableTagChip(
+                              context,
+                              tag,
+                              tagsService,
+                            ),
+                          )
+                          .toList(),
+                ),
               ),
             ],
           ),
@@ -153,16 +174,19 @@ class _TagSelectorState extends State<TagSelector> {
     final isMacOS = themeService.themePreset == ThemePreset.macos;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
+    final tagColor = tag.color;
+    final backgroundColor = Color.fromRGBO(
+      tagColor.red,
+      tagColor.green,
+      tagColor.blue,
+      isMacOS ? (isDarkMode ? 0.2 : 0.15) : 0.2,
+    );
+
     return Chip(
       label: Text(tag.name, style: TextStyle(fontSize: isMacOS ? 12 : 13)),
-      backgroundColor: tag.color.withValues(
-        alpha: isMacOS ? (isDarkMode ? 0.2 : 0.15) : 0.2,
-        red: tag.color.r,
-        green: tag.color.g,
-        blue: tag.color.b,
-      ),
+      backgroundColor: backgroundColor,
       labelStyle: TextStyle(
-        color: tag.color,
+        color: tagColor,
         fontWeight: isMacOS ? FontWeight.w500 : FontWeight.normal,
       ),
       deleteIcon: Icon(Icons.close, size: isMacOS ? 14 : 16),
