@@ -84,7 +84,7 @@ class FileItem {
         type = FileItemType.directory;
       } else if (entity is Link) {
         // For symlinks, determine the target type
-        final target = await (entity as Link).target();
+        final target = await entity.target();
         if (await FileSystemEntity.isDirectory(target)) {
           type = FileItemType.directory;
         } else if (await FileSystemEntity.isFile(target)) {

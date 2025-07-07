@@ -176,9 +176,9 @@ class _TagSelectorState extends State<TagSelector> {
 
     final tagColor = tag.color;
     final backgroundColor = Color.fromRGBO(
-      tagColor.red,
-      tagColor.green,
-      tagColor.blue,
+      (tagColor.r * 255).round() & 0xff,
+      (tagColor.g * 255).round() & 0xff,
+      (tagColor.b * 255).round() & 0xff,
       isMacOS ? (isDarkMode ? 0.2 : 0.15) : 0.2,
     );
 
