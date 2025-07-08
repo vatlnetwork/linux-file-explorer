@@ -20,7 +20,7 @@ class PreviewOptionsDialog extends StatefulWidget {
 
 class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
   late PreviewOptions _currentOptions;
-  bool _isHovering = false;
+
 
   @override
   void initState() {
@@ -330,64 +330,30 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
             ? switchColor?.withAlpha(77) // Reduced opacity for track
             : null;
 
-    return StatefulBuilder(
-      builder: (context, setState) {
-        return MouseRegion(
-          onEnter: (_) => setState(() => _isHovering = true),
-          onExit: (_) => setState(() => _isHovering = false),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            decoration: BoxDecoration(
-              color:
-                  _isHovering
-                      ? (isDarkMode
-                          ? Colors.white.withAlpha(10)
-                          : Colors.blue.shade50.withAlpha(46))
-                      : Colors.transparent,
-              border:
-                  _isHovering
-                      ? Border.all(
-                        color:
-                            isDarkMode
-                                ? Colors.blue.shade200.withAlpha(64)
-                                : Colors.blue.shade200.withAlpha(115),
-                        width: 1.2,
-                      )
-                      : null,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: SwitchListTile(
-              title: Text(title, style: const TextStyle(fontSize: 13)),
-              value: value,
-              onChanged: onChanged,
-              dense: true,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: isMacOS ? 4.0 : 0,
-              ),
-              visualDensity: VisualDensity.compact,
-              controlAffinity: ListTileControlAffinity.trailing,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              activeColor:
-                  isMacOS
-                      ? Colors.white
-                      : (isDarkMode
-                          ? Colors.grey.shade300
-                          : null), // Thumb color when active
-              activeTrackColor:
-                  trackColor ?? (isDarkMode ? Colors.grey.shade700 : null),
-              inactiveThumbColor:
-                  isDarkMode ? Colors.grey.shade400 : Colors.white,
-              inactiveTrackColor:
-                  isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
-              tileColor: Colors.transparent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              hoverColor: Colors.transparent, // handled by AnimatedContainer
-            ),
-          ),
-        );
-      },
+    return SwitchListTile(
+      title: Text(title, style: const TextStyle(fontSize: 13)),
+      value: value,
+      onChanged: onChanged,
+      dense: true,
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: isMacOS ? 8.0 : 4.0,
+      ),
+      visualDensity: VisualDensity.compact,
+      controlAffinity: ListTileControlAffinity.trailing,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      activeColor: isMacOS
+          ? Colors.white
+          : (isDarkMode ? Colors.grey.shade300 : null),
+      activeTrackColor: trackColor ?? (isDarkMode ? Colors.grey.shade700 : null),
+      inactiveThumbColor: isDarkMode ? Colors.grey.shade400 : Colors.white,
+      inactiveTrackColor: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
+      tileColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      hoverColor: isDarkMode
+          ? Colors.white.withAlpha(15)
+          : Colors.blue.shade50.withAlpha(46),
     );
   }
 }

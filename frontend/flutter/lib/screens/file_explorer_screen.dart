@@ -1618,10 +1618,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
         }
       } else if (event.logicalKey == LogicalKeyboardKey.keyA &&
           HardwareKeyboard.instance.isControlPressed) {
-        // Select all items
-        setState(() {
-          _selectedItemsPaths = _items.map((item) => item.path).toSet();
-        });
+        // Ctrl+A shortcut -> select all
+        _selectAllItems();
       }
     }
   }
@@ -2869,9 +2867,17 @@ exit
 
   // Select all items in the current directory
   void _selectAllItems() {
+    final previewPanelService =
+        Provider.of<PreviewPanelService>(context, listen: false);
+
     setState(() {
-      // Get paths of all visible items
+      // Select all visible items
       _selectedItemsPaths = _items.map((item) => item.path).toSet();
+
+      // Update preview panel with the first item (if any)
+      if (_items.isNotEmpty) {
+        previewPanelService.setSelectedItem(_items.first);
+      }
     });
 
     // Show notification
