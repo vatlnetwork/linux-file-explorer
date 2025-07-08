@@ -67,8 +67,8 @@ add_definitions(-DAPPLICATION_ID="${APPLICATION_ID}")
 
 # Application build
 add_executable(${BINARY_NAME}
-  "main.cc"
-  "my_application.cc"
+  "runner/main.cc"
+  "runner/my_application.cc"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
 )
 apply_standard_settings(${BINARY_NAME})
@@ -76,6 +76,9 @@ target_link_libraries(${BINARY_NAME} PRIVATE flutter)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK PkgConfig::GLIB PkgConfig::GIO PkgConfig::GTKMM)
 target_link_libraries(${BINARY_NAME} PRIVATE ${X11_LIBRARIES})
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GLX)
+
+# Include the root source directory so runner/ and flutter/ headers are found
+target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
@@ -99,6 +102,8 @@ include(flutter/generated_plugins.cmake)
 # By default, "installing" just makes a relocatable bundle in the build
 # directory.
 set(BUILD_BUNDLE_DIR "${PROJECT_BINARY_DIR}/bundle")
+# Always install to local build bundle to avoid requiring sudo permissions
+set(CMAKE_INSTALL_PREFIX "${BUILD_BUNDLE_DIR}" CACHE PATH "Install path" FORCE)
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX "${BUILD_BUNDLE_DIR}" CACHE PATH "..." FORCE)
 endif()

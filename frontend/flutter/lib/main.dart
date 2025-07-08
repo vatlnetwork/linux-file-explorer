@@ -42,7 +42,7 @@ class MyApp extends StatelessWidget {
       providers: [
         // Core services
         ChangeNotifierProvider(create: (_) => ThemeService()),
-        ChangeNotifierProvider(create: (_) => TagsService()),
+        ChangeNotifierProvider(create: (_) => TagsService()..init()),
         ChangeNotifierProvider(create: (_) => DiskUsageWidgetService()),
         ChangeNotifierProvider(create: (_) => AppService()),
         ChangeNotifierProvider(create: (_) => PreviewPanelService()),
@@ -55,7 +55,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => FileAssociationService()),
 
         // Dependent services
-        ChangeNotifierProvider(create: (_) => BookmarkService()),
+        ChangeNotifierProvider(create: (_) => BookmarkService()..init()),
         ChangeNotifierProvider(create: (_) => TabManagerService()),
         ChangeNotifierProxyProvider<TagsService, FileService>(
           create: (context) => FileService(context.read<TagsService>()),

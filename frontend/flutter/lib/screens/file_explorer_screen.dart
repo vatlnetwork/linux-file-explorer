@@ -322,14 +322,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       final tabManager = Provider.of<TabManagerService>(context, listen: false);
       tabManager.updateCurrentTabPath(path);
 
-      // Enable preview panel and bookmarks
-      final previewPanelService = Provider.of<PreviewPanelService>(
-        context,
-        listen: false,
-      );
-      if (!previewPanelService.showPreviewPanel) {
-        previewPanelService.togglePreviewPanel();
-      }
+
     } catch (e) {
       if (!mounted) return;
 
