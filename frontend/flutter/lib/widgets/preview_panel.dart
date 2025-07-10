@@ -172,6 +172,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
   Widget _buildHeader(BuildContext context, FileItem? selectedItem) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final textTheme = Theme.of(context).textTheme;
+    final iconColor = isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -230,7 +231,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
           ),
           if (selectedItem != null) ...[
             IconButton(
-              icon: const Icon(Icons.tune, size: 18),
+              icon: Icon(Icons.tune, size: 18, color: iconColor),
               tooltip: 'Customize Preview',
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(
@@ -244,7 +245,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
             const SizedBox(width: 4),
           ],
           IconButton(
-            icon: const Icon(Icons.close, size: 18),
+            icon: Icon(Icons.close, size: 18, color: iconColor),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(
               minWidth: 32,
@@ -327,6 +328,9 @@ class _PreviewPanelState extends State<PreviewPanel> {
     final isFile = item.type == FileItemType.file;
     final isDir = item.type == FileItemType.directory;
     final ext = item.fileExtension.toLowerCase();
+    // Determine icon color based on theme so that icons are visible in both light and dark modes
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final iconColor = isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700;
 
     Widget content;
     if (isDir) {
@@ -381,21 +385,21 @@ class _PreviewPanelState extends State<PreviewPanel> {
                   Tooltip(
                     message: 'Open',
                     child: IconButton(
-                      icon: const Icon(Icons.open_in_new, size: 20),
+                      icon: Icon(Icons.open_in_new, size: 20, color: iconColor),
                       onPressed: () => _openFile(item),
                     ),
                   ),
                   Tooltip(
                     message: 'Copy Path',
                     child: IconButton(
-                      icon: const Icon(Icons.copy, size: 20),
+                      icon: Icon(Icons.copy, size: 20, color: iconColor),
                       onPressed: () => _copyPath(item),
                     ),
                   ),
                   Tooltip(
                     message: 'Reveal in Folder',
                     child: IconButton(
-                      icon: const Icon(Icons.folder_open, size: 20),
+                      icon: Icon(Icons.folder_open, size: 20, color: iconColor),
                       onPressed: () => _revealInFolder(item),
                     ),
                   ),
