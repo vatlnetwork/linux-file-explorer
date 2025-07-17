@@ -21,16 +21,13 @@ class BookmarkSidebar extends StatelessWidget {
     }
 
     final theme = Theme.of(context);
-    
+
     return Container(
       width: 250.0,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
-          right: BorderSide(
-            color: theme.dividerColor,
-            width: 1.0,
-          ),
+          right: BorderSide(color: theme.dividerColor, width: 1.0),
         ),
       ),
       child: Column(
@@ -40,20 +37,14 @@ class BookmarkSidebar extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(
-                  color: theme.dividerColor,
-                  width: 1.0,
-                ),
+                bottom: BorderSide(color: theme.dividerColor, width: 1.0),
               ),
             ),
             child: Row(
               children: [
                 const Icon(Icons.bookmark),
                 const SizedBox(width: 8.0),
-                Text(
-                  'Bookmarks',
-                  style: theme.textTheme.titleMedium,
-                ),
+                Text('Bookmarks', style: theme.textTheme.titleMedium),
               ],
             ),
           ),
@@ -87,4 +78,4 @@ class BookmarkSidebar extends StatelessWidget {
       ),
     );
   }
-} 
+}
