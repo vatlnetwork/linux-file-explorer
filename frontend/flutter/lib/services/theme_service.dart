@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import '../theme/google_theme.dart';
-import '../theme/macos_theme.dart';
 
-enum ThemePreset { custom, google, macos }
+enum ThemePreset { custom }
 
 class ThemeService extends ChangeNotifier {
   static const String _themeKey = 'theme_mode';
@@ -152,37 +150,11 @@ class ThemeService extends ChangeNotifier {
   }
 
   ThemeData getLightTheme() {
-    switch (_themePreset) {
-      case ThemePreset.google:
-        return GoogleTheme.getTheme(
-          brightness: Brightness.light,
-          fontStyle: FontStyle.normal,
-        );
-      case ThemePreset.macos:
-        return MacOSTheme.getTheme(
-          brightness: Brightness.light,
-          fontStyle: FontStyle.normal,
-        );
-      case ThemePreset.custom:
-        return _getCustomTheme(Brightness.light);
-    }
+    return _getCustomTheme(Brightness.light);
   }
 
   ThemeData getDarkTheme() {
-    switch (_themePreset) {
-      case ThemePreset.google:
-        return GoogleTheme.getTheme(
-          brightness: Brightness.dark,
-          fontStyle: FontStyle.normal,
-        );
-      case ThemePreset.macos:
-        return MacOSTheme.getTheme(
-          brightness: Brightness.dark,
-          fontStyle: FontStyle.normal,
-        );
-      case ThemePreset.custom:
-        return _getCustomTheme(Brightness.dark);
-    }
+    return _getCustomTheme(Brightness.dark);
   }
 
   ThemeData _getCustomTheme(Brightness brightness) {

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/file_item.dart';
 import '../models/preview_options.dart';
-import 'package:provider/provider.dart';
-import '../services/theme_service.dart';
 
 class PreviewOptionsDialog extends StatefulWidget {
   final PreviewOptions options;
@@ -20,7 +18,6 @@ class PreviewOptionsDialog extends StatefulWidget {
 
 class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
   late PreviewOptions _currentOptions;
-
 
   @override
   void initState() {
@@ -320,40 +317,26 @@ class _PreviewOptionsDialogState extends State<PreviewOptionsDialog> {
     void Function(bool) onChanged,
   ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final themeService = Provider.of<ThemeService>(context);
-    final isMacOS = themeService.themePreset == ThemePreset.macos;
-
-    // macOS green color with proper opacity for track
-    final switchColor = isMacOS ? const Color(0xFF34C759) : null;
-    final trackColor =
-        isMacOS
-            ? switchColor?.withAlpha(77) // Reduced opacity for track
-            : null;
-
     return SwitchListTile(
       title: Text(title, style: const TextStyle(fontSize: 13)),
       value: value,
       onChanged: onChanged,
       dense: true,
-      contentPadding: EdgeInsets.symmetric(
-        horizontal: isMacOS ? 8.0 : 4.0,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4.0),
       visualDensity: VisualDensity.compact,
       controlAffinity: ListTileControlAffinity.trailing,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      activeColor: isMacOS
-          ? Colors.white
-          : (isDarkMode ? Colors.grey.shade300 : null),
-      activeTrackColor: trackColor ?? (isDarkMode ? Colors.grey.shade700 : null),
+      activeColor: isDarkMode ? Colors.grey.shade300 : null,
+      activeTrackColor: isDarkMode ? Colors.grey.shade700 : null,
       inactiveThumbColor: isDarkMode ? Colors.grey.shade400 : Colors.white,
-      inactiveTrackColor: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
+      inactiveTrackColor:
+          isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
       tileColor: Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
-      hoverColor: isDarkMode
-          ? Colors.white.withAlpha(15)
-          : Colors.blue.shade50.withAlpha(46),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      hoverColor:
+          isDarkMode
+              ? Colors.white.withAlpha(15)
+              : Colors.blue.shade50.withAlpha(46),
     );
   }
 }

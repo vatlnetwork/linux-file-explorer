@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:screen_retriever/screen_retriever.dart';
-import '../services/theme_service.dart';
-import 'package:provider/provider.dart';
 
 class WindowControls extends StatefulWidget {
   const WindowControls({super.key});
@@ -55,15 +52,14 @@ class _WindowControlsState extends State<WindowControls>
     if (_previousSize == null || _previousPosition == null) return;
 
     final currentBounds = await windowManager.getBounds();
-    final display = await screenRetriever.getPrimaryDisplay();
 
     final targetBounds =
         _isMaximized
             ? Rect.fromLTWH(
-              display.visiblePosition?.dx ?? 0,
-              display.visiblePosition?.dy ?? 0,
-              display.size.width,
-              display.size.height,
+              0,
+              0,
+              windowManager.getPrimaryDisplay().size.width,
+              windowManager.getPrimaryDisplay().size.height,
             )
             : Rect.fromLTWH(
               _previousPosition!.dx,
@@ -103,36 +99,12 @@ class _WindowControlsState extends State<WindowControls>
 
   @override
   Widget build(BuildContext context) {
-    final themeService = Provider.of<ThemeService>(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    if (themeService.themePreset == ThemePreset.macos) {
-      return _buildMacOSControls(isDarkMode);
-    } else {
-      return _buildGoogleControls(isDarkMode);
-    }
+    // Remove themeService and themePreset logic
+    return _buildDefaultControls(isDarkMode);
   }
 
-  Widget _buildMacOSButton({
-    required Color color,
-    required VoidCallback onPressed,
-    required IconData icon,
-    required bool showIcon,
-  }) {
-    return MouseRegion(
-      child: GestureDetector(
-        onTap: onPressed,
-        child: Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          child: showIcon ? Icon(icon, size: 10, color: Colors.black54) : null,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMacOSControls(bool isDarkMode) {
+  Widget _buildDefaultControls(bool isDarkMode) {
     final closeColor =
         isDarkMode ? const Color(0xFFFF5F57) : const Color(0xFFFF5F57);
     final minimizeColor =
@@ -165,40 +137,6 @@ class _WindowControlsState extends State<WindowControls>
           },
           icon: Icons.close,
           showIcon: false,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGoogleControls(bool isDarkMode) {
-    final iconColor = isDarkMode ? Colors.white70 : Colors.black54;
-
-    return Row(
-      children: [
-        IconButton(
-          icon: const Icon(Icons.remove),
-          iconSize: 20,
-          splashRadius: 16,
-          color: iconColor,
-          onPressed: () async {
-            await windowManager.minimize();
-          },
-        ),
-        IconButton(
-          icon: Icon(_isMaximized ? Icons.fullscreen_exit : Icons.fullscreen),
-          iconSize: 20,
-          splashRadius: 16,
-          color: iconColor,
-          onPressed: _toggleMaximize,
-        ),
-        IconButton(
-          icon: const Icon(Icons.close),
-          iconSize: 20,
-          splashRadius: 16,
-          color: iconColor,
-          onPressed: () async {
-            await windowManager.close();
-          },
         ),
       ],
     );

@@ -111,16 +111,6 @@ class AppearanceSettings extends StatelessWidget {
           label: Text('Custom'),
           icon: Icon(Icons.palette_outlined),
         ),
-        ButtonSegment<ThemePreset>(
-          value: ThemePreset.google,
-          label: Text('Google'),
-          icon: Icon(Icons.android),
-        ),
-        ButtonSegment<ThemePreset>(
-          value: ThemePreset.macos,
-          label: Text('macOS'),
-          icon: Icon(Icons.laptop_mac),
-        ),
       ],
       selected: {themeService.themePreset},
       onSelectionChanged: (Set<ThemePreset> selected) {
@@ -268,9 +258,6 @@ class AppearanceSettings extends StatelessWidget {
     ThemeService themeService,
   ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final isMacOS = themeService.themePreset == ThemePreset.macos;
-    final switchColor = isMacOS ? const Color(0xFF34C759) : null;
-
     return Container(
       decoration: BoxDecoration(
         color: isDarkMode ? Colors.grey[800] : Colors.white,
@@ -297,13 +284,6 @@ class AppearanceSettings extends StatelessWidget {
             value: themeService.interfaceDensity > 0,
             onChanged:
                 (value) => themeService.setInterfaceDensity(value ? 1 : 0),
-            activeColor: switchColor,
-            activeTrackColor: switchColor?.withValues(
-              alpha: 0.5,
-              red: switchColor.r,
-              green: switchColor.g,
-              blue: switchColor.b,
-            ),
           ),
           if (themeService.interfaceDensity > 0) ...[
             const Divider(),

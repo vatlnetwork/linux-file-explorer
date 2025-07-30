@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../services/theme_service.dart';
 import '../../services/disk_usage_widget_service.dart';
 
 class ContextMenuSettings extends ChangeNotifier {
@@ -47,9 +46,6 @@ class _AddonsSettingsContent extends StatelessWidget {
     final settings = Provider.of<ContextMenuSettings>(context);
     final diskUsageService = Provider.of<DiskUsageWidgetService>(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final themeService = Provider.of<ThemeService>(context);
-    final isMacOS = themeService.themePreset == ThemePreset.macos;
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -66,12 +62,7 @@ class _AddonsSettingsContent extends StatelessWidget {
             context: context,
             title: 'Context Menu Items',
             subtitle: 'Choose which items appear in the right-click menu',
-            child: _buildContextMenuCard(
-              context,
-              settings,
-              isDarkMode,
-              isMacOS,
-            ),
+            child: _buildContextMenuCard(context, settings, isDarkMode),
           ),
 
           const SizedBox(height: 24),
@@ -140,11 +131,11 @@ class _AddonsSettingsContent extends StatelessWidget {
                           (value) =>
                               diskUsageService.setShowDiskUsageWidget(value),
                       activeColor:
-                          isMacOS
+                          isDarkMode
                               ? Colors.white
                               : Theme.of(context).primaryColor,
                       activeTrackColor:
-                          isMacOS
+                          isDarkMode
                               ? const Color(0xFF34C759).withValues(
                                 red: 52,
                                 green: 199,
@@ -173,7 +164,6 @@ class _AddonsSettingsContent extends StatelessWidget {
     BuildContext context,
     ContextMenuSettings settings,
     bool isDarkMode,
-    bool isMacOS,
   ) {
     return Card(
       elevation: 0,
@@ -243,9 +233,11 @@ class _AddonsSettingsContent extends StatelessWidget {
                   value: isEnabled,
                   onChanged: (value) => settings.toggleOption(key),
                   activeColor:
-                      isMacOS ? Colors.white : Theme.of(context).primaryColor,
+                      isDarkMode
+                          ? Colors.white
+                          : Theme.of(context).primaryColor,
                   activeTrackColor:
-                      isMacOS
+                      isDarkMode
                           ? const Color(0xFF34C759).withValues(
                             red: 52,
                             green: 199,
