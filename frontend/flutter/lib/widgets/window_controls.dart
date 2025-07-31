@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:screen_retriever/screen_retriever.dart';
 
 class WindowControls extends StatefulWidget {
   const WindowControls({super.key});
@@ -52,14 +53,15 @@ class _WindowControlsState extends State<WindowControls>
     if (_previousSize == null || _previousPosition == null) return;
 
     final currentBounds = await windowManager.getBounds();
+    final primaryDisplay = await ScreenRetriever.instance.getPrimaryDisplay();
 
     final targetBounds =
         _isMaximized
             ? Rect.fromLTWH(
               0,
               0,
-              windowManager.getPrimaryDisplay().size.width,
-              windowManager.getPrimaryDisplay().size.height,
+              primaryDisplay.size.width,
+              primaryDisplay.size.height,
             )
             : Rect.fromLTWH(
               _previousPosition!.dx,
@@ -104,41 +106,65 @@ class _WindowControlsState extends State<WindowControls>
     return _buildDefaultControls(isDarkMode);
   }
 
-  Widget _buildDefaultControls(bool isDarkMode) {
-    final closeColor =
-        isDarkMode ? const Color(0xFFFF5F57) : const Color(0xFFFF5F57);
-    final minimizeColor =
-        isDarkMode ? const Color(0xFFFFBD2E) : const Color(0xFFFFBD2E);
-    final maximizeColor =
-        isDarkMode ? const Color(0xFF28C940) : const Color(0xFF28C940);
+  Widget _buildWindowButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    bool isClose = false,
+  }) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
+    return SizedBox(
+      width: 46,
+      height: 32,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          hoverColor: isClose 
+              ? const Color.fromRGBO(255, 0, 0, 0.2)
+              : (isDarkMode ? const Color.fromRGBO(255, 255, 255, 0.1) : const Color.fromRGBO(0, 0, 0, 0.05)),
+          highlightColor: Colors.transparent,
+          splashColor: isClose 
+              ? const Color.fromRGBO(255, 0, 0, 0.3)
+              : (isDarkMode ? const Color.fromRGBO(255, 255, 255, 0.2) : const Color.fromRGBO(0, 0, 0, 0.1)),
+          child: Center(
+            child: Icon(
+              icon,
+              size: 16,
+              color: isClose 
+                  ? Colors.red
+                  : (isDarkMode ? Colors.white70 : Colors.black54),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
-    return Row(
-      children: [
-        _buildMacOSButton(
-          color: maximizeColor,
-          onPressed: _toggleMaximize,
-          icon: _isMaximized ? Icons.fullscreen_exit : Icons.fullscreen,
-          showIcon: false,
-        ),
-        const SizedBox(width: 8),
-        _buildMacOSButton(
-          color: minimizeColor,
-          onPressed: () async {
-            await windowManager.minimize();
-          },
-          icon: Icons.remove,
-          showIcon: false,
-        ),
-        const SizedBox(width: 8),
-        _buildMacOSButton(
-          color: closeColor,
-          onPressed: () async {
-            await windowManager.close();
-          },
-          icon: Icons.close,
-          showIcon: false,
-        ),
-      ],
+  Widget _buildDefaultControls(bool isDarkMode) {
+    return Container(
+      height: 32,
+      decoration: BoxDecoration(
+        color: isDarkMode ? const Color(0xFF202124) : const Color(0xFFE8F0FE),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildWindowButton(
+            icon: Icons.minimize_rounded,
+            onPressed: () => windowManager.minimize(),
+          ),
+          _buildWindowButton(
+            icon: _isMaximized ? Icons.filter_none_rounded : Icons.crop_square_rounded,
+            onPressed: _toggleMaximize,
+          ),
+          _buildWindowButton(
+            icon: Icons.close_rounded,
+            onPressed: () => windowManager.close(),
+            isClose: true,
+          ),
+        ],
+      ),
     );
   }
 }
