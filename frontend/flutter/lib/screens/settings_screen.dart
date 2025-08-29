@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../widgets/settings/config_settings.dart';
 import '../widgets/settings/appearance_settings.dart';
 import '../widgets/settings/addons_settings.dart';
 import '../widgets/settings/about_settings.dart';
@@ -20,6 +21,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   int _selectedIndex = 0;
 
   final List<_SettingsSection> _sections = [
+    _SettingsSection(
+      title: 'Config',
+      icon: Icons.settings_outlined,
+      widget: const ConfigSettings(),
+      description: 'Configure startup behavior and directory settings',
+    ),
     _SettingsSection(
       title: 'Appearance',
       icon: Icons.palette_outlined,

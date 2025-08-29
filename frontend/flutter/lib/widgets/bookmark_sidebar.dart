@@ -291,6 +291,10 @@ class BookmarkSidebarState extends State<BookmarkSidebar>
   ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final isFocused = _focusedBookmarkPath == bookmark.path;
+    final bookmarkService = Provider.of<BookmarkService>(
+      context,
+      listen: false,
+    );
 
     Widget bookmarkTile = ReorderableDragStartListener(
       key: ValueKey('${bookmark.path}_drag_listener'),
@@ -302,6 +306,35 @@ class BookmarkSidebarState extends State<BookmarkSidebar>
           key: ValueKey('${bookmark.path}_inkwell'),
           onTap: () {
             widget.onNavigate(bookmark.path);
+          },
+          onSecondaryTapDown: (details) {
+            setState(() {
+              _focusedBookmarkPath = bookmark.path;
+            });
+            // Show context menu
+            showContextMenu(
+              context,
+              details.globalPosition,
+              bookmark.path,
+              bookmarkService,
+            );
+          },
+          onLongPress: () {
+            setState(() {
+              _focusedBookmarkPath = bookmark.path;
+            });
+            // Show context menu at the center of the tile
+            final RenderBox renderBox = context.findRenderObject() as RenderBox;
+            final position = renderBox.localToGlobal(Offset.zero);
+            final size = renderBox.size;
+            final centerPosition =
+                position + Offset(size.width / 2, size.height / 2);
+            showContextMenu(
+              context,
+              centerPosition,
+              bookmark.path,
+              bookmarkService,
+            );
           },
           onTapDown: (_) {
             setState(() {
@@ -380,6 +413,43 @@ class BookmarkSidebarState extends State<BookmarkSidebar>
         // No need to refresh since this is a bookmark
       },
       child: bookmarkTile,
+    );
+  }
+
+  // Show context menu for bookmark item
+  void showContextMenu(
+    BuildContext context,
+    Offset position,
+    String bookmarkPath,
+    BookmarkService bookmarkService,
+  ) {
+    final RenderObject? overlay =
+        Overlay.of(context).context.findRenderObject();
+    if (overlay == null) return;
+
+    showMenu(
+      context: context,
+      position: RelativeRect.fromRect(
+        position & const Size(40, 40), // Smaller rect for the tap area
+        Offset.zero & overlay.semanticBounds.size,
+      ),
+      items: [
+        PopupMenuItem(
+          value: 'remove',
+          child: const Text('Remove Bookmark'),
+          onTap: () async {
+            // Use a small delay to allow the menu to close properly
+            await Future.delayed(Duration.zero);
+            await bookmarkService.removeBookmark(bookmarkPath);
+            // Clear focus after removing
+            if (mounted) {
+              setState(() {
+                _focusedBookmarkPath = null;
+              });
+            }
+          },
+        ),
+      ],
     );
   }
 

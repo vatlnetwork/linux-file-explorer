@@ -17,12 +17,6 @@ class AppearanceSettings extends StatelessWidget {
           children: [
             _buildSection(
               context,
-              title: 'Theme Preset',
-              child: _buildThemePresetSelector(context, themeService),
-            ),
-            const SizedBox(height: 24),
-            _buildSection(
-              context,
               title: 'Theme Mode',
               child: _buildThemeSelector(context, themeService),
             ),
@@ -35,14 +29,8 @@ class AppearanceSettings extends StatelessWidget {
             const SizedBox(height: 24),
             _buildSection(
               context,
-              title: 'Font Size',
-              child: _buildFontSizeSettings(context, themeService),
-            ),
-            const SizedBox(height: 24),
-            _buildSection(
-              context,
-              title: 'Interface Density',
-              child: _buildInterfaceSettings(context, themeService),
+              title: 'Animations',
+              child: _buildAnimationSettings(context, themeService),
             ),
           ],
         ),
@@ -100,24 +88,6 @@ class AppearanceSettings extends StatelessWidget {
     );
   }
 
-  Widget _buildThemePresetSelector(
-    BuildContext context,
-    ThemeService themeService,
-  ) {
-    return SegmentedButton<ThemePreset>(
-      segments: const [
-        ButtonSegment<ThemePreset>(
-          value: ThemePreset.custom,
-          label: Text('Custom'),
-          icon: Icon(Icons.palette_outlined),
-        ),
-      ],
-      selected: {themeService.themePreset},
-      onSelectionChanged: (Set<ThemePreset> selected) {
-        themeService.setThemePreset(selected.first);
-      },
-    );
-  }
 
   Widget _buildThemeSelector(BuildContext context, ThemeService themeService) {
     return SegmentedButton<ThemeMode>(
@@ -206,114 +176,28 @@ class AppearanceSettings extends StatelessWidget {
     );
   }
 
-  Widget _buildFontSizeSettings(
+  Widget _buildAnimationSettings(
     BuildContext context,
     ThemeService themeService,
   ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDarkMode ? Colors.grey[800] : Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+    
+    return SwitchListTile(
+      title: Text(
+        'Enable Animations',
+        style: Theme.of(context).textTheme.titleMedium!.copyWith(
+          color: isDarkMode ? Colors.white : Colors.grey[800],
         ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Slider(
-              value: themeService.fontSize,
-              min: 12,
-              max: 20,
-              divisions: 8,
-              label: '${themeService.fontSize.round()}px',
-              onChanged: (value) => themeService.setFontSize(value),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: isDarkMode ? Colors.grey[700] : Colors.grey[200],
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              '${themeService.fontSize.round()}px',
-              style: textTheme.bodySmall?.copyWith(
-                color: isDarkMode ? Colors.white : Colors.grey[800],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
+      subtitle: Text(
+        'Enable or disable UI animations',
+        style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+          color: isDarkMode ? Colors.white70 : Colors.grey[600],
+        ),
       ),
+      value: themeService.useAnimations,
+      onChanged: (value) => themeService.setUseAnimations(value),
     );
   }
 
-  Widget _buildInterfaceSettings(
-    BuildContext context,
-    ThemeService themeService,
-  ) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      decoration: BoxDecoration(
-        color: isDarkMode ? Colors.grey[800] : Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
-        ),
-      ),
-      child: Column(
-        children: [
-          SwitchListTile(
-            title: Text(
-              'Compact Mode',
-              style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                color: isDarkMode ? Colors.white : Colors.grey[800],
-              ),
-            ),
-            subtitle: Text(
-              'Reduce spacing between elements',
-              style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                color: isDarkMode ? Colors.white70 : Colors.grey[600],
-              ),
-            ),
-            value: themeService.interfaceDensity > 0,
-            onChanged:
-                (value) => themeService.setInterfaceDensity(value ? 1 : 0),
-          ),
-          if (themeService.interfaceDensity > 0) ...[
-            const Divider(),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Density Level',
-                    style: Theme.of(context).textTheme.titleSmall!.copyWith(
-                      color: isDarkMode ? Colors.white70 : Colors.grey[700],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Slider(
-                    value: themeService.interfaceDensity,
-                    min: 0,
-                    max: 2,
-                    divisions: 4,
-                    label: themeService.interfaceDensity.toString(),
-                    onChanged:
-                        (value) => themeService.setInterfaceDensity(value),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 }

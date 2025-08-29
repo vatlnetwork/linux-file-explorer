@@ -460,6 +460,9 @@ class FileService extends ChangeNotifier {
   Future<void> rename(String path, String newName) async {
     final parentPath = p.dirname(path);
     final newPath = p.join(parentPath, newName);
+    
+    // Get tags before renaming
+    final tags = _tagsService.getTagsForFile(path);
 
     final entity =
         FileSystemEntity.typeSync(path) == FileSystemEntityType.directory
@@ -467,6 +470,18 @@ class FileService extends ChangeNotifier {
             : File(path);
 
     await entity.rename(newPath);
+    
+    // Update tags with new path if there were any tags
+    if (tags.isNotEmpty) {
+      // Remove old tags from old path
+      for (final tag in tags) {
+        await _tagsService.removeTagFromFile(path, tag.id);
+      }
+      // Add tags to new path
+      for (final tag in tags) {
+        await _tagsService.addTagToFile(newPath, tag);
+      }
+    }
   }
 
   /// Delete a file or directory
@@ -562,12 +577,27 @@ class FileService extends ChangeNotifier {
     final sourceName = p.basename(sourcePath);
     final targetPath = p.join(targetDir, sourceName);
 
+    // Get tags before moving
+    final tags = _tagsService.getTagsForFile(sourcePath);
+    
     final entity =
         FileSystemEntity.typeSync(sourcePath) == FileSystemEntityType.directory
             ? Directory(sourcePath)
             : File(sourcePath);
 
     await entity.rename(targetPath);
+    
+    // Update tags with new path if there were any tags
+    if (tags.isNotEmpty) {
+      // Remove old tags from source path
+      for (final tag in tags) {
+        await _tagsService.removeTagFromFile(sourcePath, tag.id);
+      }
+      // Add tags to new path
+      for (final tag in tags) {
+        await _tagsService.addTagToFile(targetPath, tag);
+      }
+    }
   }
 
   /// Process multiple files asynchronously with progress reporting

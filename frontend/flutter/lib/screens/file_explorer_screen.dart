@@ -2,6 +2,7 @@
 
 import 'dart:io';
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
@@ -218,11 +219,35 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
     if (!mounted) return;
 
     try {
-      final String downloadsDir = await _fileService.getDownloadsDirectory();
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Initialize with default directory (downloads)
+      String targetDir = await _fileService.getDownloadsDirectory();
+      
+      // Check for last visited directory preference
+      final useLastVisitedDir = prefs.getBool('use_last_visited_dir') ?? true;
+      
+      if (useLastVisitedDir) {
+        // Try to use last visited directory
+        final lastVisitedDir = prefs.getString('last_visited_dir');
+        if (lastVisitedDir != null && lastVisitedDir.isNotEmpty) {
+          targetDir = lastVisitedDir;
+        }
+      } else {
+        // Check for custom directory if not using last visited
+        final useCustomDir = prefs.getBool('use_custom_directory') ?? false;
+        if (useCustomDir) {
+          final customDir = prefs.getString('custom_start_directory');
+          if (customDir != null && customDir.isNotEmpty) {
+            targetDir = customDir;
+          }
+        }
+      }
+      
       if (!mounted) return;
 
       setState(() {
-        _currentPath = downloadsDir;
+        _currentPath = targetDir;
         _isLoading = true;
         _hasError = false;
         _errorMessage = '';
@@ -231,20 +256,20 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       final tabManager = Provider.of<TabManagerService>(context, listen: false);
       tabManager.updateCurrentTabLoading(true);
 
-      // Try to load the downloads directory
+      // Try to load the target directory
       try {
-        final directory = Directory(downloadsDir);
+        final directory = Directory(targetDir);
         if (!await directory.exists()) {
-          throw Exception('Downloads directory does not exist');
+          throw Exception('Target directory does not exist');
         }
 
-        await _loadDirectory(downloadsDir, addToHistory: false);
+        await _loadDirectory(targetDir, addToHistory: false);
       } catch (e) {
-        // If downloads directory fails, try to load home directory
+        // If target directory fails, try to load home directory
         if (!mounted) return;
 
         _logger.warning(
-          'Failed to load downloads directory, falling back to home: $e',
+          'Failed to load target directory, falling back to home: $e',
         );
         final homeDir = await _fileService.getHomeDirectory();
         await _loadDirectory(homeDir, addToHistory: false);
@@ -321,6 +346,14 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       // Update current tab path
       final tabManager = Provider.of<TabManagerService>(context, listen: false);
       tabManager.updateCurrentTabPath(path);
+      
+      // Save the last visited directory
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('last_visited_dir', path);
+      } catch (e) {
+        _logger.warning('Failed to save last visited directory: $e');
+      }
 
 
     } catch (e) {

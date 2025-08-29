@@ -42,6 +42,10 @@ class TabManagerService extends ChangeNotifier {
   int _currentTabIndex = 0;
   bool _showTabBar = false;
 
+  TabManagerService() {
+    _showTabBar = false; // Ensure tab bar is hidden by default
+  }
+
   List<Tab> get tabs => List.unmodifiable(_tabs);
   int get currentTabIndex => _currentTabIndex;
   Tab? get currentTab => _tabs.isNotEmpty ? _tabs[_currentTabIndex] : null;

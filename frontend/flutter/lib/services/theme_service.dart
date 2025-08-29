@@ -1,41 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 enum ThemePreset { custom }
 
 class ThemeService extends ChangeNotifier {
   static const String _themeKey = 'theme_mode';
   static const String _accentColorKey = 'accent_color';
-  static const String _themePresetKey = 'theme_preset';
-  static const String _fontSizeKey = 'font_size';
-  static const String _interfaceDensityKey = 'interface_density';
   static const String _useAnimationsKey = 'use_animations';
-  static const String _customColorsKey = 'custom_colors';
 
   ThemeMode _themeMode = ThemeMode.system;
-  Color _accentColor = Colors.blue;
-  ThemePreset _themePreset = ThemePreset.custom;
-  double _fontSize = 14.0;
-  double _interfaceDensity = 0.0;
+  Color _accentColor = Colors.blueAccent;
   bool _useAnimations = true;
-  Map<String, Color> _customColors = {
-    'primary': Colors.blue,
-    'secondary': Colors.green,
-    'surface': Colors.grey.shade100,
-    'error': Colors.red,
-  };
 
   late SharedPreferences _prefs;
 
   ThemeMode get themeMode => _themeMode;
   Color get accentColor => _accentColor;
-  ThemePreset get themePreset => _themePreset;
-  double get fontSize => _fontSize;
-  double get interfaceDensity => _interfaceDensity;
   bool get useAnimations => _useAnimations;
-  Map<String, Color> get customColors => _customColors;
-
   bool get isDarkMode => _themeMode == ThemeMode.dark;
   bool get isLightMode => _themeMode == ThemeMode.light;
   bool get isSystemMode => _themeMode == ThemeMode.system;
@@ -56,35 +37,12 @@ class ThemeService extends ChangeNotifier {
 
     // Load accent color
     final accentColorValue =
-        _prefs.getInt(_accentColorKey) ?? Colors.blue.toARGB32();
+        _prefs.getInt(_accentColorKey) ??
+        const Color(0xFF2196F3).toARGB32(); // Material Blue 500
     _accentColor = Color(accentColorValue);
-
-    // Load theme preset
-    final presetString = _prefs.getString(_themePresetKey) ?? 'custom';
-    _themePreset = ThemePreset.values.firstWhere(
-      (preset) => preset.toString() == 'ThemePreset.$presetString',
-      orElse: () => ThemePreset.custom,
-    );
-
-    // Load font size
-    _fontSize = _prefs.getDouble(_fontSizeKey) ?? 14.0;
-
-    // Load interface density
-    _interfaceDensity = _prefs.getDouble(_interfaceDensityKey) ?? 0.0;
 
     // Load animation preference
     _useAnimations = _prefs.getBool(_useAnimationsKey) ?? true;
-
-    // Load custom colors
-    final customColorsMap = _prefs.getString(_customColorsKey);
-    if (customColorsMap != null) {
-      final Map<String, dynamic> colorsJson = Map<String, dynamic>.from(
-        jsonDecode(customColorsMap),
-      );
-      _customColors = colorsJson.map(
-        (key, value) => MapEntry(key, Color(value as int)),
-      );
-    }
 
     notifyListeners();
   }
@@ -103,43 +61,10 @@ class ThemeService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setThemePreset(ThemePreset preset) async {
-    if (_themePreset == preset) return;
-    _themePreset = preset;
-    await _prefs.setString(_themePresetKey, preset.toString().split('.').last);
-    notifyListeners();
-  }
-
-  Future<void> setFontSize(double fontSize) async {
-    if (_fontSize == fontSize) return;
-    _fontSize = fontSize;
-    await _prefs.setDouble(_fontSizeKey, fontSize);
-    notifyListeners();
-  }
-
-  Future<void> setInterfaceDensity(double density) async {
-    if (_interfaceDensity == density) return;
-    _interfaceDensity = density;
-    await _prefs.setDouble(_interfaceDensityKey, density);
-    notifyListeners();
-  }
-
   Future<void> setUseAnimations(bool useAnimations) async {
     if (_useAnimations == useAnimations) return;
     _useAnimations = useAnimations;
     await _prefs.setBool(_useAnimationsKey, useAnimations);
-    notifyListeners();
-  }
-
-  Future<void> setCustomColor(String key, Color color) async {
-    if (_customColors[key] == color) return;
-    _customColors[key] = color;
-    await _prefs.setString(
-      _customColorsKey,
-      jsonEncode(
-        _customColors.map((key, value) => MapEntry(key, value.toARGB32())),
-      ),
-    );
     notifyListeners();
   }
 
@@ -150,83 +75,325 @@ class ThemeService extends ChangeNotifier {
   }
 
   ThemeData getLightTheme() {
-    return _getCustomTheme(Brightness.light);
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.light(
+        primary: _accentColor,
+        primaryContainer: _accentColor.withValues(alpha: 0.1),
+        secondary: _accentColor,
+        secondaryContainer: _accentColor.withValues(alpha: 0.05),
+        surface: Colors.white,
+        surfaceContainerHighest: const Color(0xFFF5F5F5),
+        error: const Color(0xFFE53935),
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: Colors.black87,
+        brightness: Brightness.light,
+      ),
+      appBarTheme: const AppBarTheme(
+        elevation: 0,
+        centerTitle: false,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        titleTextStyle: TextStyle(
+          color: Colors.black87,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      cardTheme: CardThemeData(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: Colors.grey.shade200),
+        ),
+        margin: const EdgeInsets.all(12),
+        color: Colors.white,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade400),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade400),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: _accentColor, width: 2),
+        ),
+        filled: true,
+        fillColor: Colors.grey.shade50,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+        hintStyle: TextStyle(color: Colors.grey.shade500),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _accentColor,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 0,
+          textStyle: const TextStyle(
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: _accentColor,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.black87,
+          side: BorderSide(color: Colors.grey.shade400),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
+      iconTheme: const IconThemeData(color: Colors.black87, size: 24),
+      tabBarTheme: TabBarThemeData(
+        labelColor: _accentColor,
+        unselectedLabelColor: Colors.grey.shade600,
+        indicator: UnderlineTabIndicator(
+          borderSide: BorderSide(width: 2, color: _accentColor),
+        ),
+        labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        unselectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w500,
+          fontSize: 14,
+        ),
+      ),
+      dividerTheme: DividerThemeData(
+        color: Colors.grey.shade200,
+        thickness: 1,
+        space: 1,
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: _accentColor,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: Colors.grey.shade100,
+        disabledColor: Colors.grey.shade200,
+        selectedColor: _accentColor.withValues(alpha: 0.2),
+        secondarySelectedColor: _accentColor.withValues(alpha: 0.1),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        labelStyle: const TextStyle(
+          color: Colors.black87,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        secondaryLabelStyle: TextStyle(
+          color: _accentColor,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      pageTransitionsTheme:
+          _useAnimations
+              ? const PageTransitionsTheme(
+                builders: {
+                  TargetPlatform.android: ZoomPageTransitionsBuilder(),
+                  TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+                  TargetPlatform.linux: ZoomPageTransitionsBuilder(),
+                  TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+                  TargetPlatform.windows: ZoomPageTransitionsBuilder(),
+                },
+              )
+              : const PageTransitionsTheme(
+                builders: {
+                  TargetPlatform.android: NoAnimationPageTransitionsBuilder(),
+                  TargetPlatform.iOS: NoAnimationPageTransitionsBuilder(),
+                  TargetPlatform.linux: NoAnimationPageTransitionsBuilder(),
+                  TargetPlatform.macOS: NoAnimationPageTransitionsBuilder(),
+                  TargetPlatform.windows: NoAnimationPageTransitionsBuilder(),
+                },
+              ),
+    );
   }
 
   ThemeData getDarkTheme() {
-    return _getCustomTheme(Brightness.dark);
-  }
-
-  ThemeData _getCustomTheme(Brightness brightness) {
-    final isDark = brightness == Brightness.dark;
-    final defaultBackground = isDark ? Colors.grey[800] : Colors.white;
-    final defaultForeground = isDark ? Colors.white : Colors.black87;
-    final defaultBorder = isDark ? Colors.grey[700] : Colors.grey[300];
-
     return ThemeData(
       useMaterial3: true,
-      brightness: brightness,
-      colorSchemeSeed: _accentColor,
-      textTheme: TextTheme(
-        bodyLarge: TextStyle(fontSize: _fontSize),
-        bodyMedium: TextStyle(fontSize: _fontSize * 0.9),
-        bodySmall: TextStyle(fontSize: _fontSize * 0.8),
-        titleLarge: TextStyle(fontSize: _fontSize * 1.5),
-        titleMedium: TextStyle(fontSize: _fontSize * 1.2),
-        titleSmall: TextStyle(fontSize: _fontSize),
+      colorScheme: ColorScheme.dark(
+        primary: _accentColor,
+        primaryContainer: _accentColor.withValues(alpha: 0.2),
+        secondary: _accentColor,
+        secondaryContainer: _accentColor.withValues(alpha: 0.1),
+        surface: const Color(0xFF1E1E1E),
+        surfaceContainerHighest: const Color(0xFF121212),
+        error: const Color(0xFFCF6679),
+        onPrimary: Colors.black87,
+        onSecondary: Colors.black87,
+        onSurface: Colors.white,
+        onError: Colors.black87,
+        brightness: Brightness.dark,
       ),
-      iconTheme: IconThemeData(size: 24, color: defaultForeground),
-      // Override popup menu theme to use default colors
-      popupMenuTheme: PopupMenuThemeData(
-        color: defaultBackground,
-        surfaceTintColor: Colors.transparent,
-        textStyle: TextStyle(color: defaultForeground, fontSize: _fontSize),
+      appBarTheme: const AppBarTheme(
+        elevation: 0,
+        centerTitle: false,
+        backgroundColor: Color(0xFF1E1E1E),
+        foregroundColor: Colors.white,
+        titleTextStyle: TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
       ),
-      // Override context menu theme to use default colors
-      menuTheme: MenuThemeData(
-        style: MenuStyle(
-          backgroundColor: WidgetStatePropertyAll(defaultBackground),
-          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
-          shadowColor: WidgetStatePropertyAll(
-            Colors.black.withValues(red: 0, green: 0, blue: 0, alpha: 51),
+      cardTheme: CardThemeData(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: Colors.grey.shade800),
+        ),
+        margin: const EdgeInsets.all(12),
+        color: const Color(0xFF1E1E1E),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade700),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade700),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: _accentColor, width: 2),
+        ),
+        filled: true,
+        fillColor: const Color(0xFF2D2D2D),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+        hintStyle: TextStyle(color: Colors.grey.shade500),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _accentColor,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-          elevation: const WidgetStatePropertyAll(8),
-          shape: WidgetStatePropertyAll(
-            RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-              side: BorderSide(color: defaultBorder!),
-            ),
+          elevation: 0,
+          textStyle: const TextStyle(
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
           ),
         ),
       ),
-      menuButtonTheme: MenuButtonThemeData(
-        style: ButtonStyle(
-          backgroundColor: WidgetStatePropertyAll(defaultBackground),
-          foregroundColor: WidgetStatePropertyAll(defaultForeground),
-          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
-          overlayColor: WidgetStatePropertyAll(
-            defaultForeground.withValues(
-              alpha: 26.0,
-              red: defaultForeground.r * 255.0,
-              green: defaultForeground.g * 255.0,
-              blue: defaultForeground.b * 255.0,
-            ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: _accentColor,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
-      visualDensity: VisualDensity(
-        horizontal: _interfaceDensity,
-        vertical: _interfaceDensity,
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white,
+          side: BorderSide(color: Colors.grey.shade700),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        ),
       ),
-      pageTransitionsTheme: PageTransitionsTheme(
-        builders: {
-          for (final platform in TargetPlatform.values)
-            platform:
-                _useAnimations
-                    ? const CupertinoPageTransitionsBuilder()
-                    : const NoAnimationPageTransitionsBuilder(),
-        },
+      iconTheme: const IconThemeData(color: Colors.white, size: 24),
+      tabBarTheme: TabBarThemeData(
+        labelColor: _accentColor,
+        unselectedLabelColor: Colors.grey.shade400,
+        indicator: UnderlineTabIndicator(
+          borderSide: BorderSide(width: 2, color: _accentColor),
+        ),
+        labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        unselectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w500,
+          fontSize: 14,
+        ),
       ),
+      dividerTheme: DividerThemeData(
+        color: Colors.grey.shade800,
+        thickness: 1,
+        space: 1,
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: _accentColor,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: const Color(0xFF2D2D2D),
+        disabledColor: Colors.grey.shade800,
+        selectedColor: _accentColor.withValues(alpha: 0.2),
+        secondarySelectedColor: _accentColor.withValues(alpha: 0.1),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: Colors.grey.shade700),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        labelStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        secondaryLabelStyle: TextStyle(
+          color: _accentColor,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      pageTransitionsTheme:
+          _useAnimations
+              ? const PageTransitionsTheme(
+                builders: {
+                  TargetPlatform.android: ZoomPageTransitionsBuilder(),
+                  TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+                  TargetPlatform.linux: ZoomPageTransitionsBuilder(),
+                  TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+                  TargetPlatform.windows: ZoomPageTransitionsBuilder(),
+                },
+              )
+              : const PageTransitionsTheme(
+                builders: {
+                  TargetPlatform.android: NoAnimationPageTransitionsBuilder(),
+                  TargetPlatform.iOS: NoAnimationPageTransitionsBuilder(),
+                  TargetPlatform.linux: NoAnimationPageTransitionsBuilder(),
+                  TargetPlatform.macOS: NoAnimationPageTransitionsBuilder(),
+                  TargetPlatform.windows: NoAnimationPageTransitionsBuilder(),
+                },
+              ),
     );
   }
 }

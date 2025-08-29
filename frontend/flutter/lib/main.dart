@@ -77,6 +77,7 @@ class MyApp extends StatelessWidget {
               '/disk-manager': (context) => const DiskManagerScreen(),
               '/tags': (context) => const TagsViewScreen(),
             },
+            debugShowCheckedModeBanner: false,
           );
         },
       ),

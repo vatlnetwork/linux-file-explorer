@@ -1,15 +1,17 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import '../models/file_item.dart';
 import '../models/preview_options.dart';
 import '../services/preview_panel_service.dart';
+import '../states/file_explorer_state.dart';
 import 'preview_options_dialog.dart';
 import 'tag_selector.dart';
-import 'dart:ui';
 
 class PreviewPanel extends StatefulWidget {
   final Function(String) onNavigate;
@@ -94,15 +96,26 @@ class _PreviewPanelState extends State<PreviewPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<PreviewPanelService>(
-      builder: (context, previewService, _) {
+    return Consumer2<PreviewPanelService, FileExplorerState>(
+      builder: (context, previewService, explorerState, _) {
         final selectedItem = previewService.selectedItem;
+        final currentPath = explorerState.currentPath;
         final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
         return LayoutBuilder(
           builder: (context, constraints) {
-            // Calculate width based on available space, with min and max constraints
             final width = constraints.maxWidth.clamp(200.0, 400.0);
+            final isPreviewing = selectedItem != null;
+            final isImage =
+                isPreviewing &&
+                [
+                  '.jpg',
+                  '.jpeg',
+                  '.png',
+                  '.gif',
+                  '.bmp',
+                  '.webp',
+                ].contains(selectedItem.fileExtension.toLowerCase());
 
             return ClipRRect(
               borderRadius: const BorderRadius.only(
@@ -113,51 +126,98 @@ class _PreviewPanelState extends State<PreviewPanel> {
               ),
               child: Stack(
                 children: [
-                  // Fluent glassy background
-                  BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                    child: Container(
+                  // Dynamic background based on preview content
+                  if (isImage)
+                    Container(
                       width: width,
                       decoration: BoxDecoration(
-                        color:
-                            isDarkMode
-                                ? Colors.black.withAlpha(40)
-                                : Colors.white.withAlpha(166),
-                        border: Border(
-                          left: BorderSide(
-                            color:
-                                isDarkMode
-                                    ? Colors.black.withAlpha(77)
-                                    : Colors.grey.shade300.withAlpha(128),
-                            width: 1.5,
-                          ),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.1),
+                      ),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                        child: Container(color: Colors.transparent),
+                      ),
+                    )
+                  else
+                    BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                      child: Container(
+                        width: width,
+                        decoration: BoxDecoration(
+                          color:
+                              isDarkMode
+                                  ? Colors.black.withAlpha(40)
+                                  : Colors.white.withAlpha(166),
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color:
-                                isDarkMode
-                                    ? Colors.black.withAlpha(46)
-                                    : Colors.blueGrey.withAlpha(20),
-                            blurRadius: 16,
-                            offset: const Offset(-4, 0),
-                          ),
-                        ],
                       ),
                     ),
+
+                  // Border and shadow
+                  Container(
+                    width: width,
+                    decoration: BoxDecoration(
+                      border: Border(
+                        left: BorderSide(
+                          color:
+                              isDarkMode
+                                  ? Colors.white.withAlpha(30)
+                                  : Colors.grey.shade300.withAlpha(180),
+                          width: 1.0,
+                        ),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color:
+                              isDarkMode
+                                  ? Colors.black.withAlpha(80)
+                                  : Colors.blueGrey.withAlpha(20),
+                          blurRadius: 16,
+                          offset: const Offset(-4, 0),
+                        ),
+                      ],
+                    ),
                   ),
+
                   // Panel content
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildHeader(context, selectedItem),
-                      if (selectedItem != null)
+                      _buildHeader(
+                        context,
+                        selectedItem ??
+                            FileItem(
+                              path: currentPath,
+                              name: p.basename(currentPath),
+                              type: FileItemType.directory,
+                              modifiedTime: DateTime.now(),
+                              creationTime: DateTime.now(),
+                              size: 0,
+                            ),
+                      ),
+                      if (isPreviewing)
                         Expanded(
                           child: SingleChildScrollView(
                             child: _buildPreviewContent(context, selectedItem),
                           ),
                         )
                       else
-                        Expanded(child: _buildNoSelectionView(context)),
+                        _buildDirectoryPreview(
+                          context,
+                          FileItem(
+                            path: currentPath,
+                            name: currentPath
+                                .split('/')
+                                .lastWhere(
+                                  (part) => part.isNotEmpty,
+                                  orElse: () => '/',
+                                ),
+                            type: FileItemType.directory,
+                            modifiedTime: DateTime.now(),
+                            creationTime: DateTime.now(),
+                          ),
+                        ),
                     ],
                   ),
                 ],
@@ -167,6 +227,13 @@ class _PreviewPanelState extends State<PreviewPanel> {
         );
       },
     );
+  }
+
+  // Helper to get dominant color from image (simplified example)
+  Color _getDominantColor(String imagePath) {
+    // In a real app, you'd use a package like palette_generator
+    // to extract dominant colors from the image
+    return Colors.blueGrey.shade700; // Default color
   }
 
   Widget _buildHeader(BuildContext context, FileItem? selectedItem) {
