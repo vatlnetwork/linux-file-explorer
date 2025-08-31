@@ -229,13 +229,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
     );
   }
 
-  // Helper to get dominant color from image (simplified example)
-  Color _getDominantColor(String imagePath) {
-    // In a real app, you'd use a package like palette_generator
-    // to extract dominant colors from the image
-    return Colors.blueGrey.shade700; // Default color
-  }
-
   Widget _buildHeader(BuildContext context, FileItem? selectedItem) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final textTheme = Theme.of(context).textTheme;
@@ -351,43 +344,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
     }
   }
 
-  Widget _buildNoSelectionView(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.no_photography,
-              size: 48,
-              color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade400,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No item selected',
-              style: TextStyle(
-                color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Select a file or folder to preview its contents',
-              style: TextStyle(
-                fontSize: 12,
-                color: isDarkMode ? Colors.grey.shade500 : Colors.grey.shade600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildPreviewContent(BuildContext context, FileItem item) {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -445,7 +401,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
     Widget quickActions =
         isFile
             ? Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -555,14 +511,17 @@ class _PreviewPanelState extends State<PreviewPanel> {
           // Tags section at the top
           if (options.showTags) ...[
             Container(
-              margin: const EdgeInsets.all(8.0),
+              margin: const EdgeInsets.symmetric(
+                horizontal: 12.0,
+                vertical: 4.0,
+              ),
               padding: const EdgeInsets.all(8.0),
               decoration: BoxDecoration(
                 color:
                     Theme.of(context).brightness == Brightness.dark
                         ? const Color(0xFF3C4043)
                         : const Color(0xFFF0F7FF),
-                borderRadius: BorderRadius.circular(8.0),
+                borderRadius: BorderRadius.circular(6.0),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -571,7 +530,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                     'Tags',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   TagSelector(filePath: item.path),
                 ],
               ),
@@ -581,14 +540,17 @@ class _PreviewPanelState extends State<PreviewPanel> {
           // Folder info section
           if (options.showFolderContents) ...[
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 8.0),
+              margin: const EdgeInsets.symmetric(
+                horizontal: 12.0,
+                vertical: 4.0,
+              ),
               padding: const EdgeInsets.all(8.0),
               decoration: BoxDecoration(
                 color:
                     Theme.of(context).brightness == Brightness.dark
                         ? const Color(0xFF3C4043)
                         : const Color(0xFFF0F7FF),
-                borderRadius: BorderRadius.circular(8.0),
+                borderRadius: BorderRadius.circular(6.0),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -597,7 +559,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                     'Folder Information',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   _buildCompactInfoRow('Size', item.formattedSize),
                   _buildCompactInfoRow(
                     'Items',
@@ -611,7 +573,10 @@ class _PreviewPanelState extends State<PreviewPanel> {
           // Folders section
           if (options.showFolderContents && folders.isNotEmpty) ...[
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12.0,
+                vertical: 4.0,
+              ),
               child: Text(
                 'Folders (${folders.length})',
                 style: const TextStyle(
@@ -620,19 +585,19 @@ class _PreviewPanelState extends State<PreviewPanel> {
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               padding: const EdgeInsets.symmetric(
-                horizontal: 8.0,
-                vertical: 8.0,
+                horizontal: 4.0,
+                vertical: 4.0,
               ),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 childAspectRatio: 2.5,
-                crossAxisSpacing: 8.0,
-                mainAxisSpacing: 8.0,
+                crossAxisSpacing: 4.0,
+                mainAxisSpacing: 4.0,
               ),
               itemCount: folders.length,
               itemBuilder: (context, index) {
@@ -681,7 +646,10 @@ class _PreviewPanelState extends State<PreviewPanel> {
           // Files section
           if (options.showFolderContents && files.isNotEmpty) ...[
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12.0,
+                vertical: 4.0,
+              ),
               child: Text(
                 'Files (${files.length})',
                 style: const TextStyle(
@@ -690,19 +658,19 @@ class _PreviewPanelState extends State<PreviewPanel> {
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               padding: const EdgeInsets.symmetric(
-                horizontal: 8.0,
-                vertical: 8.0,
+                horizontal: 4.0,
+                vertical: 4.0,
               ),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 childAspectRatio: 2.5,
-                crossAxisSpacing: 8.0,
-                mainAxisSpacing: 8.0,
+                crossAxisSpacing: 4.0,
+                mainAxisSpacing: 4.0,
               ),
               itemCount: files.length,
               itemBuilder: (context, index) {
@@ -740,7 +708,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
             ),
           ],
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
         ],
       ),
     );
@@ -760,48 +728,38 @@ class _PreviewPanelState extends State<PreviewPanel> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Image preview at the top
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Center(
                   child: Container(
                     height: imageHeight,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Theme.of(context).dividerColor,
-                        width: 1.0,
-                      ),
-                    ),
                     clipBehavior: Clip.antiAlias,
                     child: Center(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          File(item.path),
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.broken_image,
-                                  size: 32,
-                                  color: Colors.grey,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Could not load image',
-                                  style: TextStyle(color: Colors.grey.shade600),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  error.toString(),
-                                  style: const TextStyle(fontSize: 10),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
+                      child: Image.file(
+                        File(item.path),
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.broken_image,
+                                size: 32,
+                                color: Colors.grey,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Could not load image',
+                                style: TextStyle(color: Colors.grey.shade600),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                error.toString(),
+                                style: const TextStyle(fontSize: 10),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -810,7 +768,10 @@ class _PreviewPanelState extends State<PreviewPanel> {
 
               // Metadata section with compact layout
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -824,7 +785,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                       overflow: TextOverflow.ellipsis,
                     ),
 
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
 
                     // Common info in a more compact layout
                     if (options.showSize)
@@ -965,7 +926,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1051,9 +1012,9 @@ class _PreviewPanelState extends State<PreviewPanel> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Video thumbnail
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Center(
                   child: Container(
                     width: thumbnailWidth,
                     height: thumbnailHeight,
@@ -1165,13 +1126,10 @@ class _PreviewPanelState extends State<PreviewPanel> {
             children: [
               // Audio icon
               Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Icon(
-                    Icons.audiotrack,
-                    size: constraints.maxWidth * 0.3,
-                    color: Colors.blue,
-                  ),
+                child: Icon(
+                  Icons.audiotrack,
+                  size: constraints.maxWidth * 0.3,
+                  color: Colors.blue,
                 ),
               ),
 

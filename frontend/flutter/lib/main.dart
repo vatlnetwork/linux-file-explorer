@@ -19,6 +19,7 @@ import 'screens/file_explorer_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/disk_manager_screen.dart';
 import 'screens/tags_view_screen.dart';
+import 'states/file_explorer_state.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,6 +54,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DragDropService()),
         ChangeNotifierProvider(create: (_) => SettingsViewModeService()),
         ChangeNotifierProvider(create: (_) => FileAssociationService()),
+        ChangeNotifierProvider(create: (_) => FileExplorerState()),
 
         // Dependent services
         ChangeNotifierProvider(create: (_) => BookmarkService()..init()),

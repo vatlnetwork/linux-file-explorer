@@ -220,13 +220,13 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // Initialize with default directory (downloads)
       String targetDir = await _fileService.getDownloadsDirectory();
-      
+
       // Check for last visited directory preference
       final useLastVisitedDir = prefs.getBool('use_last_visited_dir') ?? true;
-      
+
       if (useLastVisitedDir) {
         // Try to use last visited directory
         final lastVisitedDir = prefs.getString('last_visited_dir');
@@ -243,7 +243,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
           }
         }
       }
-      
+
       if (!mounted) return;
 
       setState(() {
@@ -346,7 +346,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       // Update current tab path
       final tabManager = Provider.of<TabManagerService>(context, listen: false);
       tabManager.updateCurrentTabPath(path);
-      
+
       // Save the last visited directory
       try {
         final prefs = await SharedPreferences.getInstance();
@@ -354,8 +354,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen>
       } catch (e) {
         _logger.warning('Failed to save last visited directory: $e');
       }
-
-
     } catch (e) {
       if (!mounted) return;
 
@@ -2900,8 +2898,10 @@ exit
 
   // Select all items in the current directory
   void _selectAllItems() {
-    final previewPanelService =
-        Provider.of<PreviewPanelService>(context, listen: false);
+    final previewPanelService = Provider.of<PreviewPanelService>(
+      context,
+      listen: false,
+    );
 
     setState(() {
       // Select all visible items
@@ -3411,6 +3411,7 @@ exit
       onPanStart: (_) => windowManager.startDragging(),
       child: Container(
         height: 40,
+        clipBehavior: Clip.none,
         decoration: BoxDecoration(
           color: isDarkMode ? const Color(0xFF202124) : const Color(0xFFE8F0FE),
         ),
