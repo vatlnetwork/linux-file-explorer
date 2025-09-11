@@ -2,15 +2,15 @@
 
 import 'dart:io';
 import 'dart:ui';
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import '../models/file_item.dart';
-import '../models/preview_options.dart';
 import '../services/preview_panel_service.dart';
 import '../states/file_explorer_state.dart';
-import 'preview_options_dialog.dart';
 import 'tag_selector.dart';
 
 class PreviewPanel extends StatefulWidget {
@@ -23,14 +23,47 @@ class PreviewPanel extends StatefulWidget {
 }
 
 class _PreviewPanelState extends State<PreviewPanel> {
+  Future<Map<String, dynamic>> getImageMetadata(String path) async {
+    final file = File(path);
+    if (!await file.exists()) {
+      return {};
+    }
+
+    final image = await decodeImageFromList(await file.readAsBytes());
+    final dimensions = {'width': image.width, 'height': image.height};
+
+    // In a real app, you would extract more EXIF data here
+    // For now, we'll just return dimensions
+    return {
+      'dimensions': '${dimensions['width']} × ${dimensions['height']}',
+      'camera': 'Unknown',
+      'exposure': 'N/A',
+    };
+  }
+
   String? _textContent;
   List<FileItem>? _directoryContent;
   bool _isLoading = false;
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
 
   @override
   void initState() {
     super.initState();
+    _pageController.addListener(() {
+      if (_pageController.page?.round() != _currentPage) {
+        setState(() {
+          _currentPage = _pageController.page!.round();
+        });
+      }
+    });
     // Don't load preview in initState
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   @override
@@ -181,44 +214,66 @@ class _PreviewPanelState extends State<PreviewPanel> {
                   ),
 
                   // Panel content
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeader(
-                        context,
-                        selectedItem ??
+                  SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildHeader(
+                          context,
+                          selectedItem ??
+                              FileItem(
+                                path: currentPath,
+                                name: p.basename(currentPath),
+                                type: FileItemType.directory,
+                                modifiedTime: DateTime.now(),
+                                creationTime: DateTime.now(),
+                                size: 0,
+                              ),
+                        ),
+                        // replaced by SingleChildScrollView above
+                        if (isPreviewing)
+                          SizedBox(
+                            height: constraints.maxHeight - 60, // leave space for header
+                            child: Column(
+                              children: [
+                                Expanded(
+                                  child: PageView(
+                                    controller: _pageController,
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    children: [
+                                      _buildFileInfoPage(context, selectedItem),
+                                      _buildDiskStatsPage(context),
+                                      _buildTagsPage(context, selectedItem),
+                                      _buildQuickActionsPage(
+                                        context,
+                                        selectedItem,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                _buildPageIndicator(4),
+                              ],
+                            ),
+                          )
+                        else
+                          _buildDirectoryPreview(
+                            context,
                             FileItem(
                               path: currentPath,
-                              name: p.basename(currentPath),
+                              name: currentPath
+                                  .split('/')
+                                  .lastWhere(
+                                    (part) => part.isNotEmpty,
+                                    orElse: () => '/',
+                                  ),
                               type: FileItemType.directory,
                               modifiedTime: DateTime.now(),
                               creationTime: DateTime.now(),
-                              size: 0,
                             ),
-                      ),
-                      if (isPreviewing)
-                        Expanded(
-                          child: SingleChildScrollView(
-                            child: _buildPreviewContent(context, selectedItem),
                           ),
-                        )
-                      else
-                        _buildDirectoryPreview(
-                          context,
-                          FileItem(
-                            path: currentPath,
-                            name: currentPath
-                                .split('/')
-                                .lastWhere(
-                                  (part) => part.isNotEmpty,
-                                  orElse: () => '/',
-                                ),
-                            type: FileItemType.directory,
-                            modifiedTime: DateTime.now(),
-                            creationTime: DateTime.now(),
-                          ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -241,9 +296,9 @@ class _PreviewPanelState extends State<PreviewPanel> {
           colors:
               isDarkMode
                   ? [
-                    Color(0xFF23272E).withAlpha(217),
-                    Color(0xFF23272E).withAlpha(166),
-                  ]
+                Color(0xFF23272E).withAlpha(217),
+                Color(0xFF23272E).withAlpha(166),
+              ]
                   : [Colors.white.withAlpha(217), Colors.white.withAlpha(166)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -289,22 +344,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (selectedItem != null) ...[
-            IconButton(
-              icon: Icon(Icons.tune, size: 18, color: iconColor),
-              tooltip: 'Customize Preview',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(
-                minWidth: 32,
-                minHeight: 32,
-                maxWidth: 32,
-                maxHeight: 32,
-              ),
-              onPressed: () => _showPreviewOptions(context, selectedItem),
-            ),
-            const SizedBox(width: 4),
-          ],
-          IconButton(
+                    IconButton(
             icon: Icon(Icons.close, size: 18, color: iconColor),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(
@@ -326,38 +366,16 @@ class _PreviewPanelState extends State<PreviewPanel> {
     );
   }
 
-  void _showPreviewOptions(BuildContext context, FileItem item) async {
-    final previewService = Provider.of<PreviewPanelService>(
-      context,
-      listen: false,
-    );
-    final options = previewService.getOptionsForFileItem(item);
-
-    final result = await showDialog<PreviewOptions>(
-      context: context,
-      builder:
-          (context) => PreviewOptionsDialog(options: options, fileItem: item),
-    );
-
-    if (result != null) {
-      await previewService.savePreviewOptionsForItem(result, item);
-    }
-  }
-
-  Widget _buildPreviewContent(BuildContext context, FileItem item) {
+  Widget _buildFileInfoPage(BuildContext context, FileItem item) {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    final isFile = item.type == FileItemType.file;
     final isDir = item.type == FileItemType.directory;
     final ext = item.fileExtension.toLowerCase();
-    // Determine icon color based on theme so that icons are visible in both light and dark modes
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final iconColor = isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700;
 
     Widget content;
     if (isDir) {
-      content = _buildDirectoryPreview(context, item);
+      content = _buildFolderInfoPage(context, item);
     } else if ([
       '.jpg',
       '.jpeg',
@@ -397,46 +415,12 @@ class _PreviewPanelState extends State<PreviewPanel> {
       content = _buildDefaultFileInfo(context, item);
     }
 
-    // Quick actions row for files
-    Widget quickActions =
-        isFile
-            ? Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Tooltip(
-                    message: 'Open',
-                    child: IconButton(
-                      icon: Icon(Icons.open_in_new, size: 20, color: iconColor),
-                      onPressed: () => _openFile(item),
-                    ),
-                  ),
-                  Tooltip(
-                    message: 'Copy Path',
-                    child: IconButton(
-                      icon: Icon(Icons.copy, size: 20, color: iconColor),
-                      onPressed: () => _copyPath(item),
-                    ),
-                  ),
-                  Tooltip(
-                    message: 'Reveal in Folder',
-                    child: IconButton(
-                      icon: Icon(Icons.folder_open, size: 20, color: iconColor),
-                      onPressed: () => _revealInFolder(item),
-                    ),
-                  ),
-                ],
-              ),
-            )
-            : const SizedBox.shrink();
-
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 220),
       child: Column(
         key: ValueKey(item.path + (_isLoading ? '_loading' : '')),
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [content, quickActions],
+        children: [content],
       ),
     );
   }
@@ -508,35 +492,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Tags section at the top
-          if (options.showTags) ...[
-            Container(
-              margin: const EdgeInsets.symmetric(
-                horizontal: 12.0,
-                vertical: 4.0,
-              ),
-              padding: const EdgeInsets.all(8.0),
-              decoration: BoxDecoration(
-                color:
-                    Theme.of(context).brightness == Brightness.dark
-                        ? const Color(0xFF3C4043)
-                        : const Color(0xFFF0F7FF),
-                borderRadius: BorderRadius.circular(6.0),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Tags',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
-                  const SizedBox(height: 6),
-                  TagSelector(filePath: item.path),
-                ],
-              ),
-            ),
-          ],
-
           // Folder info section
           if (options.showFolderContents) ...[
             Container(
@@ -718,135 +673,225 @@ class _PreviewPanelState extends State<PreviewPanel> {
     final previewService = Provider.of<PreviewPanelService>(context);
     final options = previewService.optionsManager.imageOptions;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Calculate image height based on available width
-        final imageHeight = (constraints.maxWidth * 0.8).clamp(150.0, 300.0);
+    return FutureBuilder<Map<String, dynamic>>(
+      future: getImageMetadata(item.path),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Image preview at the top
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Center(
-                  child: Container(
-                    height: imageHeight,
-                    clipBehavior: Clip.antiAlias,
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+          return _buildDefaultFileInfo(context, item);
+        }
+
+        final metadata = snapshot.data!;
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final imageHeight = (constraints.maxWidth * 0.8).clamp(
+              150.0,
+              300.0,
+            );
+
+            return SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(12.0),
                     child: Center(
-                      child: Image.file(
-                        File(item.path),
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.broken_image,
-                                size: 32,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Could not load image',
-                                style: TextStyle(color: Colors.grey.shade600),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                error.toString(),
-                                style: const TextStyle(fontSize: 10),
-                              ),
-                            ],
-                          );
-                        },
+                      child: Container(
+                        height: imageHeight,
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Image.file(
+                          File(item.path),
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.broken_image,
+                                  size: 32,
+                                  color: Colors.grey,
+                                ),
+                                SizedBox(height: 8),
+                                Text('Could not load image'),
+                              ],
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-
-              // Metadata section with compact layout
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
                     ),
-
-                    const SizedBox(height: 6),
-
-                    // Common info in a more compact layout
-                    if (options.showSize)
-                      _buildCompactInfoRow('Size', item.formattedSize),
-
-                    if (options.showCreated)
-                      _buildCompactInfoRow(
-                        'Created',
-                        item.formattedCreationTime,
-                      ),
-
-                    if (options.showModified)
-                      _buildCompactInfoRow(
-                        'Modified',
-                        item.formattedModifiedTime,
-                      ),
-
-                    if (options.showWhereFrom && item.whereFrom != null)
-                      _buildCompactInfoRow('Where from', item.whereFrom!),
-
-                    const SizedBox(height: 8),
-
-                    // Image specific info
-                    if (options.showDimensions)
-                      _buildCompactInfoRow(
-                        'Dimensions',
-                        '1920 × 1080',
-                      ), // Replace with actual dimensions
-
-                    if (options.showExifData)
-                      _buildCompactInfoRow(
-                        'EXIF',
-                        'Available',
-                      ), // Replace with actual EXIF status
-
-                    if (options.showCameraModel)
-                      _buildCompactInfoRow(
-                        'Camera',
-                        'Canon EOS 5D',
-                      ), // Replace with actual camera model
-
-                    if (options.showExposureInfo)
-                      _buildCompactInfoRow(
-                        'Exposure',
-                        '1/125, f/2.8, ISO 100',
-                      ), // Replace with actual exposure info
-                    // Tags section
-                    if (options.showTags) ...[
-                      const SizedBox(height: 8),
-                      TagSelector(filePath: item.path),
-                    ],
-                  ],
-                ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        if (options.showSize)
+                          _buildCompactInfoRow('Size', item.formattedSize),
+                        if (options.showCreated)
+                          _buildCompactInfoRow(
+                            'Created',
+                            item.formattedCreationTime,
+                          ),
+                        if (options.showModified)
+                          _buildCompactInfoRow(
+                            'Modified',
+                            item.formattedModifiedTime,
+                          ),
+                        if (options.showDimensions &&
+                            metadata['dimensions'] != null)
+                          _buildCompactInfoRow(
+                            'Dimensions',
+                            metadata['dimensions']!,
+                          ),
+                        if (options.showCameraModel &&
+                            metadata['camera'] != null)
+                          _buildCompactInfoRow('Camera', metadata['camera']!),
+                        if (options.showExposureInfo &&
+                            metadata['exposure'] != null)
+                          _buildCompactInfoRow(
+                            'Exposure',
+                            metadata['exposure']!,
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ),
-
-              // Remove Quick Actions section
-              const SizedBox(height: 16),
-            ],
-          ),
+            );
+          },
         );
       },
+    );
+  }
+
+  Widget _buildTagsPage(BuildContext context, FileItem item) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: TagSelector(filePath: item.path),
+    );
+  }
+
+  Widget _buildQuickActionsPage(BuildContext context, FileItem item) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final iconColor = isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700;
+
+    return Center(
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 16,
+        alignment: WrapAlignment.center,
+        children: [
+          _buildActionChip(
+            icon: Icons.open_in_new,
+            label: 'Open',
+            color: iconColor,
+            onTap: () => _openFile(item),
+          ),
+          _buildActionChip(
+            icon: Icons.copy,
+            label: 'Copy Path',
+            color: iconColor,
+            onTap: () => _copyPath(item),
+          ),
+          _buildActionChip(
+            icon: Icons.folder_open,
+            label: 'Reveal',
+            color: iconColor,
+            onTap: () => _revealInFolder(item),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: color.withValues(alpha: 0.1),
+            child: Icon(icon, size: 24, color: color),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: TextStyle(fontSize: 12, color: color)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPageIndicator(int pageCount) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.arrow_back_ios, size: 16),
+          onPressed:
+              _currentPage > 0
+                  ? () {
+                    _pageController.previousPage(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  }
+                  : null,
+        ),
+        ...List.generate(pageCount, (index) {
+          return Container(
+            width: 8,
+            height: 8,
+            margin: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 2.0),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color:
+                  _currentPage == index
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.grey.withValues(alpha: 0.5),
+            ),
+          );
+        }),
+        IconButton(
+          icon: const Icon(Icons.arrow_forward_ios, size: 16),
+          onPressed:
+              _currentPage < pageCount - 1
+                  ? () {
+                    _pageController.nextPage(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  }
+                  : null,
+        ),
+      ],
     );
   }
 
@@ -980,15 +1025,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
                       'Modified',
                       item.formattedModifiedTime,
                     ),
-
-                  if (options.showWhereFrom && item.whereFrom != null)
-                    _buildCompactInfoRow('Where from', item.whereFrom!),
-
-                  // Tags section
-                  if (options.showTags) ...[
-                    const SizedBox(height: 8),
-                    TagSelector(filePath: item.path),
-                  ],
                 ],
               ),
             ),
@@ -1066,12 +1102,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
                         'Modified',
                         item.formattedModifiedTime,
                       ),
-
-                    if (mediaOptions.showWhereFrom && item.whereFrom != null)
-                      _buildCompactInfoRow('Where from', item.whereFrom!),
-
-                    const SizedBox(height: 8),
-
                     // Media specific info
                     if (mediaOptions.showDuration)
                       _buildCompactInfoRow(
@@ -1096,11 +1126,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
                         'Dimensions',
                         '1920 × 1080',
                       ), // Replace with actual dimensions
-                    // Tags section
-                    if (mediaOptions.showTags) ...[
-                      const SizedBox(height: 8),
-                      TagSelector(filePath: item.path),
-                    ],
                   ],
                 ),
               ),
@@ -1166,12 +1191,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
                         'Modified',
                         item.formattedModifiedTime,
                       ),
-
-                    if (options.showWhereFrom && item.whereFrom != null)
-                      _buildCompactInfoRow('Where from', item.whereFrom!),
-
-                    const SizedBox(height: 8),
-
                     // Audio specific info
                     if (options.showDuration)
                       _buildCompactInfoRow(
@@ -1190,11 +1209,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
                         'Bitrate',
                         '320 kbps',
                       ), // Replace with actual bitrate
-                    // Tags section
-                    if (options.showTags) ...[
-                      const SizedBox(height: 8),
-                      TagSelector(filePath: item.path),
-                    ],
                   ],
                 ),
               ),
@@ -1278,21 +1292,11 @@ class _PreviewPanelState extends State<PreviewPanel> {
                         'Modified',
                         item.formattedModifiedTime,
                       ),
-
-                    if (options.showWhereFrom && item.whereFrom != null)
-                      _buildCompactInfoRow('Where from', item.whereFrom!),
-
                     // File type
                     _buildCompactInfoRow(
                       'Type',
                       '${item.fileExtension.toUpperCase().replaceAll('.', '')} File',
                     ),
-
-                    // Tags section
-                    if (options.showTags) ...[
-                      const SizedBox(height: 8),
-                      TagSelector(filePath: item.path),
-                    ],
                   ],
                 ),
               ),
@@ -1350,21 +1354,11 @@ class _PreviewPanelState extends State<PreviewPanel> {
 
                 if (options.showModified)
                   _buildInfoRow('Modified', item.formattedModifiedTime),
-
-                if (options.showWhereFrom && item.whereFrom != null)
-                  _buildInfoRow('Where from', item.whereFrom!),
-
                 // File type
                 _buildInfoRow(
                   'Type',
                   '${item.fileExtension.toUpperCase().replaceAll('.', '')} File',
                 ),
-
-                // Tags section
-                if (options.showTags) ...[
-                  const SizedBox(height: 16),
-                  TagSelector(filePath: item.path),
-                ],
               ],
             ),
           ),
@@ -1406,4 +1400,342 @@ class _PreviewPanelState extends State<PreviewPanel> {
       ),
     );
   }
+}
+
+// Moved into _PreviewPanelState
+  Widget _buildFolderInfoPage(BuildContext context, FileItem item) {
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Flexible(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w400),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+    return FutureBuilder<_FolderMetaData>(
+      future: _getFolderMetaData(item.path),
+      builder: (context, snapshot) {
+        final meta = snapshot.data;
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Icon(
+                    Icons.folder,
+                    size: 64,
+                    color: Colors.amber.shade700,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    const SizedBox(height: 8),
+                    _buildInfoRow('Size', item.formattedSize),
+                    _buildInfoRow('Created', item.formattedCreationTime),
+                    _buildInfoRow('Modified', item.formattedModifiedTime),
+                    if (meta != null) ...[
+                      _buildInfoRow('Permissions', meta.permissions),
+                      _buildInfoRow('Owner', meta.owner),
+                    ]
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+
+class _FolderMetaData {
+  final String permissions;
+  final String owner;
+  _FolderMetaData({required this.permissions, required this.owner});
+}
+
+Future<_FolderMetaData> _getFolderMetaData(String path) async {
+  try {
+    final result = await Process.run('stat', ['-c', '%A %U', path]);
+    final parts = result.stdout.toString().trim().split(' ');
+    if (parts.length >= 2) {
+      return _FolderMetaData(permissions: parts[0], owner: parts[1]);
+    }
+  } catch (_) {}
+  return _FolderMetaData(permissions: 'Unknown', owner: 'Unknown');
+}
+
+Widget _buildSimilarFilesList(BuildContext context, FileItem selectedItem) {
+  final dir = Directory(selectedItem.type == FileItemType.directory
+      ? selectedItem.path
+      : p.dirname(selectedItem.path));
+  return FutureBuilder<List<FileItem>>(
+    future: _getLargestFilesInDir(dir.path, exclude: selectedItem.path),
+    builder: (context, snapshot) {
+      if (!snapshot.hasData) {
+        return const SizedBox.shrink();
+      }
+      final files = snapshot.data!;
+      if (files.isEmpty) return const SizedBox.shrink();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Similar Files/Folders', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 8),
+          ...files.map((item) => ListTile(
+                leading: Icon(
+                  item.type == FileItemType.directory ? Icons.folder : Icons.insert_drive_file,
+                  color: item.type == FileItemType.directory ? Colors.amber : Colors.blueAccent,
+                ),
+                title: Text(item.name, overflow: TextOverflow.ellipsis),
+                subtitle: Text(item.formattedSize),
+                onTap: () {
+                  Provider.of<PreviewPanelService>(context, listen: false).setSelectedItem(item);
+                },
+              ))
+        ],
+      );
+    },
+  );
+}
+
+Future<List<FileItem>> _getLargestFilesInDir(String dirPath, {String? exclude}) async {
+  try {
+    final dir = Directory(dirPath);
+    if (!await dir.exists()) return [];
+    final entities = await dir.list().toList();
+    final items = <FileItem>[];
+    for (final entity in entities) {
+      if (entity.path == exclude) continue;
+      final stat = await entity.stat();
+      if (entity is File) {
+        items.add(FileItem(
+          path: entity.path,
+          name: p.basename(entity.path),
+          type: FileItemType.file,
+          modifiedTime: stat.modified,
+          creationTime: stat.changed,
+          size: stat.size,
+        ));
+      } else if (entity is Directory) {
+        items.add(FileItem(
+          path: entity.path,
+          name: p.basename(entity.path),
+          type: FileItemType.directory,
+          modifiedTime: stat.modified,
+          creationTime: stat.changed,
+          size: null,
+        ));
+      }
+    }
+    items.sort((a, b) => (b.size ?? 0).compareTo(a.size ?? 0));
+    return items.take(5).toList();
+  } catch (_) {
+    return [];
+  }
+}
+
+// Disk Stats Page (stub)
+Widget _buildDiskStatsPage(BuildContext context) {
+  final previewService = Provider.of<PreviewPanelService>(context);
+  final selectedItem = previewService.selectedItem;
+  if (selectedItem == null) {
+    return const Center(child: Text('No item selected'));
+  }
+  return FutureBuilder<_DiskStatsData>(
+    future: _getDiskStats(selectedItem),
+    builder: (context, snapshot) {
+      if (!snapshot.hasData) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      final data = snapshot.data!;
+      final percentItem = data.percentOfDisk;
+      return Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                height: 160,
+                width: 160,
+                child: CustomPaint(
+                  painter: _PieChartPainter(percent: percentItem, strokeWidth: 6),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '${(percentItem * 100).toStringAsFixed(percentItem < 0.01 ? 4 : 2)}%',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text('of Disk', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              _buildDiskStatRow('File/Folder Size', _formatBytes(data.itemSize)),
+              _buildDiskStatRow('Disk Total', _formatBytes(data.diskTotal)),
+              _buildDiskStatRow('Disk % Used', '${(percentItem * 100).toStringAsFixed(percentItem < 0.01 ? 4 : 2)}%'),
+              const SizedBox(height: 32),
+              _buildSimilarFilesList(context, selectedItem),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+Widget _buildDiskStatRow(String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4.0),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        ),
+      ],
+    ),
+  );
+}
+
+class _DiskStatsData {
+  final int itemSize;
+  final int diskUsed;
+  final int diskFree;
+  final int diskTotal;
+  final double percentOfDisk;
+  _DiskStatsData({
+    required this.itemSize,
+    required this.diskUsed,
+    required this.diskFree,
+    required this.diskTotal,
+    required this.percentOfDisk,
+  });
+}
+
+Future<_DiskStatsData> _getDiskStats(FileItem item) async {
+  final stat = await _getDiskSpace(item.path);
+  final itemSize = await _getItemSize(item);
+  final percent = stat.diskTotal > 0 ? itemSize / stat.diskTotal : 0.0;
+  return _DiskStatsData(
+    itemSize: itemSize,
+    diskUsed: stat.diskUsed,
+    diskFree: stat.diskFree,
+    diskTotal: stat.diskTotal,
+    percentOfDisk: percent,
+  );
+}
+
+class _DiskSpaceInfo {
+  final int diskUsed;
+  final int diskFree;
+  final int diskTotal;
+  _DiskSpaceInfo({
+    required this.diskUsed,
+    required this.diskFree,
+    required this.diskTotal,
+  });
+}
+
+Future<_DiskSpaceInfo> _getDiskSpace(String path) async {
+  try {
+    final result = await Process.run('df', ['-B1', path]);
+    final lines = result.stdout.toString().split('\n');
+    if (lines.length >= 2) {
+      final parts =
+          lines[1].split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+      if (parts.length >= 5) {
+        final total = int.tryParse(parts[1]) ?? 0;
+        final used = int.tryParse(parts[2]) ?? 0;
+        final free = int.tryParse(parts[3]) ?? 0;
+        return _DiskSpaceInfo(diskUsed: used, diskFree: free, diskTotal: total);
+      }
+    }
+  } catch (_) {}
+  return _DiskSpaceInfo(diskUsed: 0, diskFree: 0, diskTotal: 0);
+}
+
+Future<int> _getItemSize(FileItem item) async {
+  if (item.type == FileItemType.directory) {
+    try {
+      final result = await Process.run('du', ['-sb', item.path]);
+      final sizeStr = result.stdout.toString().split(RegExp(r'\s+')).first;
+      return int.tryParse(sizeStr) ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  } else {
+    final file = File(item.path);
+    return await file.exists() ? await file.length() : 0;
+  }
+}
+
+class _PieChartPainter extends CustomPainter {
+  final double percent;
+  final double strokeWidth;
+  _PieChartPainter({required this.percent, this.strokeWidth = 14});
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+    final bgPaint = Paint()
+      ..color = Colors.grey.shade300
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+    final rect = Offset.zero & size;
+    canvas.drawArc(rect, -1.57, 6.28, false, bgPaint);
+    paint.color = Colors.blueAccent;
+    canvas.drawArc(rect, -1.57, 6.28 * percent, false, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+// Helper to format bytes as human-readable string
+String _formatBytes(int bytes, [int decimals = 2]) {
+  if (bytes <= 0) return '0 B';
+  const suffixes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  final i = (bytes == 0) ? 0 : (log(bytes) / log(1024)).floor();
+  final size = bytes / pow(1024, i);
+  return '${size.toStringAsFixed(decimals)} ${suffixes[i]}';
 }
