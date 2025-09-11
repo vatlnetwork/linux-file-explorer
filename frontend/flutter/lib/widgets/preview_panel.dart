@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import '../models/file_item.dart';
 import '../services/preview_panel_service.dart';
+import '../services/bookmark_service.dart';
 import '../states/file_explorer_state.dart';
 import 'tag_selector.dart';
 
@@ -218,22 +219,57 @@ class _PreviewPanelState extends State<PreviewPanel> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildHeader(
-                          context,
-                          selectedItem ??
-                              FileItem(
-                                path: currentPath,
-                                name: p.basename(currentPath),
-                                type: FileItemType.directory,
-                                modifiedTime: DateTime.now(),
-                                creationTime: DateTime.now(),
-                                size: 0,
-                              ),
-                        ),
-                        // replaced by SingleChildScrollView above
+                        selectedItem != null
+                            ? _buildHeader(context, selectedItem)
+                            : FutureBuilder<FileItem>(
+                              future:
+                                  (() async {
+                                    final bookmarkService =
+                                        Provider.of<BookmarkService>(
+                                          context,
+                                          listen: false,
+                                        );
+                                    final bookmarks = bookmarkService.bookmarks;
+                                    final lastPath =
+                                        bookmarkService
+                                            .lastSelectedBookmarkPath;
+                                    if (lastPath != null &&
+                                        bookmarks.isNotEmpty) {
+                                      final b = bookmarks.firstWhere(
+                                        (b) => b.path == lastPath,
+                                        orElse: () => bookmarks.first,
+                                      );
+                                      return FileItem.fromDirectory(
+                                        Directory(b.path),
+                                      );
+                                    }
+                                    if (bookmarks.isNotEmpty) {
+                                      final b = bookmarks.first;
+                                      return FileItem.fromDirectory(
+                                        Directory(b.path),
+                                      );
+                                    }
+                                    return FileItem(
+                                      path: currentPath,
+                                      name: p.basename(currentPath),
+                                      type: FileItemType.directory,
+                                      modifiedTime: DateTime.now(),
+                                      creationTime: DateTime.now(),
+                                      size: 0,
+                                    );
+                                  })(),
+                              builder: (context, snapshot) {
+                                if (!snapshot.hasData) {
+                                  return const SizedBox(height: 56);
+                                }
+                                return _buildHeader(context, snapshot.data!);
+                              },
+                            ),
                         if (isPreviewing)
                           SizedBox(
-                            height: constraints.maxHeight - 60, // leave space for header
+                            height:
+                                constraints.maxHeight -
+                                60, // leave space for header
                             child: Column(
                               children: [
                                 Expanded(
@@ -257,20 +293,52 @@ class _PreviewPanelState extends State<PreviewPanel> {
                             ),
                           )
                         else
-                          _buildDirectoryPreview(
-                            context,
-                            FileItem(
-                              path: currentPath,
-                              name: currentPath
-                                  .split('/')
-                                  .lastWhere(
-                                    (part) => part.isNotEmpty,
-                                    orElse: () => '/',
-                                  ),
-                              type: FileItemType.directory,
-                              modifiedTime: DateTime.now(),
-                              creationTime: DateTime.now(),
-                            ),
+                          FutureBuilder<FileItem>(
+                            future:
+                                (() async {
+                                  final bookmarkService =
+                                      Provider.of<BookmarkService>(
+                                        context,
+                                        listen: false,
+                                      );
+                                  final bookmarks = bookmarkService.bookmarks;
+                                  final lastPath =
+                                      bookmarkService.lastSelectedBookmarkPath;
+                                  if (lastPath != null &&
+                                      bookmarks.isNotEmpty) {
+                                    final b = bookmarks.firstWhere(
+                                      (b) => b.path == lastPath,
+                                      orElse: () => bookmarks.first,
+                                    );
+                                    return FileItem.fromDirectory(
+                                      Directory(b.path),
+                                    );
+                                  }
+                                  if (bookmarks.isNotEmpty) {
+                                    final b = bookmarks.first;
+                                    return FileItem.fromDirectory(
+                                      Directory(b.path),
+                                    );
+                                  }
+                                  return FileItem(
+                                    path: currentPath,
+                                    name: p.basename(currentPath),
+                                    type: FileItemType.directory,
+                                    modifiedTime: DateTime.now(),
+                                    creationTime: DateTime.now(),
+                                  );
+                                })(),
+                            builder: (context, snapshot) {
+                              if (!snapshot.hasData) {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              }
+                              return _buildDirectoryPreview(
+                                context,
+                                snapshot.data!,
+                              );
+                            },
                           ),
                       ],
                     ),
@@ -296,9 +364,9 @@ class _PreviewPanelState extends State<PreviewPanel> {
           colors:
               isDarkMode
                   ? [
-                Color(0xFF23272E).withAlpha(217),
-                Color(0xFF23272E).withAlpha(166),
-              ]
+                    Color(0xFF23272E).withAlpha(217),
+                    Color(0xFF23272E).withAlpha(166),
+                  ]
                   : [Colors.white.withAlpha(217), Colors.white.withAlpha(166)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -344,7 +412,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-                    IconButton(
+          IconButton(
             icon: Icon(Icons.close, size: 18, color: iconColor),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(
@@ -1403,8 +1471,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
 }
 
 // Moved into _PreviewPanelState
-  Widget _buildFolderInfoPage(BuildContext context, FileItem item) {
-
+Widget _buildFolderInfoPage(BuildContext context, FileItem item) {
   Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -1434,49 +1501,54 @@ class _PreviewPanelState extends State<PreviewPanel> {
     );
   }
 
-    return FutureBuilder<_FolderMetaData>(
-      future: _getFolderMetaData(item.path),
-      builder: (context, snapshot) {
-        final meta = snapshot.data;
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Icon(
-                    Icons.folder,
-                    size: 64,
-                    color: Colors.amber.shade700,
+  return FutureBuilder<_FolderMetaData>(
+    future: _getFolderMetaData(item.path),
+    builder: (context, snapshot) {
+      final meta = snapshot.data;
+      return SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Icon(
+                  Icons.folder,
+                  size: 64,
+                  color: Colors.amber.shade700,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
                   ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    const SizedBox(height: 8),
-                    _buildInfoRow('Size', item.formattedSize),
-                    _buildInfoRow('Created', item.formattedCreationTime),
-                    _buildInfoRow('Modified', item.formattedModifiedTime),
-                    if (meta != null) ...[
-                      _buildInfoRow('Permissions', meta.permissions),
-                      _buildInfoRow('Owner', meta.owner),
-                    ]
+                  const SizedBox(height: 8),
+                  _buildInfoRow('Size', item.formattedSize),
+                  _buildInfoRow('Created', item.formattedCreationTime),
+                  _buildInfoRow('Modified', item.formattedModifiedTime),
+                  if (meta != null) ...[
+                    _buildInfoRow('Permissions', meta.permissions),
+                    _buildInfoRow('Owner', meta.owner),
                   ],
-                ),
+                ],
               ),
-              const SizedBox(height: 24),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      );
+    },
+  );
+}
 
 class _FolderMetaData {
   final String permissions;
@@ -1496,9 +1568,11 @@ Future<_FolderMetaData> _getFolderMetaData(String path) async {
 }
 
 Widget _buildSimilarFilesList(BuildContext context, FileItem selectedItem) {
-  final dir = Directory(selectedItem.type == FileItemType.directory
-      ? selectedItem.path
-      : p.dirname(selectedItem.path));
+  final dir = Directory(
+    selectedItem.type == FileItemType.directory
+        ? selectedItem.path
+        : p.dirname(selectedItem.path),
+  );
   return FutureBuilder<List<FileItem>>(
     future: _getLargestFilesInDir(dir.path, exclude: selectedItem.path),
     builder: (context, snapshot) {
@@ -1510,26 +1584,42 @@ Widget _buildSimilarFilesList(BuildContext context, FileItem selectedItem) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Similar Files/Folders', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const Text(
+            'Similar Files/Folders',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
           const SizedBox(height: 8),
-          ...files.map((item) => ListTile(
-                leading: Icon(
-                  item.type == FileItemType.directory ? Icons.folder : Icons.insert_drive_file,
-                  color: item.type == FileItemType.directory ? Colors.amber : Colors.blueAccent,
-                ),
-                title: Text(item.name, overflow: TextOverflow.ellipsis),
-                subtitle: Text(item.formattedSize),
-                onTap: () {
-                  Provider.of<PreviewPanelService>(context, listen: false).setSelectedItem(item);
-                },
-              ))
+          ...files.map(
+            (item) => ListTile(
+              leading: Icon(
+                item.type == FileItemType.directory
+                    ? Icons.folder
+                    : Icons.insert_drive_file,
+                color:
+                    item.type == FileItemType.directory
+                        ? Colors.amber
+                        : Colors.blueAccent,
+              ),
+              title: Text(item.name, overflow: TextOverflow.ellipsis),
+              subtitle: Text(item.formattedSize),
+              onTap: () {
+                Provider.of<PreviewPanelService>(
+                  context,
+                  listen: false,
+                ).setSelectedItem(item);
+              },
+            ),
+          ),
         ],
       );
     },
   );
 }
 
-Future<List<FileItem>> _getLargestFilesInDir(String dirPath, {String? exclude}) async {
+Future<List<FileItem>> _getLargestFilesInDir(
+  String dirPath, {
+  String? exclude,
+}) async {
   try {
     final dir = Directory(dirPath);
     if (!await dir.exists()) return [];
@@ -1539,23 +1629,27 @@ Future<List<FileItem>> _getLargestFilesInDir(String dirPath, {String? exclude}) 
       if (entity.path == exclude) continue;
       final stat = await entity.stat();
       if (entity is File) {
-        items.add(FileItem(
-          path: entity.path,
-          name: p.basename(entity.path),
-          type: FileItemType.file,
-          modifiedTime: stat.modified,
-          creationTime: stat.changed,
-          size: stat.size,
-        ));
+        items.add(
+          FileItem(
+            path: entity.path,
+            name: p.basename(entity.path),
+            type: FileItemType.file,
+            modifiedTime: stat.modified,
+            creationTime: stat.changed,
+            size: stat.size,
+          ),
+        );
       } else if (entity is Directory) {
-        items.add(FileItem(
-          path: entity.path,
-          name: p.basename(entity.path),
-          type: FileItemType.directory,
-          modifiedTime: stat.modified,
-          creationTime: stat.changed,
-          size: null,
-        ));
+        items.add(
+          FileItem(
+            path: entity.path,
+            name: p.basename(entity.path),
+            type: FileItemType.directory,
+            modifiedTime: stat.modified,
+            creationTime: stat.changed,
+            size: null,
+          ),
+        );
       }
     }
     items.sort((a, b) => (b.size ?? 0).compareTo(a.size ?? 0));
@@ -1590,26 +1684,41 @@ Widget _buildDiskStatsPage(BuildContext context) {
                 height: 160,
                 width: 160,
                 child: CustomPaint(
-                  painter: _PieChartPainter(percent: percentItem, strokeWidth: 6),
+                  painter: _PieChartPainter(
+                    percent: percentItem,
+                    strokeWidth: 6,
+                  ),
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
                           '${(percentItem * 100).toStringAsFixed(percentItem < 0.01 ? 4 : 2)}%',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 22,
+                          ),
                         ),
                         const SizedBox(height: 2),
-                        const Text('of Disk', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        const Text(
+                          'of Disk',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
                       ],
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-              _buildDiskStatRow('File/Folder Size', _formatBytes(data.itemSize)),
+              _buildDiskStatRow(
+                'File/Folder Size',
+                _formatBytes(data.itemSize),
+              ),
               _buildDiskStatRow('Disk Total', _formatBytes(data.diskTotal)),
-              _buildDiskStatRow('Disk % Used', '${(percentItem * 100).toStringAsFixed(percentItem < 0.01 ? 4 : 2)}%'),
+              _buildDiskStatRow(
+                'Disk % Used',
+                '${(percentItem * 100).toStringAsFixed(percentItem < 0.01 ? 4 : 2)}%',
+              ),
               const SizedBox(height: 32),
               _buildSimilarFilesList(context, selectedItem),
             ],
@@ -1714,13 +1823,15 @@ class _PieChartPainter extends CustomPainter {
   _PieChartPainter({required this.percent, this.strokeWidth = 14});
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth;
-    final bgPaint = Paint()
-      ..color = Colors.grey.shade300
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth;
+    final paint =
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeWidth;
+    final bgPaint =
+        Paint()
+          ..color = Colors.grey.shade300
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeWidth;
     final rect = Offset.zero & size;
     canvas.drawArc(rect, -1.57, 6.28, false, bgPaint);
     paint.color = Colors.blueAccent;

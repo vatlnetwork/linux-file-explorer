@@ -305,6 +305,7 @@ class BookmarkSidebarState extends State<BookmarkSidebar>
         child: InkWell(
           key: ValueKey('${bookmark.path}_inkwell'),
           onTap: () {
+            Provider.of<BookmarkService>(context, listen: false).lastSelectedBookmarkPath = bookmark.path;
             widget.onNavigate(bookmark.path);
           },
           onSecondaryTapDown: (details) {

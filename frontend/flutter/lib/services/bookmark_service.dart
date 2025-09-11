@@ -7,8 +7,14 @@ import '../models/file_item.dart';
 class BookmarkService extends ChangeNotifier {
   List<BookmarkItem> _bookmarks = [];
   static const String _storageKey = 'file_explorer_bookmarks';
+  String? _lastSelectedBookmarkPath;
 
   List<BookmarkItem> get bookmarks => _bookmarks;
+  String? get lastSelectedBookmarkPath => _lastSelectedBookmarkPath;
+  set lastSelectedBookmarkPath(String? path) {
+    _lastSelectedBookmarkPath = path;
+    notifyListeners();
+  }
 
   // Initialize the service and load bookmarks from storage
   Future<void> init() async {
