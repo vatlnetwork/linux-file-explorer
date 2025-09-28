@@ -18,12 +18,8 @@ class ShortcutsScreen extends StatelessWidget {
             context,
             'Navigation',
             [
-              _buildShortcutItem('Ctrl+Shift+H', 'Toggle Tab Bar'),
               _buildShortcutItem('Ctrl+O', 'Open File'),
               _buildShortcutItem('Ctrl+N', 'New Window'),
-              _buildShortcutItem('Ctrl+W', 'Close Tab'),
-              _buildShortcutItem('Ctrl+Tab', 'Next Tab'),
-              _buildShortcutItem('Ctrl+Shift+Tab', 'Previous Tab'),
             ],
           ),
           const SizedBox(height: 24),
